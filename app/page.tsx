@@ -1,15 +1,27 @@
-import Navbar from "./_components/layout/Navbar";
-import HeroSection from "./_components/layout/home/HeroSection";
-import Footer from "./_components/layout/Footer";
+import ImageStackSlider from "./components/Imagestack";
+import CravingSection from "./home/CravingSection";
+import FeatureCards from "./home/FeatureCards";
+import FeaturedMenu from "./home/FeaturedMenu";
+import HeroSection from "./home/HeroSection";
+import StorySection from "./home/StorySection";
+import PopularKitchen from "./home/ourPopularKitchen";
 
 export default function Home() {
   return (
     <>
-      <Navbar />
-
       <HeroSection />
 
-      <Footer />
+      <StorySection />
+
+      <ImageStackSlider />
+
+      <FeatureCards />
+
+      <CravingSection />
+
+      <FeaturedMenu />
+
+      <PopularKitchen />
     </>
   );
 }

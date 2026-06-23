@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 
 import {
   createOrder,
-  getOrders,
+  getOrdersWithDetails,
   updateOrderStatus,
 } from "@/db/services/orders";
+import { createUser } from "@/db/services/users";
 import type { NewOrder } from "@/db/schemas";
 import { getCurrentUser } from "@/lib/auth";
+import apiRequirePermissions from "@/lib/apiRequirePermissions";
+import { PERMISSIONS } from "@/lib/permissions";
 import type { CartItem } from "@/store/cartStore";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +21,6 @@ type PaymentMethod = (typeof allowedPaymentMethods)[number];
 type OrderPayload = {
   customerName?: string;
   phone?: string;
-  email?: string;
   address?: string;
   paymentMethod?: string;
   total?: number;
@@ -40,7 +42,17 @@ function isPaymentMethod(value: string): value is PaymentMethod {
 
 export async function GET() {
   try {
-    const orders = await getOrders();
+    // RBAC check
+    const user = await apiRequirePermissions(
+      PERMISSIONS.VIEW_ORDERS
+    );
+
+    // apiRequirePermissions returns a response if denied
+    if (user instanceof NextResponse) {
+      return user;
+    }
+
+    const orders = await getOrdersWithDetails();
     return NextResponse.json({ orders });
   } catch (error) {
     console.error("Failed to load orders", error);
@@ -89,16 +101,33 @@ export async function POST(request: Request) {
   }
 
   try {
+    let userId: number | null = null;
     const user = await getCurrentUser();
+
+    if (user) {
+      userId = user.id;
+    } else {
+      const guestId = await createUser({
+        name: customerName,
+        email: null,
+        phone: phone || null,
+        address: address || null,
+        passwordHash: null,
+        roleId: undefined,
+        isGuest: true,
+      });
+      userId = guestId;
+    }
+
     const orderId = await createOrder({
-      userId: user?.id ?? null,
+      userId,
       customerName,
       phone,
       address,
       paymentMethod,
       total: total.toFixed(2),
       items: items.map((item) => ({
-        menuItemId: Number.isInteger(Number(item.id)) ? Number(item.id) : null,
+        menuItemId: null,
         title: item.title,
         quantity: item.quantity,
         price: item.price.toFixed(2),
@@ -120,32 +149,35 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  let payload: UpdateOrderPayload;
-
   try {
-    payload = (await request.json()) as UpdateOrderPayload;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  const id = Number(payload.id);
-  const status = payload.status;
-  const statuses = [
-    "Pending",
-    "Preparing",
-    "Out For Delivery",
-    "Delivered",
-    "Cancelled",
-  ];
-
-  if (!Number.isInteger(id) || !status || !statuses.includes(status)) {
-    return NextResponse.json(
-      { error: "A valid order id and status are required" },
-      { status: 400 },
+    // RBAC check
+    const user = await apiRequirePermissions(
+      PERMISSIONS.UPDATE_ORDERS
     );
-  }
 
-  try {
+    // apiRequirePermissions returns a response if denied
+    if (user instanceof NextResponse) {
+      return user;
+    }
+
+    const payload = (await request.json()) as UpdateOrderPayload;
+    const id = Number(payload.id);
+    const status = payload.status;
+    const statuses = [
+      "Pending",
+      "Preparing",
+      "Out For Delivery",
+      "Delivered",
+      "Cancelled",
+    ];
+
+    if (!Number.isInteger(id) || !status || !statuses.includes(status)) {
+      return NextResponse.json(
+        { error: "A valid order id and status are required" },
+        { status: 400 },
+      );
+    }
+
     await updateOrderStatus(id, status);
     return NextResponse.json({ ok: true });
   } catch (error) {

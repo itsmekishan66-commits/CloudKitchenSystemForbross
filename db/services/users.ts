@@ -1,10 +1,22 @@
 import { asc, eq } from "drizzle-orm";
-
 import { db } from "@/db";
-import { users, type NewUser } from "@/db/schemas";
+import { roles, users, type NewUser } from "@/db/schemas";
+
+export async function getRoleIdByName(name: string) {
+  const [role] = await db
+    .select({ id: roles.id })
+    .from(roles)
+    .where(eq(roles.name, name))
+    .limit(1);
+  return role?.id ?? null;
+}
 
 export async function getUserById(id: number) {
-  const [user] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, id))
+    .limit(1);
   return user ?? null;
 }
 
@@ -18,7 +30,23 @@ export async function getUserByEmail(email: string) {
 }
 
 export async function getUsers() {
-  return db.select().from(users).orderBy(asc(users.name));
+  const result = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      phone: users.phone,
+      address: users.address,
+      roleId: users.roleId,
+      isGuest: users.isGuest,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+      role: roles.name,
+    })
+    .from(users)
+    .leftJoin(roles, eq(users.roleId, roles.id))
+    .orderBy(asc(users.name));
+  return result;
 }
 
 export async function createUser(user: NewUser) {
@@ -28,7 +56,7 @@ export async function createUser(user: NewUser) {
 
 export async function updateUser(
   id: number,
-  user: Partial<Omit<NewUser, "id" | "passwordHash" | "role">>,
+  user: Partial<Omit<NewUser, "id" | "passwordHash" | "roleId">>,
 ) {
   await db.update(users).set(user).where(eq(users.id, id));
 }

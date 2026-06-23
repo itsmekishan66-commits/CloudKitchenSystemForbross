@@ -1,9 +1,12 @@
 import type { MetadataRoute } from "next";
+import { getSiteSettings } from "@/lib/get-site-settings";
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const { siteName } = await getSiteSettings();
+
   return {
-    name: "Mama's Kitchen",
-    short_name: "Mama's Kitchen",
+    name: siteName,
+    short_name: siteName,
     description: "Fresh meals from a cloud kitchen delivered fast.",
     start_url: "/",
     display: "standalone",

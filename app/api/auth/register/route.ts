@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { createUser, getUserByEmail } from "@/db/services";
-import { hashPassword, setSession } from "@/lib/auth";
+import { createUser, getRoleIdByName, getUserByEmail } from "@/db/services";
+import { hashPassword } from "@/lib/auth";
 
 type RegisterPayload = {
   name?: string;
@@ -53,23 +53,16 @@ export async function POST(request: Request) {
     );
   }
 
+  const roleId = await getRoleIdByName(role);
+
   const userId = await createUser({
     name,
     email,
     phone: phone || null,
     address: address || null,
     passwordHash: hashPassword(password),
-    role,
+    roleId: roleId ?? undefined,
   });
 
-  await setSession({ id: userId, role });
-
-  return NextResponse.json({
-    user: {
-      id: userId,
-      name,
-      email,
-      role,
-    },
-  });
+  return NextResponse.json({ ok: true });
 }

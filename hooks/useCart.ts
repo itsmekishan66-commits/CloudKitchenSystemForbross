@@ -9,8 +9,7 @@ export default function useCart() {
   const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
 
   const totalPrice = items.reduce(
-    (acc, item) => acc + item.price * item.quantity,
-    0,
+    (acc, item) => acc + item.price * item.quantity,0
   );
 
   return {

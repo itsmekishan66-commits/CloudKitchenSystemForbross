@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { updateUser } from "@/db/services";
-import { requireUser } from "@/lib/auth";
+import { getCurrentUser, requireUser } from "@/lib/auth";
 
 type ProfilePayload = {
   name?: string;
@@ -11,6 +11,18 @@ type ProfilePayload = {
 
 function clean(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+export async function GET() {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return NextResponse.json({ user: null });
+  }
+
+  return NextResponse.json({
+    user: { id: user.id, name: user.name, email: user.email, phone: user.phone, address: user.address, role: user.role },
+  });
 }
 
 export async function PATCH(request: Request) {

@@ -1,12 +1,19 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+export type Addon = {
+  id?: string;
+  name: string;
+  price: number;
+};
+
 export interface CartItem {
   id: string;
   title: string;
   image: string;
   price: number;
   quantity: number;
+  addons?: Addon[];
 }
 
 interface CartStore {

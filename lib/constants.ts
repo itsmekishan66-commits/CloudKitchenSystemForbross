@@ -11,14 +11,15 @@ export const ORDER_STATUSES = [
 
 export const PAYMENT_METHODS = ["COD", "ONLINE"] as const;
 
-export const USER_ROLES = [
-  "super-admin",
-  "admin",
-  "staff",
-  "customer",
-] as const;
+// this is the code we used for static data before , which is now not useful as we adding roles and permission dynamically
+// export const USER_ROLES = [
+//   "super-admin",
+//   "admin",
+//   "staff",
+//   "customer",
+// ] as const;
 
-export const ADMIN_ROLES = ["super-admin", "admin", "staff"] as const;
+// export const ADMIN_ROLES = ["super-admin", "admin", "staff"] as const;
 
 export const MAX_CART_ITEMS = 50;
 export const MAX_ORDER_QUANTITY = 100;

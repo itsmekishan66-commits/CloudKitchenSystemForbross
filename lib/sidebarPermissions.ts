@@ -1,0 +1,111 @@
+import {
+    LayoutDashboard,
+    ShoppingBag,
+    UtensilsCrossed,
+    Users,
+    UserPlus,
+    Package,
+    CreditCard,
+    LifeBuoy,
+    BarChart3,
+    Megaphone,
+    Settings,
+    ShieldCheck,
+    ClipboardList,
+    Tags,
+    MessageSquare,
+} from "lucide-react";
+import { PERMISSIONS } from "./permissions";
+
+export const sidebarPermissionsItems = [
+    {
+        title: "Dashboard",
+        href: "/dashboard",
+        icon: LayoutDashboard,
+        permission: null,
+    },
+    {
+        title: "Users",
+        href: "/dashboard/customers",
+        icon: Users,
+        permission: PERMISSIONS.VIEW_USERS,
+    },
+    {
+        title: "Guest Users",
+        href: "/dashboard/guest-users",
+        icon: UserPlus,
+        permission: PERMISSIONS.VIEW_GUEST_USERS,
+    },
+    {
+        title: "Kitchen",
+        href: "/dashboard/kitchen",
+        icon: UtensilsCrossed,
+        permission: PERMISSIONS.VIEW_KITCHENS,
+    },
+    {
+        title: "Orders",
+        href: "/dashboard/orders",
+        icon: ShoppingBag,
+        permission: PERMISSIONS.VIEW_ORDERS,
+    },
+    {
+        title: "Menu",
+        href: "/dashboard/menu",
+        icon: ClipboardList,
+        permission: PERMISSIONS.VIEW_MENUS,
+    },
+    {
+        title: "Categories",
+        href: "/dashboard/categories",
+        icon: Tags,
+        permission: PERMISSIONS.VIEW_CATEGORIES,
+    },
+    {
+        title: "Inventory",
+        href: "/dashboard/inventory",
+        icon: Package,
+        permission: PERMISSIONS.VIEW_INVENTORY,
+    },
+    {
+        title: "Payment",
+        href: "/dashboard/payment",
+        icon: CreditCard,
+        permission: PERMISSIONS.VIEW_PAYMENTS,
+    },
+    {
+        title: "Support",
+        href: "/dashboard/support",
+        icon: LifeBuoy,
+        permission: PERMISSIONS.VIEW_SUPPORTS,
+    },
+    {
+        title: "Reports",
+        href: "/dashboard/reports",
+        icon: BarChart3,
+        permission: PERMISSIONS.VIEW_REPORTS,
+    },
+    {
+        title: "Promotions",
+        href: "/dashboard/promotions",
+        icon: Megaphone,
+        permission: PERMISSIONS.VIEW_PROMOTIONS,
+    },
+    {
+        title: "Settings",
+        href: "/dashboard/settings",
+        icon: Settings,
+        permission: PERMISSIONS.VIEW_SETTINGS,
+    },
+    {
+        title: "Roles & Permissions",
+        href: "/dashboard/roles",
+        icon: ShieldCheck,
+        permission: PERMISSIONS.VIEW_ROLES,
+    },
+    {
+        title: "Messages",
+        href: "/dashboard/messages",
+        icon: MessageSquare,
+        permission: PERMISSIONS.VIEW_MESSAGES,
+    },
+]

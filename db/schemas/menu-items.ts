@@ -2,6 +2,7 @@ import {
   boolean,
   decimal,
   int,
+  json,
   mysqlTable,
   text,
   timestamp,
@@ -24,6 +25,8 @@ export const menuItems = mysqlTable("menu_items", {
   rating: decimal("rating", { precision: 3, scale: 2 }).notNull().default("0"),
   reviews: int("reviews").notNull().default(0),
   isAvailable: boolean("is_available").notNull().default(true),
+  addons: json("addons"),
+  discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
 });

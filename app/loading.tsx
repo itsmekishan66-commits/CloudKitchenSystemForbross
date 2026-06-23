@@ -1,11 +1,7 @@
 export default function Loading() {
   return (
-    <main className="min-h-screen px-6 py-24">
-      <div className="mx-auto max-w-4xl animate-pulse space-y-6">
-        <div className="h-8 w-48 rounded bg-gray-200" />
-        <div className="h-40 rounded bg-gray-200" />
-        <div className="h-40 rounded bg-gray-200" />
-      </div>
-    </main>
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="h-12 w-12 animate-spin rounded-full border-4 border-orange-200 border-t-orange-500"></div>
+    </div>
   );
 }

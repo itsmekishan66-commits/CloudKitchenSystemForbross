@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { sendContactMessage } from "@/lib/email";
+import { createContactMessage } from "@/db/services/contact-messages";
 
 type ContactPayload = {
   email?: string;
@@ -37,17 +38,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    await sendContactMessage({
-      name,
-      email,
-      phone,
-      subject,
-      message,
-    });
+    await createContactMessage({ name, email, phone, subject, message, source: "contact" });
+
+    // Email is best-effort; don't block the response if it fails
+    sendContactMessage({ name, email, phone, subject, message }).catch((err) =>
+      console.error("Email send failed (non-blocking)", err),
+    );
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("Failed to send contact message", error);
+    console.error("Failed to save contact message", error);
     return NextResponse.json(
       { error: "Unable to send your message right now" },
       { status: 500 },

@@ -1,5 +1,19 @@
 import nodemailer from "nodemailer";
 
+let cachedSiteName: string | null = null;
+
+async function getSiteName(): Promise<string> {
+  if (cachedSiteName) return cachedSiteName;
+  try {
+    const { getSiteSettings } = await import("@/db/services/site-settings");
+    const settings = await getSiteSettings();
+    cachedSiteName = settings?.siteName ?? "Cloud Kitchen";
+  } catch {
+    cachedSiteName = "Cloud Kitchen";
+  }
+  return cachedSiteName;
+}
+
 type ContactMessage = {
   email: string;
   message: string;
@@ -42,7 +56,7 @@ export async function sendContactMessage(message: ContactMessage) {
     from,
     to,
     replyTo: message.email,
-    subject: `Mama's Kitchen: ${message.subject}`,
+    subject: `${await getSiteName()}: ${message.subject}`,
     text: [
       `Name: ${message.name}`,
       `Email: ${message.email}`,

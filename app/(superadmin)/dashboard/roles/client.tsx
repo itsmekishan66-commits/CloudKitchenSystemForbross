@@ -1,11 +1,12 @@
 "use client";
-import { CircleArrowDown } from "lucide-react";
+// import { CircleArrowDown } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createRoleWithPermissionsAction , deleteUserAction, getRolePermissionsAction, updateRolePermissionsAction} from "@/app/(superadmin)/_action/roles";
 //static code for RBAc gareko bela ko ho
 // import { createRoleWithPermissionsAction, updateRolePermissionsAction, deleteUserAction, getRolePermissionsAction } from "@/app/(superadmin)/_action/roles";
 
 import toast from "react-hot-toast";
+import { usePermissions } from "@/lib/permission-context";
 
 interface User {
   id: number;
@@ -17,6 +18,8 @@ interface User {
 }
 
 export default function RolesClient() {
+  const permissions = usePermissions();
+  const can = (p: string) => permissions.includes(p);
   const [showCreateRole, setShowCreateRole] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,28 +32,15 @@ export default function RolesClient() {
   const [userPhone, setUserPhone] = useState("");
   const [userAddress, setUserAddress] = useState("");
   const [userPassword, setUserPassword] = useState("");
-  const [open, setOpen] = useState(false);
-  const [downloadType, setDownloadType] = useState("");
+  
+  //to download the file
+  // const [open, setOpen] = useState(false);
+  //  const handleDownload = (type: string) => {
+  //   if (type) {
+  //     window.open(`/api/exports/${type}`, "_blank");
+  //   }
+  // };
 
-  const handleDownload = (value: string) => {
-    setDownloadType(value);
-    switch (value) {
-      case "pdf":
-        window.location.href = "/api/download/pdf";
-        console.log("pdf downloaded");
-        break;
-
-      case "csv":
-        window.location.href = "/api/download/csv";
-        console.log("csv downloaded");
-        break;
-
-      case "excel":
-        window.location.href = "/api/download/excel";
-        console.log("excel downloaded");
-        break;
-    }
-  };
 
 
   // creates a new role with permissions and assigns it to a new user
@@ -217,14 +207,16 @@ export default function RolesClient() {
           className="w-full rounded-lg border border-gray-300 px-6 py-4 text-sm outline-none focus:border-orange-500"
         />
         <div className="flex items-center justify-end gap-4">
-          <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
-            <select value={downloadType} onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+          {/* <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+            <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
               <option className="text-black" value="pdf">PDF</option>
               <option className="text-black" value="csv">CSV</option>
               <option className="text-black" value="excel">Excel</option>
             </select>
-          </button>
+          </button> */}
+          {can("CREATE_ROLES") && (
           <button onClick={openCreate} className="rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600 cursor-pointer whitespace-nowrap">+ Add Roles</button>
+          )}
         </div>
       </div>
 
@@ -271,7 +263,7 @@ export default function RolesClient() {
                   <td className="p-4">
                     {user.role === "super-admin" ? (
                       <span className="text-sm text-gray-400 italic">Cannot change</span>
-                    ) : (
+                    ) : can("UPDATE_ROLES") ? (
                       <select
                         key={`${user.id}-${user.role}`}
                         defaultValue={user.role}
@@ -297,11 +289,15 @@ export default function RolesClient() {
                         <option value="admin">Admin</option>
                         <option value="super-admin">Super Admin</option>
                       </select>
+                    ) : (
+                      <span className={`rounded-full px-3 py-1 text-sm ${roleColors[user.role] ?? "bg-gray-200 text-gray-700"}`}>
+                        {user.role}
+                      </span>
                     )}
                   </td>
                   <td className="p-4">
                     <div className="flex gap-2">
-                      {/* opens the edit permissions modal for this user's role */}
+                      {can("UPDATE_ROLES") && (
                       <button
                         onClick={() => {
                           setEditUser(user);
@@ -311,13 +307,15 @@ export default function RolesClient() {
                       >
                         Edit
                       </button>
-                      {/* opens delete confirmation for this user */}
+                      )}
+                      {can("DELETE_ROLES") && (
                       <button
                         onClick={() => setDeleteTarget(user)}
                         className="rounded-lg bg-red-500 px-3 py-1 text-xs text-white hover:bg-red-600"
                       >
                         Delete
                       </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -397,32 +395,30 @@ export default function RolesClient() {
                       </h4>
 
                       <div className="grid grid-cols-2 gap-2">
-                        {[
-                          "View",
-                          "Add",
-                          "Update",
-                          "Delete",
-                          "Export",
-                        ].map((permission) => (
+                        {([
+                          ["View", "VIEW"],
+                          ["Add", "CREATE"],
+                          ["Update", "UPDATE"],
+                          ["Delete", "DELETE"],
+                          ["Export", "DOWNLOAD"],
+                        ] as [string, string][]).map(([label, permPrefix]) => (
                           <label
-                            key={permission}
+                            key={label}
                             className={`rounded-full p-3 flex items-center gap-2 text-sm ${moduleChechboxColors[module]}`}
                           >
                             <input
                               type="checkbox"
                               className="h-4 w-4"
                               onChange={(e) => {
-                                const permissions = `${permission.toUpperCase()}_${dbModule}`
+                                const permName = `${permPrefix}_${dbModule}`
                                 if (e.target.checked) {
-                                  setSelectedPermissions((prev) => [...prev, permissions]);
+                                  setSelectedPermissions((prev) => [...prev, permName]);
                                 } else {
-                                  setSelectedPermissions((prev) => prev.filter((p) => p !== permissions));
+                                  setSelectedPermissions((prev) => prev.filter((p) => p !== permName));
                                 }
-                                console.log(permissions)
-                              }
-                              }
+                              }}
                             />
-                            {permission}
+                            {label}
                           </label>
 
                         ))}
@@ -521,10 +517,16 @@ export default function RolesClient() {
                     <div key={module} className={`rounded-xl border p-4 ${moduleBgColors[module]}`}>
                       <h4 className="mb-3 font-semibold">{module}</h4>
                       <div className="grid grid-cols-2 gap-2">
-                        {["View", "Add", "Update", "Delete", "Export"].map((permission) => {
-                          const permName = `${permission.toUpperCase()}_${dbModule}`;
+                        {([
+                          ["View", "VIEW"],
+                          ["Add", "CREATE"],
+                          ["Update", "UPDATE"],
+                          ["Delete", "DELETE"],
+                          ["Export", "DOWNLOAD"],
+                        ] as [string, string][]).map(([label, permPrefix]) => {
+                          const permName = `${permPrefix}_${dbModule}`;
                           return (
-                            <label key={permission} className={`rounded-full p-3 flex items-center gap-2 text-sm ${moduleChechboxColors[module]}`}>
+                            <label key={label} className={`rounded-full p-3 flex items-center gap-2 text-sm ${moduleChechboxColors[module]}`}>
                               <input
                                 type="checkbox"
                                 className="h-4 w-4"
@@ -537,7 +539,7 @@ export default function RolesClient() {
                                   }
                                 }}
                               />
-                              {permission}
+                              {label}
                             </label>
                           );
                         })}

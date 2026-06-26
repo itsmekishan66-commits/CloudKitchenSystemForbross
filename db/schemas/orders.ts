@@ -1,4 +1,5 @@
 import {
+  boolean,
   decimal,
   int,
   json,
@@ -32,6 +33,7 @@ export const orders = mysqlTable("orders", {
     .notNull()
     .default("Pending"),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  paymentSettled: boolean("payment_settled").default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
 });

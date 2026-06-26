@@ -1,5 +1,5 @@
 "use client";
-import { CircleArrowDown } from "lucide-react";
+// import { CircleArrowDown } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   User,
@@ -9,6 +9,7 @@ import {
   MapPin,
   ImageIcon,
 } from "lucide-react";
+import { usePermissions } from "@/lib/permission-context";
 
 const cardClass =
   "bg-white rounded-2xl shadow-sm border border-gray-100 p-6";
@@ -17,6 +18,8 @@ const inputClass =
   "w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100";
 
 export default function SettingsClient() {
+  const permissions = usePermissions();
+  const can = (p: string) => permissions.includes(p);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -50,28 +53,14 @@ export default function SettingsClient() {
   const [hoursWeekday, setHoursWeekday] = useState("");
   const [hoursSaturday, setHoursSaturday] = useState("");
   const [hoursSunday, setHoursSunday] = useState("");
-  const [open, setOpen] = useState(false);
-  const [downloadType, setDownloadType] = useState("");
-
-  const handleDownload = (value: string) => {
-    setDownloadType(value);
-    switch (value) {
-      case "pdf":
-        window.location.href = "/api/download/pdf";
-        console.log("pdf downloaded");
-        break;
-
-      case "csv":
-        window.location.href = "/api/download/csv";
-        console.log("csv downloaded");
-        break;
-
-      case "excel":
-        window.location.href = "/api/download/excel";
-        console.log("excel downloaded");
-        break;
-    }
-  };
+  
+  //to download the file
+  // const [open, setOpen] = useState(false);
+  //  const handleDownload = (type: string) => {
+  //   if (type) {
+  //     window.open(`/api/exports/${type}`, "_blank");
+  //   }
+  // };
 
 
   useEffect(() => {
@@ -246,13 +235,14 @@ export default function SettingsClient() {
             </p>
           </div>
           <div className="flex items-center justify-end gap-4">
-            <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
-              <select value={downloadType} onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+            {/* <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+              <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+                <option className="text-black" value="">Export</option>
                 <option className="text-black" value="pdf">PDF</option>
                 <option className="text-black" value="csv">CSV</option>
                 <option className="text-black" value="excel">Excel</option>
               </select>
-            </button>
+            </button> */}
           </div>
         </div>
 
@@ -382,6 +372,7 @@ export default function SettingsClient() {
         </div>
 
         {/* Sticky Save Button */}
+        {can("UPDATE_SETTINGS") && (
         <div className="sticky bottom-5 mt-8 flex justify-end">
           <button
             onClick={handleSave}
@@ -391,6 +382,7 @@ export default function SettingsClient() {
             {saving ? "Saving..." : "Save All Changes"}
           </button>
         </div>
+        )}
 
       </div>
     </>

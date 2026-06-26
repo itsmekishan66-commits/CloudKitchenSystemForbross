@@ -23,57 +23,21 @@ export default function CravingsSection() {
   }, []);
 
   return (
-    <section className="bg-white py-20 overflow-x">
+    <section className="bg-white py-10 overflow-x">
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex justify-between items-center">
           <h2 className="text-4xl font-bold">Cravings</h2>
 
-          <button
-            className="
-            border
-            border-red-900
-            text-red-900
-            hover:bg-red-900
-           hover:text-white
-            cursor-pointer
-            px-8
-            py-3
-            rounded-full
-          "
-          >
-            <Link href="/menu">
-              View All
-            </Link>
+          <button className="border border-red-900 text-red-900 hover:bg-red-900 hover:text-white cursor-pointer px-8 py-3
+            rounded-full">
+            <Link href="/menu"> View All </Link>
           </button>
         </div>
 
-        <div
-          className="
-          mt-12
-          flex
-          gap-10
-          overflow-x-auto
-          flex-nowrap
-          pb-4
-          no-scrollbar
-        "
-        >
+        <div className="mt-12 flex gap-5 md:gap-10 overflow-x-auto flex-nowrap pb-4 no-scrollbar">
           {categories.length > 0 ? categories.map((category) => (
             <div key={category.id} className="text-center cursor-pointer">
-              <div
-                className="
-                h-40
-                w-40
-                rounded-full
-                bg-gray-100
-                flex
-                items-center
-                justify-center
-                mx-auto
-                hover:scale-110
-                transition
-              "
-              >
+              <div className="h-40 w-40 rounded-full bg-gray-100 flex items-center justify-center mx-auto hover:scale-110 transition">
                 <Image
                   src={category.image || "/categories/default.jpg"}
                   alt={category.name}

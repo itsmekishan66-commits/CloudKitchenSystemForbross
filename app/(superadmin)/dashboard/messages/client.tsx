@@ -1,9 +1,10 @@
 "use client";
-import { CircleArrowDown } from "lucide-react";
+// import { CircleArrowDown } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FiTrash2, FiMail, FiPhone, FiMessageSquare } from "react-icons/fi";
 // import { FiRefreshCw } from "react-icons/fi";
 import toast from "react-hot-toast";
+import { usePermissions } from "@/lib/permission-context";
 
 interface Message {
   id: number;
@@ -22,30 +23,19 @@ const sourceBadge: Record<string, string> = {
 };
 
 export default function MessagesClient() {
+  const permissions = usePermissions();
+  const can = (p: string) => permissions.includes(p);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
-  const [downloadType, setDownloadType] = useState("");
 
-  const handleDownload = (value: string) => {
-    setDownloadType(value);
-    switch (value) {
-      case "pdf":
-        window.location.href = "/api/download/pdf";
-        console.log("pdf downloaded");
-        break;
+  //to download the file
+  // const [open, setOpen] = useState(false);
+  //  const handleDownload = (type: string) => {
+  //   if (type) {
+  //     window.open(`/api/exports/${type}`, "_blank");
+  //   }
+  // };
 
-      case "csv":
-        window.location.href = "/api/download/csv";
-        console.log("csv downloaded");
-        break;
-
-      case "excel":
-        window.location.href = "/api/download/excel";
-        console.log("excel downloaded");
-        break;
-    }
-  };
 
 
   const fetchMessages = async () => {
@@ -99,13 +89,14 @@ export default function MessagesClient() {
           </p>
         </div>
         <div className="flex items-center justify-end gap-4">
-          <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
-            <select value={downloadType} onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+          {/* <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+            <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+              <option className="text-black" value="">Export</option>
               <option className="text-black" value="pdf">PDF</option>
               <option className="text-black" value="csv">CSV</option>
               <option className="text-black" value="excel">Excel</option>
             </select>
-          </button>
+          </button> */}
         </div>
         {/* <button
           onClick={fetchMessages}
@@ -170,6 +161,7 @@ export default function MessagesClient() {
                   )}
                 </div>
 
+                {can("DELETE_MESSAGES") && (
                 <button
                   onClick={() => handleDelete(msg.id)}
                   className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition ml-4"
@@ -177,6 +169,7 @@ export default function MessagesClient() {
                 >
                   <FiTrash2 size={18} />
                 </button>
+                )}
               </div>
             </div>
           ))}

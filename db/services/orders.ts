@@ -30,6 +30,7 @@ export async function getOrdersWithDetails() {
       paymentMethod: orders.paymentMethod,
       status: orders.status,
       total: orders.total,
+      paymentSettled: orders.paymentSettled,
       createdAt: orders.createdAt,
       updatedAt: orders.updatedAt,
       userEmail: users.email,
@@ -38,6 +39,9 @@ export async function getOrdersWithDetails() {
     .from(orders)
     .leftJoin(users, eq(orders.userId, users.id))
     .orderBy(desc(orders.createdAt));
+
+
+    //N+1 query problem
 
   const ordersWithItems = await Promise.all(
     rawOrders.map(async (row) => {
@@ -102,6 +106,10 @@ export async function updateOrderStatus(
   status: NewOrder["status"],
 ) {
   await db.update(orders).set({ status }).where(eq(orders.id, id));
+}
+
+export async function markOrderPaymentSettled(id: number) {
+  await db.update(orders).set({ paymentSettled: true }).where(eq(orders.id, id));
 }
 
 export async function getUserOrdersWithItems(userId: number) {

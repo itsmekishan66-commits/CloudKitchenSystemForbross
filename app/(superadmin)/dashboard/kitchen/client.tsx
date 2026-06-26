@@ -1,6 +1,7 @@
 "use client";
-import { CircleArrowDown } from "lucide-react";
+// import { CircleArrowDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { usePermissions } from "@/lib/permission-context";
 
 interface Kitchen {
   id: number;
@@ -27,6 +28,8 @@ interface KitchenForm {
 const emptyForm: KitchenForm = { name: "", slug: "", location: "", phone: "", email: "", managerName: "", isActive: true };
 
 export default function KitchenClient() {
+  const permissions = usePermissions();
+  const can = (p: string) => permissions.includes(p);
   const [kitchens, setKitchens] = useState<Kitchen[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -35,28 +38,14 @@ export default function KitchenClient() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
-  const [downloadType, setDownloadType] = useState("");
-
-  const handleDownload = (value: string) => {
-    setDownloadType(value);
-    switch (value) {
-      case "pdf":
-        window.location.href = "/api/download/pdf";
-        console.log("pdf downloaded");
-        break;
-
-      case "csv":
-        window.location.href = "/api/download/csv";
-        console.log("csv downloaded");
-        break;
-
-      case "excel":
-        window.location.href = "/api/download/excel";
-        console.log("excel downloaded");
-        break;
-    }
-  };
+  
+  //to download the file
+  // const [open, setOpen] = useState(false);
+  //  const handleDownload = (type: string) => {
+  //   if (type) {
+  //     window.open(`/api/exports/${type}`, "_blank");
+  //   }
+  // };
 
 
   const filteredKitchens = useMemo(() => {
@@ -169,14 +158,15 @@ if (loading) {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Kitchens</h1>
         <div className="flex items-center justify-end gap-4">
-          <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
-            <select value={downloadType} onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+          {/* <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+            <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+              <option className="text-black" value="">Export</option>
               <option className="text-black" value="pdf">PDF</option>
               <option className="text-black" value="csv">CSV</option>
               <option className="text-black" value="excel">Excel</option>
             </select>
-          </button>
-          <button onClick={openCreate} className="rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600">+ Add Kitchen</button>
+          </button> */}
+          {can("CREATE_KITCHENS") && <button onClick={openCreate} className="rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600">+ Add Kitchen</button>}
         </div>
       </div>
 
@@ -220,8 +210,8 @@ if (loading) {
                     </span>
                   </td>
                   <td className="p-4">
-                    <button onClick={() => openEdit(kitchen)} className="mr-2 rounded bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600">Edit</button>
-                    <button onClick={() => handleDelete(kitchen.id)} className="rounded bg-red-500 px-3 py-1 text-white text-sm hover:bg-red-600">Delete</button>
+                    {can("UPDATE_KITCHENS") && <button onClick={() => openEdit(kitchen)} className="mr-2 rounded bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600">Edit</button>}
+                    {can("DELETE_KITCHENS") && <button onClick={() => handleDelete(kitchen.id)} className="rounded bg-red-500 px-3 py-1 text-white text-sm hover:bg-red-600">Delete</button>}
                   </td>
                 </tr>
               ))

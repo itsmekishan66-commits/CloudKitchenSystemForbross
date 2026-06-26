@@ -95,9 +95,7 @@ export const rolePermissions: Record<Role, Permission[]> = {
 
     [ROLES.STAFF]: [
         PERMISSIONS.VIEW_DASHBOARD,
-        PERMISSIONS.VIEW_REPORTS,
         PERMISSIONS.VIEW_PAYMENTS,
-        PERMISSIONS.VIEW_CATEGORIES,
         PERMISSIONS.VIEW_MENUS,
         PERMISSIONS.VIEW_INVENTORY,
     ],
@@ -135,8 +133,6 @@ export const rolePermissions: Record<Role, Permission[]> = {
         PERMISSIONS.VIEW_SUPPORTS,
         PERMISSIONS.CREATE_SUPPORTS,
         PERMISSIONS.UPDATE_SUPPORTS,
-
-        PERMISSIONS.VIEW_REPORTS,
     ],
 
     [ROLES.CUSTOMER]: [],

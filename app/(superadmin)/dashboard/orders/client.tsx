@@ -1,6 +1,7 @@
 "use client";
-import { CircleArrowDown } from "lucide-react";
+// import { CircleArrowDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { usePermissions } from "@/lib/permission-context";
 import OrdersTable from "../../_components/OrdersTable";
 
 interface OrderItem {
@@ -21,6 +22,7 @@ interface Order {
   paymentMethod: string;
   total: string;
   status: string;
+  paymentSettled?: number | null;
   createdAt: Date | string;
   items: OrderItem[];
 }
@@ -30,28 +32,14 @@ export default function OrdersClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
-  const [downloadType, setDownloadType] = useState("");
-
-  const handleDownload = (value: string) => {
-    setDownloadType(value);
-    switch (value) {
-      case "pdf":
-        window.location.href = "/api/download/pdf";
-        console.log("pdf downloaded");
-        break;
-
-      case "csv":
-        window.location.href = "/api/download/csv";
-        console.log("csv downloaded");
-        break;
-
-      case "excel":
-        window.location.href = "/api/download/excel";
-        console.log("excel downloaded");
-        break;
-    }
-  };
+  
+  //to download the file
+  // const [open, setOpen] = useState(false);
+  //  const handleDownload = (type: string) => {
+  //   if (type) {
+  //     window.open(`/api/exports/${type}`, "_blank");
+  //   }
+  // };
 
 
   const filteredOrders = useMemo(() => {
@@ -94,13 +82,14 @@ export default function OrdersClient() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Orders</h1>
         <div className="flex items-center justify-end gap-4">
-          <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
-            <select value={downloadType} onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+          {/* <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+            <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+              <option className="text-black" value="">Export</option>
               <option className="text-black" value="pdf">PDF</option>
               <option className="text-black" value="csv">CSV</option>
               <option className="text-black" value="excel">Excel</option>
             </select>
-          </button>
+          </button> */}
         </div>
       </div>
       <div className="mb-4">

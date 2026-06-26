@@ -1,6 +1,7 @@
 "use client";
 import { CircleArrowDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { usePermissions } from "@/lib/permission-context";
 
 interface GuestUser {
   id: number;
@@ -13,33 +14,20 @@ interface GuestUser {
 }
 
 export default function GuestUsersClient() {
+  const permissions = usePermissions();
+  const can = (p: string) => permissions.includes(p);
   const [users, setUsers] = useState<GuestUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+
+  //to download the file
   const [open, setOpen] = useState(false);
-  const [downloadType, setDownloadType] = useState("");
-
-  const handleDownload = (value: string) => {
-    setDownloadType(value);
-    switch (value) {
-      case "pdf":
-        window.location.href = "/api/download/pdf";
-        console.log("pdf downloaded");
-        break;
-
-      case "csv":
-        window.location.href = "/api/download/csv";
-        console.log("csv downloaded");
-        break;
-
-      case "excel":
-        window.location.href = "/api/download/excel";
-        console.log("excel downloaded");
-        break;
+   const handleDownload = (type: string) => {
+    if (type) {
+      window.open(`/api/exports/${type}?source=guest-users`, "_blank");
     }
   };
-
 
   const filteredUsers = useMemo(() => {
     if (!search.trim()) return users;
@@ -85,13 +73,16 @@ export default function GuestUsersClient() {
           </p>
         </div>
         <div className="flex items-center justify-end gap-4">
+          {can("DOWNLOAD_GUEST_USERS") && (
           <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
-            <select value={downloadType} onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+            <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+              <option className="text-black" value="">Export</option>
               <option className="text-black" value="pdf">PDF</option>
               <option className="text-black" value="csv">CSV</option>
               <option className="text-black" value="excel">Excel</option>
             </select>
           </button>
+          )}
           <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600">
             Total: {users.length}
           </span>

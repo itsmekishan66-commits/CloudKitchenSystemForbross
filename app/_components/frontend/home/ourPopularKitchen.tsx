@@ -1,7 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
 
 export default function PopularKitchens() {
   const [siteName, setSiteName] = useState("Cloud Kitchen");
@@ -12,7 +14,7 @@ export default function PopularKitchens() {
       .then((data) => {
         if (!data.error && data.siteName) setSiteName(data.siteName);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const kitchens = [
@@ -41,35 +43,104 @@ export default function PopularKitchens() {
         "https://images.unsplash.com/photo-1557872943-16a5ac26437e?w=800",
     },
   ];
-  
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const touchX = useRef(0);
+
+  const goNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev + 1) % kitchens.length);
+  }, [kitchens.length]);
+
+  const goPrev = useCallback(() => {
+    setCurrentIndex((prev) => (prev - 1 + kitchens.length) % kitchens.length);
+  }, [kitchens.length]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const diff = touchX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) goNext();
+      else goPrev();
+    }
+  };
+
+  const current = kitchens[currentIndex];
 
   // this is the function that will be called when the user clicks the button
   return (
 
-    <section className="bg-[#f5f5f5] py-16">
+    <section className="bg-[#f5f5f5] py-8 md:py-16">
 
       <div className="max-w-7xl mx-auto px-6">
 
         {/* Popular Kitchens */}
         <div>
-          <div className="flex justify-between items-center mb-10">
-            <div>
-              <h2 className="text-4xl font-bold text-gray-900">
-                Our Popular Kitchens
-              </h2>
+          <div className="text-center mb-10">
+            <p className="text-red-800 mt-2">
+              Crafted by culinary masters for your convenience.
+            </p>
+            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-4">
+              Our Popular Kitchens
+            </h2>
 
-              <p className="text-red-800 mt-2">
-                Crafted by culinary masters for your convenience.
-              </p>
-            </div>
-
-            <button className="text-red-900 font-semibold hover:underline">
-              View All Kitchens
-            </button>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Mobile carousel */}
+          <div className="md:hidden relative" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+            {current && (
+              <div
+                key={current.name}
+                className="bg-white rounded-2xl overflow-hidden shadow-md"
+              >
+                <div className="relative h-52">
+                  <Image
+                    src={current.image}
+                    alt={current.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div className="p-5">
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    {current.name}
+                  </h3>
+                  <p className="text-red-700 text-xs font-semibold tracking-widest mt-1">
+                    {current.category}
+                  </p>
+                </div>
+              </div>
+            )}
 
+            <button
+              onClick={goPrev}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow flex items-center justify-center hover:bg-white transition"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <button
+              onClick={goNext}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow flex items-center justify-center hover:bg-white transition"
+            >
+              <ChevronRight size={20} />
+            </button>
+
+            <div className="flex justify-center gap-2 mt-6">
+              {kitchens.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentIndex(i)}
+                  className={`w-2.5 h-2.5 rounded-full transition ${i === currentIndex ? "bg-red-900" : "bg-gray-300"
+                    }`}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Desktop grid */}
+          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {kitchens.map((kitchen) => (
               <div
                 key={kitchen.name}
@@ -95,7 +166,12 @@ export default function PopularKitchens() {
                 </div>
               </div>
             ))}
+          </div>
 
+          <div className="text-center mt-6 md:mt-14">
+            <Link href="/menu" className="inline-block border border-red-900 text-red-900 px-10 py-4 rounded-full hover:bg-red-900 hover:text-white transition">
+              View All Kitchens
+            </Link>
           </div>
         </div>
 

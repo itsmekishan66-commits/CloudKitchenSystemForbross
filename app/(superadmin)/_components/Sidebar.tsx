@@ -122,9 +122,10 @@ const menuItems = [
 
 type SidebarProps = {
   role: string;
+  userPermissions: string[];
 };
 
-export default function Sidebar({ role }: SidebarProps) {
+export default function Sidebar({ role, userPermissions }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [siteName, setSiteName] = useState("Cloud Kitchen");
@@ -148,13 +149,16 @@ export default function Sidebar({ role }: SidebarProps) {
     }, 400);
   };
 
-  // Filter menu items based on permissions
+  // Filter menu items based on permissions — DB first, fallback to static RBAC
   const filteredMenuItems = menuItems.filter((item) => {
     if (!item.permission) {
       return true;
     }
 
-    return hasPermission(role as Role, item.permission);
+    const useDb = userPermissions.length > 0;
+    return useDb
+      ? userPermissions.includes(item.permission)
+      : hasPermission(role as Role, item.permission);
   });
 
   return (
@@ -162,7 +166,7 @@ export default function Sidebar({ role }: SidebarProps) {
       className="fixed left-0 top-0 h-screen w-72 bg-white border-r border-gray-200 flex flex-col shadow-sm">
       {/* Logo */}
       <div className="p-6 border-b border-gray-100">
-        <h1 className="text-2xl font-bold text-red-700">
+        <h1 className="text-2xl font-bold text-orange-400">
           {siteName}
         </h1>
 
@@ -193,7 +197,7 @@ export default function Sidebar({ role }: SidebarProps) {
                 text-sm font-medium
                 transition-all duration-200
                 ${isActive
-                  ? "bg-red-700 text-white shadow-md"
+                  ? "bg-orange-300 text-black shadow-md"
                   : "text-gray-700 hover:bg-red-50 hover:text-orange-400"
                 }
               `}

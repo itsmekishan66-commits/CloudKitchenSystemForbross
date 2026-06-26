@@ -41,10 +41,11 @@ interface DashboardClientProps {
 }
 
 export default function DashboardClient({ allowedModules }: DashboardClientProps) {
-// export default function DashboardClient() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [siteName, setSiteName] = useState("Cloud Kitchen");
+
+  const can = (module: string) => allowedModules.includes(module);
 
   useEffect(() => {
     fetch("/api/site-settings")
@@ -67,10 +68,10 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
 
   const statCards = stats
     ? [
-      { title: "Total Orders", value: stats.totalOrders.toLocaleString(), growth: `${stats.pendingOrders} pending`, icon: ShoppingBag },
-      { title: "Revenue", value: `Rs.${(stats.revenue / 1000).toFixed(1)}K`, growth: "Total revenue", icon: IndianRupee },
-      { title: "Customers", value: stats.totalCustomers.toLocaleString(), growth: "Registered users", icon: Users },
-      { title: "Active Kitchens", value: stats.activeKitchens.toString(), growth: "Currently active", icon: UtensilsCrossed },
+      { title: "Total Orders", value: stats.totalOrders.toLocaleString(), growth: `${stats.pendingOrders} pending`, icon: ShoppingBag, module: "/dashboard/orders" },
+      { title: "Revenue", value: `Rs.${(stats.revenue / 1000).toFixed(1)}K`, growth: "Total revenue", icon: IndianRupee, module: "/dashboard/payment" },
+      { title: "Customers", value: stats.totalCustomers.toLocaleString(), growth: "Registered users", icon: Users, module: "/dashboard/customers" },
+      { title: "Active Kitchens", value: stats.activeKitchens.toString(), growth: "Currently active", icon: UtensilsCrossed, module: "/dashboard/kitchen" },
     ]
     : [];
 
@@ -115,19 +116,19 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
 
   return (
     <div className="min-h-screen bg-linear-to-br from-orange-50 via-white to-red-50 p-6 no-scrollbar">
-      <div className="rounded-3xl bg-red-700 p-8 text-white shadow-2xl">
+      <div className="rounded-3xl bg-orange-300 p-8 text-black shadow-2xl">
         <h1 className="text-4xl font-bold">{siteName} Command Center</h1>
-        <p className="mt-3 max-w-3xl text-white/90">
+        <p className="mt-3 max-w-3xl text-black/90">
           Monitor orders, kitchens, inventory, payments, customers, staff, and business performance from a single powerful dashboard.
         </p>
         <div className="mt-6 flex gap-3 flex-wrap">
-          <Link href="/dashboard/reports" className="rounded-xl bg-white px-5 py-3 font-semibold text-red-600">View Reports</Link>
-          <Link href="/dashboard/settings" className="rounded-xl border border-white/30 bg-white/10 px-5 py-3 backdrop-blur-md">System Settings</Link>
+          {can("/dashboard/reports") ? <Link href="/dashboard/reports" className="rounded-xl bg-white px-5 py-3 font-semibold text-red-600">View Reports</Link> : null}
+          {can("/dashboard/settings") ? <Link href="/dashboard/settings" className="rounded-xl border border-white/30 bg-white/10 px-5 py-3 backdrop-blur-lg">System Settings</Link> : null}
         </div>
       </div>
 
       <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {statCards.map((stat) => {
+        {statCards.filter((s) => can(s.module)).map((stat) => {
           const Icon = stat.icon;
           return (
             <div key={stat.title} className="rounded-3xl border border-white/20 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
@@ -149,7 +150,7 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
       <div className="mt-10">
         <h2 className="mb-5 text-2xl font-bold">Quick Access</h2>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {allmodules.map((module) => {
+          {modules.map((module) => {
             const Icon = module.icon;
             return (
               <Link
@@ -168,7 +169,9 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
         </div>
       </div>
 
+      {can("/dashboard/orders") || can("/dashboard/menu") || can("/dashboard/customers") || can("/dashboard/kitchen") ? (
       <div className="mt-10 grid gap-6 lg:grid-cols-3">
+        {can("/dashboard/orders") ? (
         <div className="lg:col-span-2 rounded-3xl border border-white/20 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
           <h2 className="mb-5 text-xl font-bold">Recent Orders</h2>
           <div className="overflow-x-auto">
@@ -204,43 +207,58 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
             </table>
           </div>
         </div>
+        ) : null}
 
         <div className="rounded-3xl border border-white/20 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
           <h2 className="mb-5 text-xl font-bold">Quick Stats</h2>
           <div className="space-y-5">
+            {can("/dashboard/menu") ? (
             <div className="flex gap-3">
               <div className="mt-2 h-3 w-3 rounded-full bg-green-500" />
               <p className="text-sm text-gray-700">Total Menu Items: {stats?.totalMenuItems ?? 0}</p>
             </div>
+            ) : null}
+            {can("/dashboard/orders") ? (
             <div className="flex gap-3">
               <div className="mt-2 h-3 w-3 rounded-full bg-blue-500" />
               <p className="text-sm text-gray-700">Pending Orders: {stats?.pendingOrders ?? 0}</p>
             </div>
+            ) : null}
+            {can("/dashboard/customers") ? (
             <div className="flex gap-3">
               <div className="mt-2 h-3 w-3 rounded-full bg-purple-500" />
               <p className="text-sm text-gray-700">Admins & Staff: {stats?.totalAdmins ?? 0}</p>
             </div>
+            ) : null}
+            {can("/dashboard/kitchen") ? (
             <div className="flex gap-3">
               <div className="mt-2 h-3 w-3 rounded-full bg-orange-500" />
               <p className="text-sm text-gray-700">Active Kitchens: {stats?.activeKitchens ?? 0}</p>
             </div>
+            ) : null}
           </div>
         </div>
       </div>
+      ) : null}
 
       <div className="mt-8 grid gap-6 md:grid-cols-3">
+        {can("/dashboard/orders") ? (
         <div className="rounded-3xl bg-red-50 p-6 shadow-lg">
           <h2 className="text-lg font-bold text-red-600">Pending Orders</h2>
           <p className="mt-4 text-4xl font-bold text-red-600">{stats?.pendingOrders ?? 0}</p>
           <p className="mt-2 text-gray-600">Orders awaiting processing</p>
         </div>
+        ) : null}
 
+        {can("/dashboard/payment") ? (
         <div className="rounded-3xl bg-green-50 p-6 shadow-lg">
           <h2 className="text-lg font-bold text-green-600">Revenue</h2>
           <p className="mt-4 text-4xl font-bold text-green-600">Rs.{(stats?.revenue?? 0).toLocaleString() ?? 0}</p>
           <p className="mt-2 text-gray-600">Total revenue from all orders</p>
         </div>
+        ) : null}
 
+        {can("/dashboard/customers") ? (
         <div className="rounded-3xl bg-blue-50 p-6 shadow-lg">
           <h2 className="text-lg font-bold text-blue-600">Users & Roles</h2>
           <div className="mt-4 space-y-2">
@@ -250,6 +268,7 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
             <p>Menu Items: {stats?.totalMenuItems ?? 0}</p>
           </div>
         </div>
+        ) : null}
       </div>
     </div>
   );

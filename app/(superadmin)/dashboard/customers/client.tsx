@@ -2,6 +2,7 @@
 import { CircleArrowDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { usePermissions } from "@/lib/permission-context";
 
 const ROLE_OPTIONS = [
   // {label: "Super Admin", value: "super-admin"},
@@ -28,6 +29,8 @@ const emptyForm = { name: "", email: "", password: "", role: "customer", phone: 
 
 
 export default function CustomersClient() {
+  const permissions = usePermissions();
+  const can = (p: string) => permissions.includes(p);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
@@ -39,27 +42,13 @@ export default function CustomersClient() {
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [open, setOpen] = useState(false);
-  const [downloadType, setDownloadType] = useState("");
   const router = useRouter();
-
-  const handleDownload = (value: string) => {
-    setDownloadType(value);
-    switch (value) {
-      case "pdf":
-        window.location.href = "/api/download/pdf";
-        console.log("pdf downloaded");
-        break;
-
-      case "csv":
-        window.location.href = "/api/download/csv";
-        console.log("csv downloaded");
-        break;
-
-      case "excel":
-        window.location.href = "/api/download/excel";
-        console.log("excel downloaded");
-        break;
+  
+  //to download the file
+  const [open, setOpen] = useState(false);
+   const handleDownload = (type: string) => {
+    if (type) {
+      window.open(`/api/exports/${type}?source=users`, "_blank");
     }
   };
 
@@ -201,18 +190,23 @@ export default function CustomersClient() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Customers & Users</h1>
         <div className="flex items-center justify-end gap-4">
+          {can("DOWNLOAD_USERS") && (
           <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
-            <select value={downloadType} onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+            <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+              <option className="text-black" value="">Export</option>
               <option className="text-black" value="pdf">PDF</option>
               <option className="text-black" value="csv">CSV</option>
               <option className="text-black" value="excel">Excel</option>
             </select>
           </button>
+          )}
+          {can("CREATE_USERS") && (
           <button
             onClick={() => setShowAddModal(true)}
             className="rounded-lg bg-orange-500 px-5 py-3 text-md font-medium text-white shadow hover:bg-orange-600 transition-colors">
             + Add User
           </button>
+          )}
         </div>
       </div>
 
@@ -271,18 +265,22 @@ export default function CustomersClient() {
                   <td className="p-4 text-gray-500">{new Date(user.createdAt).toLocaleDateString()}</td>
                   <td className="p-4">
                     <div className="flex gap-2">
+                      {can("UPDATE_USERS") && (
                       <button
                         onClick={() => openEdit(user)}
                         className="rounded-lg border border-gray-200 px-3 py-1 text-sm bg-blue-600 text-white"
                       >
                         Edit
                       </button>
+                      )}
+                      {can("DELETE_USERS") && (
                       <button
                         onClick={() => setDeleteTarget(user)}
                         className="rounded-lg border border-red-200 px-3 py-1 text-sm text-white bg-red-600"
                       >
                         Delete
                       </button>
+                      )}
                     </div>
                   </td>
                 </tr>

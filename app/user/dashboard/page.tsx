@@ -1,11 +1,6 @@
 import { ShoppingBag, Heart, Star, TrendingUp } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import {
-  getUserOrderStats,
-  getUserOrdersWithItems,
-  getUserActiveOrder,
-  getUserFavoriteItems,
-} from "@/db/services/orders";
+import { getUserOrderStats, getUserOrdersWithItems, getUserActiveOrder, getUserFavoriteItems, } from "@/db/services/orders";
 import { redirect } from "next/navigation";
 import DashboardHeader from "./_components/DashboardHeader";
 import StatsCard from "./_components/StatsCard";
@@ -38,28 +33,28 @@ export default async function DashboardPage() {
           title="Total Orders"
           value={stats.totalOrders}
           icon={ShoppingBag}
-          gradient="bg-linear-to-br from-blue-500 to-blue-700"
+          gradient="bg-linear-to-br from-orange-200 to-orange-300"
           subtitle="All time"
         />
         <StatsCard
           title="Active Orders"
           value={stats.activeOrders}
           icon={TrendingUp}
-          gradient="bg-linear-to-br from-orange-500 to-red-600"
+          gradient="bg-linear-to-br from-orange-200 to-orange-300"
           subtitle="In progress"
         />
         <StatsCard
           title="Favorite Items"
           value={favorites.length}
           icon={Heart}
-          gradient="bg-linear-to-br from-pink-500 to-rose-600"
+          gradient="bg-linear-to-br from-orange-200 to-orange-300"
           subtitle="Most ordered"
         />
         <StatsCard
           title="Total Spent"
           value={`Rs.${stats.totalSpent.toFixed(2)}`}
           icon={Star}
-          gradient="bg-linear-to-br from-emerald-500 to-teal-600"
+          gradient="bg-linear-to-br from-orange-200 to-orange-300"
           subtitle="Lifetime"
         />
       </div>

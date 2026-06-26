@@ -2,17 +2,17 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { getCurrentUser, hashPassword } from "@/lib/auth";
-import { hasPermission } from "@/lib/rbac";
+import { hashPassword } from "@/lib/auth";
+import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
 import { users, roles } from "@/db/schemas";
 import { getUserByEmail, getRoleIdByName } from "@/db/services";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser || !hasPermission(currentUser.role as never, PERMISSIONS.UPDATE_USERS)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    const currentUser = await apiRequirePermissions(PERMISSIONS.UPDATE_USERS);
+    if (currentUser instanceof NextResponse) {
+      return currentUser;
     }
 
     const { id } = await params;
@@ -77,9 +77,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser || !hasPermission(currentUser.role as never, PERMISSIONS.DELETE_USERS)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    const currentUser = await apiRequirePermissions(PERMISSIONS.DELETE_USERS);
+    if (currentUser instanceof NextResponse) {
+      return currentUser;
     }
 
     const { id } = await params;

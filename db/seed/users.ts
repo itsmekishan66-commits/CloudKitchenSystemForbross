@@ -17,36 +17,42 @@ const users:SeedUser[] = [
     password: process.env.SUPER_ADMIN_PASSWORD!,
     role: "super-admin" as const,
   },
-  // {
-  //   name: "Admin",
-  //   email: "admin@example.com",
-  //   password: "Admin123",
-  //   role: "admin" as const,
-  // },
-  // {
-  //   name: "Kitchen-Manager",
-  //   email: "manager@example.com",
-  //   password: "Manager123",
-  //   role: "kitchen-manager" as const,
-  // },
-  // {
-  //   name: "Payment-Manager",
-  //   email: "payment@example.com",
-  //   password: "payment123",
-  //   role: "payment-manager" as const,
-  // },
-  // {
-  //   name: "Staff",
-  //   email: "staff@example.com",
-  //   password: "staff123",
-  //   role: "staff" as const,
-  // },
-  // {
-  //   name: "Support-Staff",
-  //   email: "supportstaff@example.com",
-  //   password: "support123",
-  //   role: "support-staff" as const,
-  // },
+  {
+    name: "Admin",
+    email: "admin@example.com",
+    password: "Admin123",
+    role: "admin" as const,
+  },
+  {
+    name: "Kitchen-Manager",
+    email: "manager@example.com",
+    password: "Manager123",
+    role: "kitchen-manager" as const,
+  },
+  {
+    name: "Payment-Manager",
+    email: "payment@example.com",
+    password: "payment123",
+    role: "payment-manager" as const,
+  },
+  {
+    name: "Staff",
+    email: "staff@example.com",
+    password: "staff123",
+    role: "staff" as const,
+  },
+  {
+    name: "Support-Staff",
+    email: "supportstaff@example.com",
+    password: "support123",
+    role: "support-staff" as const,
+  },
+  {
+    name: "Customer",
+    email: "customer@example.com",
+    password: "customer123",
+    role: "customer" as const,
+  },
 ];
 
 async function main() {

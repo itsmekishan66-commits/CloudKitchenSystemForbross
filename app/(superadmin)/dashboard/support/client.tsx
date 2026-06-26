@@ -1,6 +1,7 @@
 "use client";
-import { CircleArrowDown } from "lucide-react";
+// import { CircleArrowDown } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePermissions } from "@/lib/permission-context";
 
 interface SupportTicket {
   id: number;
@@ -14,32 +15,21 @@ interface SupportTicket {
 }
 
 export default function SupportClient() {
+  const permissions = usePermissions();
+  const can = (p: string) => permissions.includes(p);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
-  const [downloadType, setDownloadType] = useState("");
+  
+  //to download the file
+  // const [open, setOpen] = useState(false);
+  //  const handleDownload = (type: string) => {
+  //   if (type) {
+  //     window.open(`/api/exports/${type}`, "_blank");
+  //   }
+  // };
 
-  const handleDownload = (value: string) => {
-    setDownloadType(value);
-    switch (value) {
-      case "pdf":
-        window.location.href = "/api/download/pdf";
-        console.log("pdf downloaded");
-        break;
-
-      case "csv":
-        window.location.href = "/api/download/csv";
-        console.log("csv downloaded");
-        break;
-
-      case "excel":
-        window.location.href = "/api/download/excel";
-        console.log("excel downloaded");
-        break;
-    }
-  };
 
 
   const filteredTickets = useMemo(() => {
@@ -108,13 +98,14 @@ export default function SupportClient() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Support Tickets</h1>
         <div className="flex items-center justify-end gap-4">
-          <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
-            <select value={downloadType} onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+          {/* <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+            <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+              <option className="text-black" value="">Export</option>
               <option className="text-black" value="pdf">PDF</option>
               <option className="text-black" value="csv">CSV</option>
               <option className="text-black" value="excel">Excel</option>
             </select>
-          </button>
+          </button> */}
         </div>
       </div>
 
@@ -156,6 +147,7 @@ export default function SupportClient() {
                     <span className={`rounded-full px-3 py-1 text-sm ${priorityColors[ticket.priority] ?? ""}`}>{ticket.priority}</span>
                   </td>
                   <td className="p-4">
+                    {can("UPDATE_SUPPORTS") ? (
                     <select
                       value={ticket.status}
                       onChange={(e) => updateStatus(ticket.id, e.target.value)}
@@ -166,6 +158,11 @@ export default function SupportClient() {
                       <option>Resolved</option>
                       <option>Closed</option>
                     </select>
+                    ) : (
+                    <span className={`rounded-full px-3 py-1 text-sm ${statusColors[ticket.status] ?? "bg-gray-100 text-gray-500"}`}>
+                      {ticket.status}
+                    </span>
+                    )}
                   </td>
                   <td className="p-4 text-gray-500">{ticket.assignedTo ?? "-"}</td>
                   <td className="p-4 text-gray-500">{new Date(ticket.createdAt).toLocaleDateString()}</td>

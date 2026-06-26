@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePermissions } from "@/lib/permission-context";
+import { useRouter } from "next/navigation";
 
 interface OrderItem {
   id: number;
@@ -20,6 +22,7 @@ interface Order {
   paymentMethod: string;
   total: string;
   status: string;
+  paymentSettled?: number | null;
   createdAt: Date | string;
   items: OrderItem[];
 }
@@ -32,11 +35,15 @@ interface MenuItem {
 }
 
 export default function OrdersTable({ orders }: { orders: Order[] }) {
+  const permissions = usePermissions();
+  const can = (p: string) => permissions.includes(p);
+  const router = useRouter();
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error">("success");
   const [localOrders, setLocalOrders] = useState(orders);
   const [addItemOrder, setAddItemOrder] = useState<Order | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ itemId: number; orderId: number; title: string } | null>(null);
+  const [settleOrder, setSettleOrder] = useState<Order | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [selectedMenuItem, setSelectedMenuItem] = useState("");
   const [addQty, setAddQty] = useState(1);
@@ -60,6 +67,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
 
   async function updateStatus(id: number, status: string) {
     setMessage("");
+    const prevOrder = localOrders.find((o) => o.id === id);
     const response = await fetch("/api/orders", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -73,8 +81,12 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
     setLocalOrders((prev) =>
       prev.map((order) => (order.id === id ? { ...order, status } : order))
     );
-    setMessage("Order status updated.");
-    setMessageType("success");
+    if (status === "Delivered" && prevOrder) {
+      setSettleOrder({ ...prevOrder, status: "Delivered" });
+    } else {
+      setMessage("Order status updated.");
+      setMessageType("success");
+    }
   }
 
   async function updateItemQty(itemId: number, action: "increase" | "decrease") {
@@ -194,6 +206,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(order.status)}`}>
                   {order.status}
                 </span>
+                {can("UPDATE_ORDERS") ? (
                 <select
                   value={order.status}
                   onChange={(event) => updateStatus(order.id, event.target.value)}
@@ -205,6 +218,25 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   <option value="Delivered">Delivered</option>
                   <option value="Cancelled">Cancelled</option>
                 </select>
+                ) : (
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(order.status)}`}>
+                  {order.status}
+                </span>
+                )}
+                {order.status === "Delivered" && (
+                  order.paymentSettled ? (
+                    <span className="text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5">
+                      Settled
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => router.push(`/dashboard/payment/settle/${order.id}`)}
+                      className="text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg px-3 py-1.5 transition-colors"
+                    >
+                      Not Settled
+                    </button>
+                  )
+                )}
                 <span className="text-xs text-gray-400">
                   {new Date(order.createdAt).toLocaleDateString()}
                 </span>
@@ -226,7 +258,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Order Items</h4>
-                  {order.status !== "Delivered" && order.status !== "Cancelled" && (
+                  {order.status !== "Delivered" && order.status !== "Cancelled" && can("UPDATE_ORDERS") && (
                     <button
                       onClick={() => openAddItem(order)}
                       className="text-xs font-medium text-orange-600 hover:text-orange-700"
@@ -242,20 +274,20 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                       <th className="py-1.5 text-right font-medium text-green-500">Qty</th>
                       <th className="py-1.5 text-right font-medium text-blue-500">Price</th>
                       <th className="py-1.5 text-right font-medium text-black">Subtotal</th>
-                      {order.status !== "Delivered" && order.status !== "Cancelled" && (
+                      {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && (
                         <th className="py-1.5 text-right"></th>
                       )}
                     </tr>
                   </thead>
                   <tbody>
                     {order.items.length === 0 ? (
-                      <tr><td colSpan={5} className="py-4 text-center text-gray-400">No items</td></tr>
+                      <tr><td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 5 : 4} className="py-4 text-center text-gray-400">No items</td></tr>
                     ) : (
                       order.items.map((item) => (
                         <tr key={item.id} className="border-b border-gray-100">
                           <td className="py-1.5">{item.title}</td>
                           <td className="py-1.5 text-right">
-                            {order.status !== "Delivered" && order.status !== "Cancelled" ? (
+                            {order.status !== "Delivered" && order.status !== "Cancelled" && can("UPDATE_ORDERS") ? (
                               <span className="inline-flex items-center gap-1">
                                 <button
                                   onClick={() => updateItemQty(item.id, "decrease")}
@@ -279,7 +311,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                           <td className="py-1.5 text-right font-medium">
                             Rs.{(Number(item.price) * item.quantity).toFixed(2)}
                           </td>
-                          {order.status !== "Delivered" && order.status !== "Cancelled" && (
+                          {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && (
                             <td className="py-1.5 text-right">
                               <button
                                 onClick={() => setConfirmDelete({ itemId: item.id, orderId: order.id, title: item.title })}
@@ -295,9 +327,9 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" ? 3 : 3} className="py-1.5 text-right font-semibold text-gray-700">Total</td>
+                      <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1.5 text-right font-semibold text-gray-700">Total</td>
                       <td className="py-1.5 text-right font-bold">Rs.{order.total}</td>
-                      {order.status !== "Delivered" && order.status !== "Cancelled" && <td></td>}
+                      {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
                     </tr>
                   </tfoot>
                 </table>
@@ -330,6 +362,63 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                 className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white hover:bg-red-600"
               >
                 Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settlement Popup */}
+      {settleOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xl">✓</div>
+              <div>
+                <h2 className="text-lg font-bold">Order Delivered!</h2>
+                <p className="text-sm text-gray-500">Order #{settleOrder.id} — Rs.{settleOrder.total}</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-6">Settle the payment for this delivery now?</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={async () => {
+                  setSettleOrder(null);
+                  setMessage("Creating due...");
+                  try {
+                    await fetch("/api/payments/settle", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        orderId: settleOrder.id,
+                        cashAmount: 0,
+                        onlineAmount: 0,
+                        discount: 0,
+                        markAsDue: true,
+                        dueAmount: Number(settleOrder.total),
+                        duePersonName: settleOrder.customerName,
+                        dueRole: "customer",
+                      }),
+                    });
+                    setMessage("Due created for Order #" + settleOrder.id + ". Settle from Payment page.");
+                    setMessageType("success");
+                  } catch {
+                    setMessage("Failed to create due.");
+                    setMessageType("error");
+                  }
+                }}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Later (Mark as Due)
+              </button>
+              <button
+                onClick={() => {
+                  router.push(`/dashboard/payment/settle/${settleOrder.id}`);
+                }}
+                className="rounded-lg bg-orange-500 px-4 py-2 text-sm text-white hover:bg-orange-600 flex items-center gap-2"
+              >
+                Settle Now
+                <span aria-hidden="true">→</span>
               </button>
             </div>
           </div>

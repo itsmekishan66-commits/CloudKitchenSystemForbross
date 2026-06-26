@@ -1,16 +1,6 @@
 "use client";
 
-import {
-  LayoutDashboard,
-  ShoppingCart,
-  Heart,
-  CreditCard,
-  Bell,
-  User,
-  LogOut,
-  Menu,
-  X,
-} from "lucide-react";
+import {LayoutDashboard,ShoppingCart,Heart,CreditCard,Bell,User,LogOut,Menu,X,ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -39,13 +29,14 @@ export default function DashboardSidebar() {
     { name: "Payments", icon: CreditCard, href: "/user/dashboard/payments" },
     { name: "Notifications", icon: Bell, href: "/user/dashboard/notifications" },
     { name: "Profile", icon: User, href: "/user/dashboard/profile" },
+    { name: "Back to Home", icon: ArrowLeft, href: "/" },
   ];
 
   const sidebarContent = (
-    <div className="flex gap-4 flex-col h-full">
+    <div className="flex gap-4 flex-col h-full w-full">
       <div className="p-6 border-b border-gray-100">
         <Link href="/user/dashboard">
-          <h2 className="text-2xl font-bold bg-linear-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
+          <h2 className="text-2xl font-bold bg-linear-to-r from-orange-400 to-orange-500 bg-clip-text text-transparent">
             {siteName}
           </h2>
         </Link>
@@ -65,8 +56,8 @@ export default function DashboardSidebar() {
             >
               <div
                 className={`flex items-center gap-3 w-full p-3 rounded-xl transition-all duration-200 ${isActive
-                    ? "bg-red-700 text-white shadow-md shadow-orange-200 scale-[1.02]"
-                    : "text-gray-600 hover:bg-orange-50 hover:text-orange-600"
+                    ? "bg-orange-300 text-black shadow-md shadow-orange-100 scale-[1.02]"
+                    : "text-black hover:bg-orange-50 hover:text-orange-600"
                   }`}
               >
                 <Icon size={20} />
@@ -110,7 +101,7 @@ export default function DashboardSidebar() {
       )}
 
       <aside
-        className={`fixed md:sticky top-0 left-0 z-40 h-screen w-64 bg-white shadow-lg transform transition-transform duration-300 ${mobileOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed md:sticky top-0 left-0 z-40 h-screen w-74 bg-white shadow-lg transform transition-transform duration-300 ${mobileOpen ? "translate-x-0" : "-translate-x-full"
           } md:translate-x-0`}
       >
         {sidebarContent}

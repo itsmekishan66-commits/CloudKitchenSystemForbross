@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { getCurrentUser, hashPassword } from "@/lib/auth";
-import { hasPermission } from "@/lib/rbac";
+import { hashPassword } from "@/lib/auth";
+import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
 import { users, roles } from "@/db/schemas";
 import { createUser, getRoleIdByName, getUserByEmail } from "@/db/services";
@@ -12,9 +12,9 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser || !hasPermission(currentUser.role as never, PERMISSIONS.CREATE_USERS)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    const currentUser = await apiRequirePermissions(PERMISSIONS.CREATE_USERS);
+    if (currentUser instanceof NextResponse) {
+      return currentUser;
     }
 
     const { name, email, password, role, phone, address } = await request.json();
@@ -55,11 +55,9 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const currentUser = await getCurrentUser();
-
-    //implemented RBAC this
-    if (!currentUser || !hasPermission(currentUser.role as never, PERMISSIONS.VIEW_USERS)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    const currentUser = await apiRequirePermissions(PERMISSIONS.VIEW_USERS);
+    if (currentUser instanceof NextResponse) {
+      return currentUser;
     }
 
     const { searchParams } = new URL(request.url);

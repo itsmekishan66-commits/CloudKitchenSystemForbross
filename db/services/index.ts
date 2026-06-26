@@ -9,3 +9,4 @@ export * from "./support-tickets";
 export * from "./users";
 export * from "./site-settings";
 export * from "./contact-messages";
+export * from "./payments";

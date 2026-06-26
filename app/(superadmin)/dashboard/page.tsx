@@ -1,5 +1,6 @@
 import { requirePermission } from "@/lib/requirePermission";
 import { getUserPermissions } from "@/lib/getUserPermissions";
+import { hasPermission, type Role, type Permission } from "@/lib/rbac";
 import DashboardClient from "./client";
 
 // this is the code for assigning roles and permissions dynamically
@@ -27,9 +28,15 @@ const DashboardPage = async () => {
 
   // this is the code for assigning roles and permissions dynamically
   // filter allowed modules based on user's DB-stored permissions
+  // fallback to static RBAC if no DB permissions exist (legacy roles)
   const userPermissions = await getUserPermissions(user.id);
+  const useDbPermissions = userPermissions.length > 0;
   const allowedModules = Object.entries(modulePermissions)
-    .filter(([_, perm]) => userPermissions.includes(perm))
+    .filter(([_, perm]) =>
+      useDbPermissions
+        ? userPermissions.includes(perm)
+        : hasPermission(user.role as Role, perm as Permission),
+    )
     .map(([href]) => href);
 
   return <DashboardClient allowedModules={allowedModules} />;

@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    // RBAC check
+    // RBAC check — VIEW_DASHBOARD gates the dashboard page; sections are filtered client-side
     const user = await apiRequirePermissions(
-      PERMISSIONS.VIEW_REPORTS
+      PERMISSIONS.VIEW_DASHBOARD
     );
 
     // apiRequirePermissions returns a response if denied
@@ -46,7 +46,7 @@ export async function GET() {
       .select({ count: sql<number>`count(*)` })
       .from(users)
       .leftJoin(roles, eq(users.roleId, roles.id))
-      .where(sql`${roles.name} in ('admin', 'staff')`);
+      .where(sql`${roles.name} not in ('customer')`);
 
     const [pendingOrders] = await db
       .select({ count: sql<number>`count(*)` })

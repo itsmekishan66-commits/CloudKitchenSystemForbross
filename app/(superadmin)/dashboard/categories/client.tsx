@@ -1,6 +1,7 @@
 "use client";
-import { CircleArrowDown, } from 'lucide-react';
+// import { CircleArrowDown, } from 'lucide-react';
 import { useEffect, useState } from "react";
+import { usePermissions } from "@/lib/permission-context";
 
 interface Category {
   id: number;
@@ -21,7 +22,8 @@ interface CategoryForm {
 const emptyForm: CategoryForm = { name: "", slug: "", image: "", isActive: true };
 
 export default function CategoriesClient() {
-
+  const permissions = usePermissions();
+  const can = (p: string) => permissions.includes(p);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -29,31 +31,17 @@ export default function CategoriesClient() {
   const [form, setForm] = useState<CategoryForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+
   //to download the file
-  const [open, setOpen] = useState(false);
-  const [downloadType, setDownloadType] = useState("");
+  // const [open, setOpen] = useState(false);
+  // const [downloadType, setDownloadType] = useState("");
 
+  // const handleDownload = (type: string) => {
+  //   if (type) {
+  //     window.open(`/api/exports/${type}`, "_blank");
+  //   }
+  // };
 
-// to download the file
-  const handleDownload = (value: string) => {
-    setDownloadType(value);
-    switch (value) {
-      case "pdf":
-        window.location.href = "/api/download/pdf";
-        console.log("pdf downloaded");
-        break;
-
-      case "csv":
-        window.location.href = "/api/download/csv";
-        console.log("csv downloaded");
-        break;
-
-      case "excel":
-        window.location.href = "/api/download/excel";
-        console.log("excel downloaded");
-        break;
-    }
-  };
 
   async function loadCategories() {
 
@@ -147,14 +135,15 @@ export default function CategoriesClient() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl justify-around font-bold">Categories</h1>
         <div className="flex items-center justify-end gap-4 mb-6">
-          <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
-            <select value={downloadType} onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+          {/* <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+            <select  value={downloadType} onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+              <option className="text-black" value="">Export</option>
               <option className="text-black" value="pdf">PDF</option>
               <option className="text-black" value="csv">CSV</option>
-              <option className="text-black" value="excel">Excel</option>
+              <option className="text-black" value="excel">Excel</option>  
             </select>
-          </button>
-          <button onClick={openCreate} className="rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600">+ Add Category</button>
+          </button> */}
+          {can("CREATE_CATEGORIES") && <button onClick={openCreate} className="rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600">+ Add Category</button>}
         </div>
       </div>
 
@@ -187,8 +176,8 @@ export default function CategoriesClient() {
                     </span>
                   </td>
                   <td className="p-4">
-                    <button onClick={() => openEdit(cat)} className="mr-2 rounded bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600">Edit</button>
-                    <button onClick={() => handleDelete(cat.id)} className="rounded bg-red-500 px-3 py-1 text-white text-sm hover:bg-red-600">Delete</button>
+                    {can("UPDATE_CATEGORIES") && <button onClick={() => openEdit(cat)} className="mr-2 rounded bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600">Edit</button>}
+                    {can("DELETE_CATEGORIES") && <button onClick={() => handleDelete(cat.id)} className="rounded bg-red-500 px-3 py-1 text-white text-sm hover:bg-red-600">Delete</button>}
                   </td>
                 </tr>
               ))

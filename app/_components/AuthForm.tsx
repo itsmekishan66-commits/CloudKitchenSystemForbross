@@ -28,10 +28,11 @@ export default function AuthForm({ mode, role = "customer", onSuccess }: AuthFor
   const isAdmin = role === "admin";
 
     function getRedirectPath(userRole: string) {
-      if (userRole === "super-admin" || userRole === "admin" || userRole === "staff") {
+      const adminRoles = ["super-admin", "admin", "staff", "kitchen-manager", "payment-manager", "support-staff"];
+      if (adminRoles.includes(userRole)) {
         return "/dashboard";
       }
-      return "/";
+      return "/user/dashboard";
     }
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {

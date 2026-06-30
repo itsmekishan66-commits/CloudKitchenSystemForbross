@@ -14,6 +14,7 @@ import {
     ClipboardList,
     Tags,
     MessageSquare,
+    Truck,
 } from "lucide-react";
 import { PERMISSIONS } from "./permissions";
 
@@ -65,6 +66,12 @@ export const sidebarPermissionsItems = [
         href: "/dashboard/inventory",
         icon: Package,
         permission: PERMISSIONS.VIEW_INVENTORY,
+    },
+    {
+        title: "Suppliers",
+        href: "/dashboard/suppliers",
+        icon: Truck,
+        permission: PERMISSIONS.VIEW_SUPPLIERS,
     },
     {
         title: "Payment",

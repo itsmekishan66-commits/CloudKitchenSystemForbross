@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useCart } from "../../_components/frontend/cart/CartContext";
 import Image from "next/image";
 import { FaPlusCircle, FaStar, FaStarHalfAlt } from "react-icons/fa";
+import { safeImageUrl } from "@/lib/image";
 
 type AddonItem = { name: string; price: number };
 
@@ -122,7 +123,7 @@ function MenuContent() {
           price: basePrice,
           discountedPrice: Math.round(discountedPrice * 100) / 100,
           discountPercent: discountPct,
-          image: item.image || "/placeholder.jpg",
+          image: item.image || "",
           description: item.description || "",
           category: item.categoryId ? categoryMap[item.categoryId] || "uncategorized" : "uncategorized",
           rating: Number(item.rating),
@@ -215,7 +216,7 @@ function MenuContent() {
             >
               <div className="relative h-52 overflow-hidden">
                 <Image
-                  src={food.image}
+                  src={safeImageUrl(food.image)}
                   alt={food.name}
                   fill
                   className="object-cover group-hover:scale-105 transition-transform duration-500"

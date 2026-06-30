@@ -78,17 +78,17 @@ export default function ImageStackSlider() {
                     >
                         {/* Little Cards */}
                         <div
-                            className="absolute w-24 h-32 rounded-2xl bg-cover bg-center left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-xl transition-all duration-700 group-hover:translate-x-[200%] group-hover:-translate-y-[210%] group-hover:rotate-[-15deg]"
+                            className="absolute w-24 h-32 rounded-2xl bg-cover bg-center left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-xl transition-all duration-700 group-hover:translate-x-[200%] group-hover:translate-y-[-210%] group-hover:rotate-[-15deg]"
                             style={{ backgroundImage: `url(${group.Pizza[0]})` }}
                         />
 
                         <div
-                            className="absolute w-24 h-32 rounded-2xl bg-cover bg-center left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-xl transition-all duration-700 group-hover:translate-x-[160%] group-hover:translate-y-[220%] group-hover:rotate-[15deg]"
+                            className="absolute w-24 h-32 rounded-2xl bg-cover bg-center left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-xl transition-all duration-700 group-hover:translate-x-[160%] group-hover:translate-y-[220%] group-hover:rotate-15"
                             style={{ backgroundImage: `url(${group.Pizza[1]})` }}
                         />
 
                         <div
-                            className="absolute w-24 h-32 rounded-2xl bg-cover bg-center left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-xl transition-all duration-700 group-hover:translate-x-[-200%] group-hover:-translate-y-[230%] group-hover:rotate-[15deg]"
+                            className="absolute w-24 h-32 rounded-2xl bg-cover bg-center left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-xl transition-all duration-700 group-hover:translate-x-[-200%] group-hover:translate-y-[-230%] group-hover:rotate-15"
                             style={{ backgroundImage: `url(${group.Pizza[2]})` }}
                         />
 
@@ -99,7 +99,7 @@ export default function ImageStackSlider() {
 
                         {/* Big Cards */}
                         <div
-                            className="absolute inset-0 rounded-xl bg-cover bg-center transition-all duration-700 group-hover:-translate-x-[75%] group-hover:translate-y-[16%] group-hover:rotate-[-24deg]"
+                            className="absolute inset-0 rounded-xl bg-cover bg-center transition-all duration-700 group-hover:translate-x-[-75%] group-hover:translate-y-[16%] group-hover:rotate-[-24deg]"
                             style={{
                                 backgroundImage: `url(${group.Burgers[0]})`,
                                 transform: "translateX(-10%) rotate(-1deg)",
@@ -107,7 +107,7 @@ export default function ImageStackSlider() {
                         />
 
                         <div
-                            className="absolute inset-0 rounded-xl bg-cover bg-center transition-all duration-700 group-hover:-translate-x-[25%] group-hover:translate-y-[8%] group-hover:rotate-[-8deg]"
+                            className="absolute inset-0 rounded-xl bg-cover bg-center transition-all duration-700 group-hover:translate-x-[-25%] group-hover:translate-y-[8%] group-hover:rotate-[-8deg]"
                             style={{
                                 backgroundImage: `url(${group.Burgers[1]})`,
                                 transform: "rotate(2deg)",
@@ -123,7 +123,7 @@ export default function ImageStackSlider() {
                         />
 
                         <div
-                            className="absolute inset-0 rounded-xl bg-cover bg-center transition-all duration-700 group-hover:translate-x-[75%] group-hover:translate-y-[16%] group-hover:rotate-[24deg]"
+                            className="absolute inset-0 rounded-xl bg-cover bg-center transition-all duration-700 group-hover:translate-x-[75%] group-hover:translate-y-[16%] group-hover:rotate-24"
                             style={{
                                 backgroundImage: `url(${group.Burgers[3]})`,
                                 transform: "translate(10%,3%) rotate(5deg)",

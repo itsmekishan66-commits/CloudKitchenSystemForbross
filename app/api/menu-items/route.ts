@@ -89,7 +89,12 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Valid id is required" }, { status: 400 });
     }
 
-    await updateMenuItem(id, body);
+    await updateMenuItem(id, {
+      ...body,
+      description: cleanText(body.description) || null,
+      image: cleanText(body.image) || null,
+      badge: cleanText(body.badge) || null,
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to update menu item", error);

@@ -20,6 +20,7 @@ import {
   ClipboardList,
   Tags,
   MessageSquare,
+  Truck,
   LogOut,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -75,6 +76,12 @@ const menuItems = [
     href: "/dashboard/inventory",
     icon: Package,
     permission: PERMISSIONS.VIEW_INVENTORY,
+  },
+  {
+    title: "Suppliers",
+    href: "/dashboard/suppliers",
+    icon: Truck,
+    permission: PERMISSIONS.VIEW_SUPPLIERS,
   },
   {
     title: "Payment",

@@ -18,7 +18,7 @@ export const menuItems = mysqlTable("menu_items", {
   }),
   title: varchar("title", { length: 160 }).notNull(),
   slug: varchar("slug", { length: 180 }).notNull().unique(),
-  image: varchar("image", { length: 255 }),
+  image: varchar("image", { length: 2048 }),
   description: text("description"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   badge: varchar("badge", { length: 80 }),

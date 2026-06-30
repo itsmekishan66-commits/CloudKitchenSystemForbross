@@ -19,6 +19,7 @@ import CartDrawer from "./cart/CartDrawer";
 import AuthModal from "../AuthModal";
 import useUser from "../../../hooks/useUser";
 import toast from "react-hot-toast";
+import { safeImageUrl } from "@/lib/image";
 
 export default function Navbar() {
   const { cartCount } = useCart();
@@ -197,7 +198,7 @@ export default function Navbar() {
                 >
                   <div className="h-10 w-10 rounded-lg bg-gray-100 overflow-hidden shrink-0">
                     {item.image && (
-                      <Image src={item.image} alt={item.title} width={40} height={40} className="object-cover h-full w-full" />
+                      <Image src={safeImageUrl(item.image)} alt={item.title} width={40} height={40} className="object-cover h-full w-full" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">

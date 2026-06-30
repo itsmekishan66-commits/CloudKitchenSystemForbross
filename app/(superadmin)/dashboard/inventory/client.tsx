@@ -1,5 +1,5 @@
 "use client";
-import { CircleArrowDown } from "lucide-react";
+import { CircleArrowDown, Package, Truck, AlertTriangle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 
@@ -38,6 +38,9 @@ export default function InventoryClient() {
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"inventory" | "supplier-stock" | "inventory-stock">("inventory");
+  const [supplierStock, setSupplierStock] = useState<any[]>([]);
+  const [stockLoading, setStockLoading] = useState(false);
 
   //to download the file
    const handleDownload = (type: string) => {
@@ -65,12 +68,37 @@ export default function InventoryClient() {
     }
   }
 
+  async function loadSupplierStock() {
+    setStockLoading(true);
+    try {
+      const res = await fetch("/api/superadmin/suppliers/stock");
+      const data = await res.json();
+      if (!data.error) setSupplierStock(data.items ?? []);
+    } catch {
+      console.error("Failed to load supplier stock");
+    } finally {
+      setStockLoading(false);
+    }
+  }
+
   useEffect(() => { 
     async function fetchItems() {
       await loadItems();
     }
     void fetchItems();
   }, []);
+
+  useEffect(() => {
+    // Avoid synchronous setState during render/effect by deferring calls
+    if (activeTab === "supplier-stock") {
+      const t = setTimeout(() => { void loadSupplierStock(); }, 0);
+      return () => clearTimeout(t);
+    }
+    if (activeTab === "inventory-stock") {
+      const t = setTimeout(() => { void loadItems(); }, 0);
+      return () => clearTimeout(t);
+    }
+  }, [activeTab]);
 
   function openCreate() {
     setEditing(null);
@@ -174,7 +202,20 @@ export default function InventoryClient() {
         </div>
       </div>
 
-      {lowStockItems.length > 0 && (
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6">
+        <button onClick={() => setActiveTab("inventory")} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${activeTab === "inventory" ? "bg-orange-500 text-white shadow-md" : "bg-white text-gray-600 border hover:bg-gray-50"}`}>
+          <Package size={16} /> Inventory Items
+        </button>
+        <button onClick={() => setActiveTab("supplier-stock")} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${activeTab === "supplier-stock" ? "bg-orange-500 text-white shadow-md" : "bg-white text-gray-600 border hover:bg-gray-50"}`}>
+          <Truck size={16} /> Supplier Stock
+        </button>
+        <button onClick={() => setActiveTab("inventory-stock")} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${activeTab === "inventory-stock" ? "bg-orange-500 text-white shadow-md" : "bg-white text-gray-600 border hover:bg-gray-50"}`}>
+          <Package size={16} /> Inventory Stock
+        </button>
+      </div>
+
+      {activeTab === "inventory" && lowStockItems.length > 0 && (
         <div className="mb-4 rounded-xl bg-red-50 p-4 border border-red-200">
           <h3 className="font-bold text-red-700">Low Stock Alert ({lowStockItems.length} items)</h3>
           <ul className="mt-2 space-y-1">
@@ -189,52 +230,64 @@ export default function InventoryClient() {
         <div className="mb-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-700">{message}</div>
       )}
 
-      <div className="mb-4">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search inventory..."
-          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-        />
-      </div>
+      {activeTab === "inventory" && (
+      <>
+        <div className="mb-4">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search inventory..."
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+          />
+        </div>
 
-      <div className="rounded-xl bg-white shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="p-4 text-left">Name</th>
-              <th className="p-4 text-left">Category</th>
-              <th className="p-4 text-left">Quantity</th>
-              <th className="p-4 text-left">Min Stock</th>
-              <th className="p-4 text-left">Price/Unit</th>
-              <th className="p-4 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredItems.length === 0 ? (
-              <tr><td colSpan={6} className="p-8 text-center text-gray-400">No inventory items found</td></tr>
-            ) : (
-              filteredItems.map((item) => {
-                const isLow = Number(item.quantity) <= Number(item.minStockLevel);
-                return (
-                  <tr key={item.id} className={`border-t ${isLow ? "bg-red-50" : ""}`}>
-                    <td className="p-4 font-medium">{item.name}</td>
-                    <td className="p-4 text-gray-500">{item.category}</td>
-                    <td className={`p-4 ${isLow ? "text-red-600 font-semibold" : ""}`}>{item.quantity} {item.unit}</td>
-                    <td className="p-4 text-gray-500">{item.minStockLevel} {item.unit}</td>
-                    <td className="p-4">Rs.{item.pricePerUnit}</td>
-                    <td className="p-4">
-                      {can("UPDATE_INVENTORY") && <button onClick={() => openEdit(item)} className="mr-2 rounded bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600">Edit</button>}
-                      {can("DELETE_INVENTORY") && <button onClick={() => handleDelete(item.id)} className="rounded bg-red-500 px-3 py-1 text-white text-sm hover:bg-red-600">Delete</button>}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+        <div className="rounded-xl bg-white shadow overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="p-4 text-left">Name</th>
+                <th className="p-4 text-left">Category</th>
+                <th className="p-4 text-left">Quantity</th>
+                <th className="p-4 text-left">Min Stock</th>
+                <th className="p-4 text-left">Price/Unit</th>
+                <th className="p-4 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredItems.length === 0 ? (
+                <tr><td colSpan={6} className="p-8 text-center text-gray-400">No inventory items found</td></tr>
+              ) : (
+                filteredItems.map((item) => {
+                  const isLow = Number(item.quantity) <= Number(item.minStockLevel);
+                  return (
+                    <tr key={item.id} className={`border-t ${isLow ? "bg-red-50" : ""}`}>
+                      <td className="p-4 font-medium">{item.name}</td>
+                      <td className="p-4 text-gray-500">{item.category}</td>
+                      <td className={`p-4 ${isLow ? "text-red-600 font-semibold" : ""}`}>{item.quantity} {item.unit}</td>
+                      <td className="p-4 text-gray-500">{item.minStockLevel} {item.unit}</td>
+                      <td className="p-4">Rs.{item.pricePerUnit}</td>
+                      <td className="p-4">
+                        {can("UPDATE_INVENTORY") && <button onClick={() => openEdit(item)} className="mr-2 rounded bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600">Edit</button>}
+                        {can("DELETE_INVENTORY") && <button onClick={() => handleDelete(item.id)} className="rounded bg-red-500 px-3 py-1 text-white text-sm hover:bg-red-600">Delete</button>}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </>
+      )}
+
+      {activeTab === "supplier-stock" && (
+        <SupplierStockView data={supplierStock} loading={stockLoading} />
+      )}
+
+      {activeTab === "inventory-stock" && (
+        <InventoryStockView items={items} loading={loading} />
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -279,6 +332,203 @@ export default function InventoryClient() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SupplierStockView({ data, loading }: { data: any[]; loading: boolean }) {
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return data;
+    const q = search.toLowerCase();
+    return data.filter((i) =>
+      i.productName?.toLowerCase().includes(q) ||
+      i.supplierName?.toLowerCase().includes(q) ||
+      i.purchaseUnit?.toLowerCase().includes(q)
+    );
+  }, [data, search]);
+
+  const lowStockItems = filtered.filter((i) => Number(i.quantity) <= Number(i.minStockLevel));
+
+  if (loading) {
+    return <div className="rounded-xl bg-white p-10 text-center text-gray-400 shadow">Loading supplier stock...</div>;
+  }
+
+  return (
+    <div>
+      {lowStockItems.length > 0 && (
+        <div className="mb-4 rounded-xl bg-red-50 p-4 border border-red-200">
+          <h3 className="font-bold text-red-700 flex items-center gap-2">
+            <AlertTriangle size={16} /> Low Stock Alert ({lowStockItems.length} items)
+          </h3>
+          <ul className="mt-2 space-y-1">
+            {lowStockItems.map((item) => (
+              <li key={item.productId} className="text-sm text-red-600">
+                {item.supplierName} — {item.productName}: {item.quantity} {item.purchaseUnit || "packs"} left
+                (min: {item.minStockLevel})
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="mb-4">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by product, supplier, or unit..."
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+        />
+      </div>
+
+      <div className="rounded-xl bg-white shadow overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="p-4 text-left">Supplier</th>
+              <th className="p-4 text-left">Product</th>
+              <th className="p-4 text-left">Pack</th>
+              <th className="p-4 text-left">Stock (packs)</th>
+              <th className="p-4 text-left">Total Units</th>
+              <th className="p-4 text-left">Min Stock</th>
+              <th className="p-4 text-left">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr><td colSpan={7} className="p-8 text-center text-gray-400">No supplier stock found</td></tr>
+            ) : (
+              filtered.map((item) => {
+                const qty = Number(item.quantity);
+                const min = Number(item.minStockLevel);
+                const unitsPerPack = Number(item.unitsPerPack) || 1;
+                const isLow = qty <= min;
+                return (
+                  <tr key={item.productId} className={`border-t ${isLow ? "bg-red-50" : ""}`}>
+                    <td className="p-4 font-medium">{item.supplierName}</td>
+                    <td className="p-4">{item.productName}</td>
+                    <td className="p-4 text-sm text-gray-500">{item.purchaseUnit || "Carton"} × {unitsPerPack}</td>
+                    <td className={`p-4 ${isLow ? "text-red-600 font-semibold" : ""}`}>{qty}</td>
+                    <td className="p-4 text-gray-500">{qty * unitsPerPack}</td>
+                    <td className="p-4 text-gray-500">{min}</td>
+                    <td className="p-4">
+                      {isLow ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                          <AlertTriangle size={12} /> Low
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
+                          In Stock
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+        <div className="p-3 text-xs text-gray-400 border-t bg-gray-50">
+          Showing {filtered.length} product{filtered.length !== 1 ? "s" : ""} from suppliers
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InventoryStockView({ items, loading }: { items: InventoryItem[]; loading: boolean }) {
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return items;
+    const q = search.toLowerCase();
+    return items.filter((i) =>
+      i.name.toLowerCase().includes(q) ||
+      i.category.toLowerCase().includes(q)
+    );
+  }, [items, search]);
+
+  const lowStockItems = filtered.filter((i) => Number(i.quantity) <= Number(i.minStockLevel));
+
+  if (loading) {
+    return <div className="rounded-xl bg-white p-10 text-center text-gray-400 shadow">Loading inventory stock...</div>;
+  }
+
+  return (
+    <div>
+      {lowStockItems.length > 0 && (
+        <div className="mb-4 rounded-xl bg-red-50 p-4 border border-red-200">
+          <h3 className="font-bold text-red-700 flex items-center gap-2">
+            <AlertTriangle size={16} /> Low Stock Alert ({lowStockItems.length} items)
+          </h3>
+          <ul className="mt-2 space-y-1">
+            {lowStockItems.map((item) => (
+              <li key={item.id} className="text-sm text-red-600">
+                {item.name} — {item.quantity} {item.unit} left (min: {item.minStockLevel})
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="mb-4">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or category..."
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+        />
+      </div>
+
+      <div className="rounded-xl bg-white shadow overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="p-4 text-left">Name</th>
+              <th className="p-4 text-left">Category</th>
+              <th className="p-4 text-left">Stock</th>
+              <th className="p-4 text-left">Unit</th>
+              <th className="p-4 text-left">Min Stock</th>
+              <th className="p-4 text-left">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr><td colSpan={6} className="p-8 text-center text-gray-400">No inventory stock found</td></tr>
+            ) : (
+              filtered.map((item) => {
+                const isLow = Number(item.quantity) <= Number(item.minStockLevel);
+                return (
+                  <tr key={item.id} className={`border-t ${isLow ? "bg-red-50" : ""}`}>
+                    <td className="p-4 font-medium">{item.name}</td>
+                    <td className="p-4 text-gray-500">{item.category}</td>
+                    <td className={`p-4 ${isLow ? "text-red-600 font-semibold" : ""}`}>{item.quantity}</td>
+                    <td className="p-4 text-gray-500">{item.unit}</td>
+                    <td className="p-4 text-gray-500">{item.minStockLevel}</td>
+                    <td className="p-4">
+                      {isLow ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                          <AlertTriangle size={12} /> Low
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
+                          In Stock
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+        <div className="p-3 text-xs text-gray-400 border-t bg-gray-50">
+          Showing {filtered.length} item{filtered.length !== 1 ? "s" : ""}
+        </div>
+      </div>
     </div>
   );
 }

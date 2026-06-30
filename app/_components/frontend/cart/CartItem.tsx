@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { Minus, Plus, Trash2 } from "lucide-react";
+import { safeImageUrl } from "@/lib/image";
 
 import type { CartItem as CartItemType } from "@/store/cartStore";
 
@@ -26,7 +27,7 @@ export default function CartItem({
   return (
     <div className="flex gap-4 border-b pb-4">
       <Image
-        src={item.image}
+        src={safeImageUrl(item.image)}
         alt={item.title}
         width={80}
         height={80}

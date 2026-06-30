@@ -31,23 +31,7 @@ export default function CartDrawer({ open, onClose }: Props) {
 
       {/* Drawer */}
       <div
-        className={`
-          fixed
-          top-0
-          right-0
-          h-screen
-          w-full
-          max-w-100
-          bg-white
-          z-100
-          shadow-xl
-          flex
-          flex-col
-          overflow-hidden
-          transition-transform
-          duration-300
-          ease-in-out
-          ${open ? "translate-x-0" : "translate-x-full"}
+        className={`fixed top-0 right-0 h-screen w-full max-w-100 bg-white z-100 shadow-xl flex flex-col  overflow-hidden transition-transform duration-300 ease-in-out ${open ? "translate-x-0" : "translate-x-full"}
         `}
       >
         {/* Header */}

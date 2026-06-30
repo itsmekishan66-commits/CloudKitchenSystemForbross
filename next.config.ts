@@ -21,6 +21,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "cdn.spotapps.co",
       },
+      {
+        protocol: "https",
+        hostname: "**",
+      },
     ],
   },
 };

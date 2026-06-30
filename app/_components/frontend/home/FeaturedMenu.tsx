@@ -5,6 +5,7 @@ import { Star, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useCart } from "../cart/CartContext";
 import Link from "next/link";
+import { safeImageUrl } from "@/lib/image";
 
 type ApiMenuItem = {
   id: number;
@@ -42,7 +43,7 @@ function FoodCard({
   return (
     <div className=" bg-white rounded-3xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
       <div className="relative h-64">
-        <Image src={image} alt={title} fill className="object-cover" />
+        <Image src={safeImageUrl(image)} alt={title} fill className="object-cover" />
 
         <span className=" absolute top-3 left-3 bg-white px-3 py-1 rounded-full text-xs font-medium"> {badge} </span>
       </div>
@@ -127,13 +128,13 @@ export default function FeaturedMenu() {
                 <FoodCard
                   key={current.id}
                   title={current.title}
-                  image={current.image || "/placeholder.jpg"}
+                  image={current.image || ""}
                   description={current.description || ""}
                   rating={Number(current.rating)}
                   reviews={current.reviews}
                   price={Number(current.price)}
                   badge={current.badge || ""}
-                  onAddToCart={() => addToCart({ id: String(current.id), title: current.title, image: current.image || "/placeholder.jpg", price: Number(current.price), quantity: 1 })}
+                  onAddToCart={() => addToCart({ id: String(current.id), title: current.title, image: current.image || "", price: Number(current.price), quantity: 1 })}
                 />
               )}
 
@@ -161,13 +162,13 @@ export default function FeaturedMenu() {
             <FoodCard
               key={food.id}
               title={food.title}
-              image={food.image || "/placeholder.jpg"}
+              image={food.image || ""}
               description={food.description || ""}
               rating={Number(food.rating)}
               reviews={food.reviews}
               price={Number(food.price)}
               badge={food.badge || ""}
-              onAddToCart={() => addToCart({ id: String(food.id), title: food.title, image: food.image || "/placeholder.jpg", price: Number(food.price), quantity: 1 })}
+              onAddToCart={() => addToCart({ id: String(food.id), title: food.title, image: food.image || "", price: Number(food.price), quantity: 1 })}
             />
           )) : (
             <p className="col-span-full text-center text-gray-400 py-12"> No featured items available yet.</p>

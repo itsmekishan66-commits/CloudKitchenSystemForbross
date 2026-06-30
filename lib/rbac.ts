@@ -86,6 +86,13 @@ const adminPermissions: Permission[] = [
     // Messages
     PERMISSIONS.VIEW_MESSAGES,
     PERMISSIONS.DELETE_MESSAGES,
+
+    // Suppliers
+    PERMISSIONS.VIEW_SUPPLIERS,
+    PERMISSIONS.CREATE_SUPPLIERS,
+    PERMISSIONS.UPDATE_SUPPLIERS,
+    PERMISSIONS.DELETE_SUPPLIERS,
+    PERMISSIONS.DOWNLOAD_SUPPLIERS,
 ];
 
 export const rolePermissions: Record<Role, Permission[]> = {

@@ -78,6 +78,7 @@ export default function RolesClient() {
     Kitchen: "bg-purple-50 border-purple-200",
     Categories: "bg-cyan-50 border-cyan-200",
     Inventory: "bg-orange-50 border-orange-200",
+    Suppliers: "bg-pink-50 border-pink-200",
     Payment: "bg-indigo-50 border-indigo-200",
     Support: "bg-rose-50 border-rose-200",
     Reports: "bg-gray-200 border-gray-300",
@@ -95,6 +96,7 @@ export default function RolesClient() {
     Kitchen: "bg-purple-100 text-purple-700",
     Categories: "bg-cyan-100 text-cyan-700",
     Inventory: "bg-orange-100 text-orange-700",
+    Suppliers: "bg-pink-100 text-pink-700",
     Payment: "bg-indigo-100 text-indigo-700",
     Support: "bg-rose-100 text-rose-700",
     Reports: "bg-gray-300 text-gray-700",
@@ -377,6 +379,7 @@ export default function RolesClient() {
                     ["Menu", "MENUS"],
                     ["Categories", "CATEGORIES"],
                     ["Inventory", "INVENTORY"],
+                    ["Suppliers", "SUPPLIERS"],
                     ["Payment", "PAYMENTS"],
                     ["Support", "SUPPORTS"],
                     ["Reports", "REPORTS"],
@@ -384,7 +387,6 @@ export default function RolesClient() {
                     ["Settings", "SETTINGS"],
                     ["Roles", "ROLES"],
                     ["Messages", "MESSAGES"],
-                    ["Staff", "STAFF"],
                   ] as [string, string][]).map(([module, dbModule]) => (
                     <div
                       key={module}
@@ -505,6 +507,7 @@ export default function RolesClient() {
                     ["Menu", "MENUS"],
                     ["Categories", "CATEGORIES"],
                     ["Inventory", "INVENTORY"],
+                    ["Suppliers", "SUPPLIERS"],
                     ["Payment", "PAYMENTS"],
                     ["Support", "SUPPORTS"],
                     ["Reports", "REPORTS"],
@@ -512,7 +515,6 @@ export default function RolesClient() {
                     ["Settings", "SETTINGS"],
                     ["Roles", "ROLES"],
                     ["Messages", "MESSAGES"],
-                    ["Staff", "STAFF"],
                   ] as [string, string][]).map(([module, dbModule]) => (
                     <div key={module} className={`rounded-xl border p-4 ${moduleBgColors[module]}`}>
                       <h4 className="mb-3 font-semibold">{module}</h4>

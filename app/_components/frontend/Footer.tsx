@@ -31,7 +31,7 @@ export default function Footer() {
           if (data.location) setLocation(data.location);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const [newsletterEmail, setNewsletterEmail] = useState("");
@@ -92,29 +92,25 @@ export default function Footer() {
             {/* Socials */}
             <div className="flex gap-4 mt-8">
 
-              <a
-                href="#"
+              <a href="#"
                 className="w-11 h-11 rounded-full bg-zinc-900 hover:bg-red-700 flex items-center justify-center transition"
               >
                 <FaFacebookF />
               </a>
 
-              <a
-                href="#"
+              <a href="#"
                 className="w-11 h-11 rounded-full bg-zinc-900 hover:bg-red-700 flex items-center justify-center transition"
               >
                 <FaInstagram />
               </a>
 
-              <a
-                href="#"
+              <a href="#"
                 className="w-11 h-11 rounded-full bg-zinc-900 hover:bg-red-700 flex items-center justify-center transition"
               >
                 <FaTwitter />
               </a>
 
-              <a
-                href="#"
+              <a href="#"
                 className="w-11 h-11 rounded-full bg-zinc-900 hover:bg-red-700 flex items-center justify-center transition"
               >
                 <FaYoutube />
@@ -127,48 +123,13 @@ export default function Footer() {
           {/* Quick Links */}
           <div>
 
-            <h3 className="text-lg font-semibold mb-5">
-              Quick Links
-            </h3>
+            <h3 className="text-lg font-semibold mb-5"> Quick Links </h3>
 
             <ul className="space-y-3 text-zinc-400">
-
-              <li>
-                <Link
-                  href="/"
-                  className="hover:text-red-500 transition"
-                >
-                  Home
-                </Link>
-              </li>
-
-              <li>
-                <Link
-                  href="/about"
-                  className="hover:text-red-500 transition"
-                >
-                  About Us
-                </Link>
-              </li>
-
-              <li>
-                <Link
-                  href="/menu"
-                  className="hover:text-red-500 transition"
-                >
-                  Menu
-                </Link>
-              </li>
-
-              <li>
-                <Link
-                  href="/contact"
-                  className="hover:text-red-500 transition"
-                >
-                  Contact
-                </Link>
-              </li>
-
+              <li> <Link href="/" className="hover:text-red-500 transition" > Home </Link> </li>
+              <li> <Link href="/about" className="hover:text-red-500 transition" > About Us </Link> </li>
+              <li> <Link href="/menu" className="hover:text-red-500 transition" > Menu </Link> </li>
+              <li> <Link href="/contact" className="hover:text-red-500 transition" > Contact </Link> </li>
             </ul>
 
           </div>

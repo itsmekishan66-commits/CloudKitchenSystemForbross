@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { safeImageUrl } from "@/lib/image";
 
 type ApiCategory = {
   id: number;
@@ -39,7 +40,7 @@ export default function CravingsSection() {
             <div key={category.id} className="text-center cursor-pointer">
               <div className="h-40 w-40 rounded-full bg-gray-100 flex items-center justify-center mx-auto hover:scale-110 transition">
                 <Image
-                  src={category.image || "/categories/default.jpg"}
+                  src={safeImageUrl(category.image || "")}
                   alt={category.name}
                   width={100}
                   height={100}

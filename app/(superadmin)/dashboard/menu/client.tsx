@@ -1,6 +1,6 @@
 "use client";
 // import { CircleArrowDown } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 
 interface MenuItem {
@@ -58,7 +58,9 @@ export default function MenuClient() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
-  
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   //to download the file
   // const [open, setOpen] = useState(false);
   //  const handleDownload = (type: string) => {
@@ -91,12 +93,12 @@ export default function MenuClient() {
     }
   }
 
-  useEffect(() => { 
-     async function fetchItems() {
+  useEffect(() => {
+    async function fetchItems() {
       await loadData();
     }
     void fetchItems();
-  }, []); 
+  }, []);
 
   function openCreate() {
     setEditing(null);
@@ -171,6 +173,25 @@ export default function MenuClient() {
     }
   }
 
+  async function handleUpload(file: File) {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/images", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.error) {
+        console.error(data.error);
+        return;
+      }
+      setForm({ ...form, image: data.path });
+    } catch (err) {
+      console.error("Upload failed", err);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function handleDelete(id: number) {
     if (!confirm("Are you sure you want to delete this item?")) return;
     try {
@@ -213,11 +234,7 @@ export default function MenuClient() {
       )}
 
       <div className="mb-4">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search menu items..."
+        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search menu items.."
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
         />
       </div>
@@ -282,33 +299,17 @@ export default function MenuClient() {
                   Item Title
                 </label>
 
-                <input
-                  type="text"
-                  value={form.title}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      title: e.target.value,
-                      slug: editing
-                        ? form.slug
-                        : generateSlug(e.target.value),
-                    })
-                  }
+                <input type="text" value={form.title} onChange={(e) =>
+                  setForm({
+                    ...form,
+                    title: e.target.value,
+                    slug: editing
+                      ? form.slug
+                      : generateSlug(e.target.value),
+                  })
+                }
                   placeholder="Wagyu Gold Burger"
-                  className="
-              w-full
-              rounded-xl
-              border
-              border-slate-200
-              bg-slate-50
-              px-4
-              py-3
-              outline-none
-              transition
-              focus:border-orange-500
-              focus:ring-4
-              focus:ring-orange-100
-            "
+                  className=" w-full rounded-xl border border-slate-200 bg-slate-50 px-4py-3 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
                 />
               </div>
 
@@ -328,20 +329,7 @@ export default function MenuClient() {
                     })
                   }
                   placeholder="wagyu-gold-burger"
-                  className="
-              w-full
-              rounded-xl
-              border
-              border-slate-200
-              bg-slate-50
-              px-4
-              py-3
-              outline-none
-              transition
-              focus:border-orange-500
-              focus:ring-4
-              focus:ring-orange-100
-            "
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50  px-4 py-3 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
                 />
               </div>
 
@@ -363,20 +351,7 @@ export default function MenuClient() {
                           : null,
                       })
                     }
-                    className="
-                w-full
-                rounded-xl
-                border
-                border-slate-200
-                bg-slate-50
-                px-4
-                py-3
-                outline-none
-                transition
-                focus:border-orange-500
-                focus:ring-4
-                focus:ring-orange-100
-              "
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
                   >
                     <option value="">
                       Select Category
@@ -409,20 +384,7 @@ export default function MenuClient() {
                       })
                     }
                     placeholder="299.00"
-                    className="
-                w-full
-                rounded-xl
-                border
-                border-slate-200
-                bg-slate-50
-                px-4
-                py-3
-                outline-none
-                transition
-                focus:border-orange-500
-                focus:ring-4
-                focus:ring-orange-100
-              "
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
                   />
                 </div>
 
@@ -430,9 +392,30 @@ export default function MenuClient() {
 
               {/* Image URL */}
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Image URL
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-semibold text-slate-700">
+                    Image URL
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="text-sm text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50"
+                  >
+                    {uploading ? "Uploading..." : "Upload Image"}
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUpload(file);
+                      e.target.value = "";
+                    }}
+                    className="hidden"
+                  />
+                </div>
 
                 <input
                   type="text"
@@ -444,20 +427,7 @@ export default function MenuClient() {
                     })
                   }
                   placeholder="https://example.com/image.jpg"
-                  className="
-              w-full
-              rounded-xl
-              border
-              border-slate-200
-              bg-slate-50
-              px-4
-              py-3
-              outline-none
-              transition
-              focus:border-orange-500
-              focus:ring-4
-              focus:ring-orange-100
-            "
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
                 />
 
                 {form.image && (
@@ -493,21 +463,7 @@ export default function MenuClient() {
                     })
                   }
                   placeholder="Describe your menu item..."
-                  className="
-              w-full
-              rounded-xl
-              border
-              border-slate-200
-              bg-slate-50
-              px-4
-              py-3
-              resize-none
-              outline-none
-              transition
-              focus:border-orange-500
-              focus:ring-4
-              focus:ring-orange-100
-            "
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 resize-none outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
                 />
               </div>
 
@@ -544,20 +500,7 @@ export default function MenuClient() {
                     })
                   }
                   placeholder="Popular, Chef's Special, New..."
-                  className="
-              w-full
-              rounded-xl
-              border
-              border-slate-200
-              bg-slate-50
-              px-4
-              py-3
-              outline-none
-              transition
-              focus:border-orange-500
-              focus:ring-4
-              focus:ring-orange-100
-            "
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
                 />
               </div>
 
@@ -638,32 +581,16 @@ export default function MenuClient() {
                       isAvailable: !form.isAvailable,
                     })
                   }
-                  className={`
-              relative
-              w-14
-              h-7
-              rounded-full
-              transition
-              ${form.isAvailable
-                      ? "bg-green-500"
-                      : "bg-slate-300"
-                    }
-            `}
+                  className={`relative w-14 h-7 rounded-full transition ${form.isAvailable
+                    ? "bg-green-500"
+                    : "bg-slate-300"
+                    }`}
                 >
                   <span
-                    className={`
-                absolute
-                top-1
-                h-5
-                w-5
-                rounded-full
-                bg-white
-                transition-all
-                ${form.isAvailable
-                        ? "left-8"
-                        : "left-1"
-                      }
-              `}
+                    className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${form.isAvailable
+                      ? "left-8"
+                      : "left-1"
+                      }`}
                   />
                 </button>
 
@@ -676,15 +603,7 @@ export default function MenuClient() {
 
               <button
                 onClick={() => setShowModal(false)}
-                className="
-                rounded-xl
-                border
-               border-slate-300
-                px-5
-               py-2.5
-                font-medium
-               hover:bg-slate-50
-                 "
+                className="rounded-xl border border-slate-300 px-5 py-2.5 font-medium hover:bg-slate-50 "
               >
                 Cancel
               </button>
@@ -692,16 +611,7 @@ export default function MenuClient() {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="
-            rounded-xl
-            bg-orange-500
-            px-5
-            py-2.5
-            text-white
-            font-semibold
-            hover:bg-orange-600
-            disabled:opacity-50
-          "
+                className="rounded-xl bg-orange-500 px-5 py-2.5 text-white font-semibold hover:bg-orange-600 disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save Item"}
               </button>
@@ -711,6 +621,8 @@ export default function MenuClient() {
           </div>
         </div>
       )}
+
+
     </div>
   );
 }

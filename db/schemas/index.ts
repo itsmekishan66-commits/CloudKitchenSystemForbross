@@ -13,3 +13,4 @@ export * from "./rolePermissions";
 export * from "./site-settings";
 export * from "./contact-messages";
 export * from "./payment";
+export * from "./suppliers";

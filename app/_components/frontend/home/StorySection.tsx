@@ -21,29 +21,17 @@ export default function StorySection() {
             {/* <div className="absolute top-10 left-10 w-72 h-72 rounded-full bg-orange-100 -z-10" /> */}
 
             {/* Top Image */}
-            <Image
-              src="/chef/Vector.png"
-              alt="top decoration"
-              width={400}
-              height={400}
+            <Image src="/chef/Vector.png" alt="top decoration" width={400} height={400}
               className="absolute top-38 left-70"
             />
 
             {/* Main Chef Image */}
-            <Image
-              src="/chef/Group.png"
-              alt="chef"
-              width={700}
-              height={700}
+            <Image src="/chef/Group.png" alt="chef" width={700} height={700}
               className="relative z-10"
             />
 
             {/* side Image */}
-            <Image
-              src="/chef/Decore.png"
-              alt="side decoration"
-              width={100}
-              height={100}
+            <Image src="/chef/Decore.png" alt="side decoration" width={100}height={100}
               className="absolute top-70 left-76 z-0 "
             />
 

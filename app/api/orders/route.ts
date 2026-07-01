@@ -25,7 +25,11 @@ type OrderPayload = {
   paymentMethod?: string;
   total?: number;
   items?: CartItem[];
+  zoneId?: number;
+  deliveryCharge?: number;
 };
+
+
 
 type UpdateOrderPayload = {
   id?: number;
@@ -100,6 +104,42 @@ export async function POST(request: Request) {
     );
   }
 
+  //yo delivery charge validation ko lagi
+  const zoneId = Number.isInteger(payload.zoneId) ? payload.zoneId : null;
+  const deliveryCharge = Number(payload.deliveryCharge) || 0;
+  // If zoneId provided, validate it and calculate charge server-side
+
+  if (!zoneId) {
+    return NextResponse.json(
+      { error: "Please select a delivery landmark" },
+      { status: 400 },
+    );
+  }
+
+  let deliverySavings = 0;
+  if (zoneId) {
+    const { getZoneById } = await import("@/db/services/delivery-zones");
+    const zone = await getZoneById(zoneId);
+    if (!zone || !zone.isActive) {
+      return NextResponse.json(
+        { error: "Selected delivery area is not available" },
+        { status: 400 }
+      );
+    }
+    const expectedCharge = Number(zone.deliveryCharge);
+    deliverySavings = Math.max(0, expectedCharge - deliveryCharge);
+    // Apply free delivery if min order met
+    const effectiveCharge =
+      zone.minOrderAmount && total >= Number(zone.minOrderAmount) ? 0 : expectedCharge;
+
+    if (Math.abs(deliveryCharge - effectiveCharge) > 0.01) {
+      return NextResponse.json(
+        { error: "Delivery charge mismatch" },
+        { status: 400 }
+      );
+    }
+  }
+
   try {
     let userId: number | null = null;
     const user = await getCurrentUser();
@@ -119,13 +159,22 @@ export async function POST(request: Request) {
       userId = guestId;
     }
 
+    const itemSavings = items.reduce((sum, item) => {
+      if (!item.originalPrice) return sum;
+      const addonTotal = (item.addons || []).reduce((s, a) => s + a.price, 0);
+      const discountedItemPrice = item.price - addonTotal;
+      return sum + Math.max(0, item.originalPrice - discountedItemPrice) * item.quantity;
+    }, 0);
+
     const orderId = await createOrder({
       userId,
       customerName,
       phone,
       address,
       paymentMethod,
+      deliveryCharge: deliveryCharge.toFixed(2),
       total: total.toFixed(2),
+      discountAmount: (itemSavings + deliverySavings).toFixed(2),
       items: items.map((item) => ({
         menuItemId: null,
         title: item.title,

@@ -33,7 +33,7 @@ export default function CustomersClient() {
   const can = (p: string) => permissions.includes(p);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState("customer");
   const [search, setSearch] = useState("");
 
   const [showAddModal, setShowAddModal] = useState(false);

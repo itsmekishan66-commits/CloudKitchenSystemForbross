@@ -4,10 +4,16 @@ import Link from "next/link";
 
 interface CartSummaryProps {
   totalPrice: number;
+  deliveryCharge?: number;
 }
 
-export default function CartSummary({ totalPrice }: CartSummaryProps) {
-  const deliveryCharge = 100;
+// export default function CartSummary({ totalPrice }: CartSummaryProps) {
+// const deliveryCharge = 100;
+// const grandTotal = totalPrice + deliveryCharge;
+export default function CartSummary({
+  totalPrice,
+  deliveryCharge = 0,
+}: CartSummaryProps) {
   const grandTotal = totalPrice + deliveryCharge;
 
   return (
@@ -20,8 +26,13 @@ export default function CartSummary({ totalPrice }: CartSummaryProps) {
 
       <div className="flex justify-between items-center mb-3">
         <span className="text-gray-600">Delivery Charge</span>
-
-        <span className="font-medium">Rs. {deliveryCharge.toFixed(2)}</span>
+        <span className="font-medium">
+          {deliveryCharge === 0 ? (
+            <span className="text-green-600">delivery charge in next step</span>
+          ) : (
+            `Rs. ${deliveryCharge.toFixed(2)}`
+          )}
+        </span>
       </div>
 
       <div className="border-t my-4" />

@@ -18,6 +18,7 @@ export async function GET() {
     return NextResponse.json({
       totalOrders: stats.totalOrders,
       totalSpent: stats.totalSpent,
+      totalSaved: stats.totalSaved,
       activeOrders: stats.activeOrders,
       favoriteItems: favorites.length,
     });

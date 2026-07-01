@@ -1,0 +1,1 @@
+ALTER TABLE `orders` ADD `discount_amount` decimal(10,2) DEFAULT '0' NOT NULL;

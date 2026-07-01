@@ -261,10 +261,10 @@ export default function SettingsClient() {
               <h2 className="font-bold text-lg">Admin Profile</h2>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className={inputClass} />
-              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className={inputClass} />
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" className={inputClass} />
-              <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={3} placeholder="Address" className={`${inputClass} md:col-span-1`} />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
+              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
+              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
+              <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={3} placeholder="Address" className={`${inputClass} md:col-span-1`} disabled={!can("UPDATE_SETTINGS")} />
             </div>
           </div>
 
@@ -275,13 +275,13 @@ export default function SettingsClient() {
               <h2 className="font-bold text-lg">Restaurant Details</h2>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <input value={restaurantName} onChange={(e) => setRestaurantName(e.target.value)} placeholder="Restaurant Name" className={inputClass} />
+              <input value={restaurantName} onChange={(e) => setRestaurantName(e.target.value)} placeholder="Restaurant Name" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
               <div className="rounded-xl border border-dashed border-gray-300 p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <ImageIcon size={18} />
                   Upload Logo
                 </div>
-                <input type="file" accept="image/*" onChange={(e) => setLogo(e.target.files?.[0] || null)} />
+                <input type="file" accept="image/*" onChange={(e) => setLogo(e.target.files?.[0] || null)} disabled={!can("UPDATE_SETTINGS")} />
                 {logoPreview && !logo && (
                   <div className="mt-2">
                     <img src={logoPreview} alt="Logo preview" className="h-12 w-12 object-contain rounded" />
@@ -300,14 +300,14 @@ export default function SettingsClient() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="relative">
                 <Mail size={16} className="absolute left-4 top-4 text-gray-400" />
-                <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="Email" className={`${inputClass} pl-10`} />
+                <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="Email" className={`${inputClass} pl-10`} disabled={!can("UPDATE_SETTINGS")} />
               </div>
-              <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="Phone" className={inputClass} />
+              <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="Phone" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
               <div className="relative">
                 <MapPin size={16} className="absolute left-4 top-4 text-gray-400" />
-                <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className={`${inputClass} pl-10`} />
+                <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className={`${inputClass} pl-10`} disabled={!can("UPDATE_SETTINGS")} />
               </div>
-              <input value={deliveryAreas} onChange={(e) => setDeliveryAreas(e.target.value)} placeholder="Delivery Areas (comma separated)" className={inputClass} />
+              <input value={deliveryAreas} onChange={(e) => setDeliveryAreas(e.target.value)} placeholder="Delivery Areas (comma separated)" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
             </div>
           </div>
 
@@ -320,19 +320,19 @@ export default function SettingsClient() {
             <div className="grid gap-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Hero Badge</label>
-                <input value={heroBadge} onChange={(e) => setHeroBadge(e.target.value)} placeholder="Nepal's Favorite Cloud Kitchen" className={inputClass} />
+                <input value={heroBadge} onChange={(e) => setHeroBadge(e.target.value)} placeholder="Nepal's Favorite Cloud Kitchen" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Hero Description</label>
-                <textarea value={heroDescription} onChange={(e) => setHeroDescription(e.target.value)} rows={3} placeholder="Describe your kitchen..." className={inputClass} />
+                <textarea value={heroDescription} onChange={(e) => setHeroDescription(e.target.value)} rows={3} placeholder="Describe your kitchen..." className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Story Title</label>
-                <input value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} placeholder="Built for the Digital Food Era" className={inputClass} />
+                <input value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} placeholder="Built for the Digital Food Era" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Story Paragraphs (separate with blank line)</label>
-                <textarea value={storyParagraphs} onChange={(e) => setStoryParagraphs(e.target.value)} rows={4} placeholder="Paragraph 1&#10;&#10;Paragraph 2&#10;&#10;Paragraph 3" className={inputClass} />
+                <textarea value={storyParagraphs} onChange={(e) => setStoryParagraphs(e.target.value)} rows={4} placeholder="Paragraph 1&#10;&#10;Paragraph 2&#10;&#10;Paragraph 3" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
               </div>
             </div>
           </div>
@@ -346,24 +346,24 @@ export default function SettingsClient() {
             <div className="grid gap-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Hero Badge</label>
-                <input value={contactHeroBadge} onChange={(e) => setContactHeroBadge(e.target.value)} placeholder="Contact Us" className={inputClass} />
+                <input value={contactHeroBadge} onChange={(e) => setContactHeroBadge(e.target.value)} placeholder="Contact Us" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Hero Description</label>
-                <textarea value={contactHeroDescription} onChange={(e) => setContactHeroDescription(e.target.value)} rows={3} placeholder="Describe your contact page..." className={inputClass} />
+                <textarea value={contactHeroDescription} onChange={(e) => setContactHeroDescription(e.target.value)} rows={3} placeholder="Describe your contact page..." className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
               </div>
               <div className="grid md:grid-cols-3 gap-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Hours (Mon-Fri)</label>
-                  <input value={hoursWeekday} onChange={(e) => setHoursWeekday(e.target.value)} placeholder="9:00 AM - 11:00 PM" className={inputClass} />
+                  <input value={hoursWeekday} onChange={(e) => setHoursWeekday(e.target.value)} placeholder="9:00 AM - 11:00 PM" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Hours (Saturday)</label>
-                  <input value={hoursSaturday} onChange={(e) => setHoursSaturday(e.target.value)} placeholder="10:00 AM - 11:00 PM" className={inputClass} />
+                  <input value={hoursSaturday} onChange={(e) => setHoursSaturday(e.target.value)} placeholder="10:00 AM - 11:00 PM" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Hours (Sunday)</label>
-                  <input value={hoursSunday} onChange={(e) => setHoursSunday(e.target.value)} placeholder="10:00 AM - 10:00 PM" className={inputClass} />
+                  <input value={hoursSunday} onChange={(e) => setHoursSunday(e.target.value)} placeholder="10:00 AM - 10:00 PM" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
                 </div>
               </div>
             </div>

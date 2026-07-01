@@ -21,6 +21,7 @@ interface Order {
   isGuest: boolean;
   paymentMethod: string;
   total: string;
+  deliveryCharge: string;
   status: string;
   paymentSettled?: number | null;
   createdAt: Date | string;
@@ -201,6 +202,9 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">Logged</span>
                 )}
                 <span className="text-gray-500">Rs.{order.total}</span>
+                {Number(order.deliveryCharge) > 0 && (
+                  <span className="text-xs text-gray-400">(incl. Rs.{Number(order.deliveryCharge).toFixed(2)} delivery)</span>
+                )}
               </div>
               <div className="flex items-center gap-3 flex-wrap">
                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(order.status)}`}>
@@ -326,11 +330,28 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                     )}
                   </tbody>
                   <tfoot>
-                    <tr>
-                      <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1.5 text-right font-semibold text-gray-700">Total</td>
-                      <td className="py-1.5 text-right font-bold">Rs.{order.total}</td>
-                      {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
-                    </tr>
+                    {(() => {
+                      const itemsSubtotal = order.items.reduce((s, i) => s + Number(i.price) * i.quantity, 0);
+                      return (
+                        <>
+                          <tr>
+                            <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1 text-right text-gray-500 text-xs">Items Subtotal</td>
+                            <td className="py-1 text-right text-gray-500 text-xs">Rs.{itemsSubtotal.toFixed(2)}</td>
+                            {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
+                          </tr>
+                          <tr>
+                            <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1 text-right text-gray-500 text-xs">Delivery Charge</td>
+                            <td className="py-1 text-right text-gray-500 text-xs">Rs.{Number(order.deliveryCharge).toFixed(2)}</td>
+                            {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
+                          </tr>
+                          <tr>
+                            <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1.5 text-right font-semibold text-gray-700">Total</td>
+                            <td className="py-1.5 text-right font-bold">Rs.{order.total}</td>
+                            {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
+                          </tr>
+                        </>
+                      );
+                    })()}
                   </tfoot>
                 </table>
               </div>

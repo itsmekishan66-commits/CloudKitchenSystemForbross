@@ -319,6 +319,7 @@ function MenuContent() {
                           title: food.name,
                           image: food.image,
                           price: food.discountedPrice,
+                          originalPrice: food.discountPercent > 0 ? food.price : undefined,
                           quantity: 1,
                         });
                       }
@@ -386,6 +387,7 @@ function MenuContent() {
                     title: addonModalFood.name,
                     image: addonModalFood.image,
                     price: addonModalFood.discountedPrice + addonTotal,
+                    originalPrice: addonModalFood.discountPercent > 0 ? addonModalFood.price + addonTotal : undefined,
                     quantity: 1,
                     addons: selectedAddons,
                   });

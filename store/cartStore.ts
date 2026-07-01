@@ -14,6 +14,7 @@ export interface CartItem {
   price: number;
   quantity: number;
   addons?: Addon[];
+  originalPrice?: number;
 }
 
 interface CartStore {

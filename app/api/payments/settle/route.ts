@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 
+import { db } from "@/db";
 import { createTransaction, createDue } from "@/db/services/payments";
 import { markOrderPaymentSettled } from "@/db/services/orders";
+import { orders } from "@/db/schemas";
 import type { NewTransaction, NewDue } from "@/db/schemas";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -61,6 +64,12 @@ export async function POST(request: Request) {
         notes: "Settlement discount",
       };
       await createTransaction(txData);
+
+      const [order] = await db.select().from(orders).where(eq(orders.id, Number(orderId))).limit(1);
+      if (order) {
+        const currentDiscount = Number(order.discountAmount ?? 0);
+        await db.update(orders).set({ discountAmount: (currentDiscount + discountAmount).toFixed(2) }).where(eq(orders.id, Number(orderId)));
+      }
     }
 
     if (markAsDue && (Number(payload.dueAmount) > 0)) {

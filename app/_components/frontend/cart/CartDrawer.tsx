@@ -24,7 +24,7 @@ export default function CartDrawer({ open, onClose }: Props) {
       {/* Backdrop */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/50 z-90"
+          className="fixed inset-0 h-screen bg-black/30 z-100"
           onClick={onClose}
         />
       )}

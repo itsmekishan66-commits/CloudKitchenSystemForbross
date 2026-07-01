@@ -12,7 +12,6 @@ export default async function ContactPage() {
     await getSiteSettings();
 
   const c = (contactContent as Record<string, unknown>) || {};
-  const heroBadge = (c.heroBadge as string) || "Contact Us";
   const heroHeading = (c.heroHeading as string) || "We'd Love To";
   const heroHeadingAccent = (c.heroHeadingAccent as string) || "Hear From You";
   const heroDescription =
@@ -39,9 +38,9 @@ export default async function ContactPage() {
       <section className="bg-linear-to-br from-orange-50 via-white to-red-50">
         <div className="max-w-7xl mx-auto px-6 py-24 text-center">
 
-          <span className="bg-orange-100 text-red-700 px-4 py-2 rounded-full text-sm font-medium">
+          {/* <span className="bg-orange-100 text-red-700 px-4 py-2 rounded-full text-sm font-medium">
             {heroBadge}
-          </span>
+          </span> */}
 
           <h1 className="mt-6 text-5xl lg:text-6xl font-bold">
             {heroHeading}

@@ -64,6 +64,20 @@
       "when": 1782796194283,
       "tag": "0008_low_gladiator",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1782897604880,
+      "tag": "0009_robust_the_santerians",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1782921461453,
+      "tag": "0010_jazzy_secret_warriors",
+      "breakpoints": true
     }
   ]
 }

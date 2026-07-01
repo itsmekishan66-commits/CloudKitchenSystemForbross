@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -30,6 +30,8 @@ export async function getOrdersWithDetails() {
       paymentMethod: orders.paymentMethod,
       status: orders.status,
       total: orders.total,
+      deliveryCharge: orders.deliveryCharge,
+      discountAmount: orders.discountAmount,
       paymentSettled: orders.paymentSettled,
       createdAt: orders.createdAt,
       updatedAt: orders.updatedAt,
@@ -136,10 +138,17 @@ export async function getUserOrderStats(userId: number) {
   const [orderStats] = await db
     .select({
       totalOrders: sql<number>`count(*)`,
-      totalSpent: sql<string>`coalesce(sum(${orders.total}), 0)`,
     })
     .from(orders)
     .where(eq(orders.userId, userId));
+
+  const [deliveredStats] = await db
+    .select({
+      totalSpent: sql<string>`coalesce(sum(${orders.total}), 0)`,
+      totalSaved: sql<string>`coalesce(sum(${orders.discountAmount}), 0)`,
+    })
+    .from(orders)
+    .where(and(eq(orders.userId, userId), eq(orders.status, "Delivered")));
 
   const [activeOrderCount] = await db
     .select({
@@ -152,7 +161,8 @@ export async function getUserOrderStats(userId: number) {
 
   return {
     totalOrders: Number(orderStats?.totalOrders ?? 0),
-    totalSpent: Number(orderStats?.totalSpent ?? 0),
+    totalSpent: Number(deliveredStats?.totalSpent ?? 0),
+    totalSaved: Number(deliveredStats?.totalSaved ?? 0),
     activeOrders: Number(activeOrderCount?.count ?? 0),
   };
 }
@@ -182,12 +192,12 @@ export async function getUserFavoriteItems(userId: number) {
     .select({
       title: orderItems.title,
       count: sql<number>`count(*)`,
-      price: orderItems.price,
+      price: sql<string>`max(${orderItems.price})`,
     })
     .from(orderItems)
     .innerJoin(orders, eq(orderItems.orderId, orders.id))
     .where(eq(orders.userId, userId))
-    .groupBy(orderItems.title, orderItems.price)
+    .groupBy(orderItems.title)
     .orderBy(desc(sql`count(*)`))
     .limit(6);
 

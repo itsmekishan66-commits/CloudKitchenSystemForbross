@@ -1,3 +1,5 @@
+"use client";
+import { useState } from "react";
 import { Package } from "lucide-react";
 
 type OrderItem = {
@@ -34,6 +36,12 @@ function formatDate(dateStr: string | Date) {
 }
 
 export default function RecentOrders({ orders }: { orders: Order[] }) {
+  const [page, setPage] = useState(1);
+  const perPage = 7;
+  const totalPages = Math.ceil(orders.length / perPage);
+  const start = (page - 1) * perPage;
+  const visibleOrders = orders.slice(start, start + perPage);
+
   if (orders.length === 0) {
     return (
       <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center">
@@ -52,7 +60,7 @@ export default function RecentOrders({ orders }: { orders: Order[] }) {
       </div>
 
       <div className="space-y-1">
-        {orders.map((order) => (
+        {visibleOrders.map((order) => (
           <div
             key={order.id}
             className="flex items-center justify-between p-4 rounded-xl hover:bg-gray-50 transition-colors"
@@ -66,7 +74,7 @@ export default function RecentOrders({ orders }: { orders: Order[] }) {
                   {order.items.map((i) => i.title).join(", ")}
                 </h4>
                 <p className="text-sm text-gray-400">
-                  #{order.id} • {formatDate(order.createdAt)}
+                  #{order.id} &bull; {formatDate(order.createdAt)}
                 </p>
               </div>
             </div>
@@ -82,6 +90,30 @@ export default function RecentOrders({ orders }: { orders: Order[] }) {
           </div>
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100">
+          <p className="text-sm text-gray-400">
+            Page {page} of {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

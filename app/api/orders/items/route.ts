@@ -43,8 +43,11 @@ export async function PATCH(request: Request) {
 
     await db.update(orderItems).set({ quantity: newQty }).where(eq(orderItems.id, itemId));
 
+    const [order] = await db.select().from(orders).where(eq(orders.id, item.orderId)).limit(1);
+    const deliveryCharge = Number(order?.deliveryCharge ?? 0);
     const allItems = await db.select().from(orderItems).where(eq(orderItems.orderId, item.orderId));
-    const newTotal = allItems.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0).toFixed(2);
+    const itemsSubtotal = allItems.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
+    const newTotal = (itemsSubtotal + deliveryCharge).toFixed(2);
     await db.update(orders).set({ total: newTotal }).where(eq(orders.id, item.orderId));
 
     return NextResponse.json({ ok: true, quantity: newQty, total: newTotal });
@@ -73,6 +76,9 @@ export async function DELETE(request: Request) {
 
     await db.delete(orderItems).where(eq(orderItems.id, itemId));
 
+    const [order] = await db.select().from(orders).where(eq(orders.id, item.orderId)).limit(1);
+    const deliveryCharge = Number(order?.deliveryCharge ?? 0);
+
     const remaining = await db.select().from(orderItems).where(eq(orderItems.orderId, item.orderId));
 
     if (remaining.length === 0) {
@@ -80,7 +86,8 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ ok: true, total: "0.00", empty: true });
     }
 
-    const newTotal = remaining.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0).toFixed(2);
+    const itemsSubtotal = remaining.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
+    const newTotal = (itemsSubtotal + deliveryCharge).toFixed(2);
     await db.update(orders).set({ total: newTotal }).where(eq(orders.id, item.orderId));
 
     return NextResponse.json({ ok: true, total: newTotal, empty: false });
@@ -135,8 +142,10 @@ export async function POST(request: Request) {
       meta: body.meta || null,
     });
 
+    const deliveryCharge = Number(order.deliveryCharge ?? 0);
     const allItems = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
-    const newTotal = allItems.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0).toFixed(2);
+    const itemsSubtotal = allItems.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
+    const newTotal = (itemsSubtotal + deliveryCharge).toFixed(2);
     await db.update(orders).set({ total: newTotal }).where(eq(orders.id, orderId));
 
     return NextResponse.json({ ok: true, total: newTotal }, { status: 201 });

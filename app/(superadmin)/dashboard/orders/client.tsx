@@ -21,6 +21,7 @@ interface Order {
   isGuest: boolean;
   paymentMethod: string;
   total: string;
+  deliveryCharge: string;
   status: string;
   paymentSettled?: number | null;
   createdAt: Date | string;

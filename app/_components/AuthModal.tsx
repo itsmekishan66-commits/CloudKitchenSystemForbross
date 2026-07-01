@@ -25,7 +25,7 @@ export default function AuthModal({ open, onClose }: AuthModalProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center">
+    <div className="fixed inset-0 z-200 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
       <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-8">

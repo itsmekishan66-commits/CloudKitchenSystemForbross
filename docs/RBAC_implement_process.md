@@ -1,6 +1,5 @@
 # RBAC (Role-Based Access Control) — Complete Guide
 
-> **Target audience:** First-year college student  
 > **Project:** Cloud Kitchen Management System
 
 ---

@@ -2,6 +2,7 @@
 import { CircleArrowDown, Package, Truck, AlertTriangle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
+import { useConfirm } from "@/app/_components/ConfirmPopup";
 
 interface InventoryItem {
   id: number;
@@ -29,6 +30,7 @@ const emptyForm: InventoryForm = { name: "", category: "Other", quantity: "0", u
 export default function InventoryClient() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
+  const confirm = useConfirm();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -166,7 +168,7 @@ export default function InventoryClient() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm("Are you sure you want to delete this item?")) return;
+    if (!await confirm("Are you sure you want to delete this item?")) return;
     try {
       const res = await fetch(`/api/superadmin/inventory?id=${id}`, { method: "DELETE" });
       const data = await res.json();

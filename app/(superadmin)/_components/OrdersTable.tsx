@@ -9,6 +9,11 @@ interface OrderItem {
   title: string;
   quantity: number;
   price: string;
+  meta?: {
+    image?: string;
+    clientId?: string;
+    addons?: { name: string; price: number }[];
+  };
 }
 
 interface Order {
@@ -289,7 +294,20 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                     ) : (
                       order.items.map((item) => (
                         <tr key={item.id} className="border-b border-gray-100">
-                          <td className="py-1.5">{item.title}</td>
+                          <td className="py-1.5">
+                            {item.title}
+                            {item.meta?.addons && item.meta.addons.length > 0 && (
+                              <div className="text-xs text-gray-400 mt-0.5 space-y-0.5">
+                                {item.meta.addons.map((a, i) => (
+                                  <div key={i} className="flex gap-1">
+                                    <span className="text-orange-400">+</span>
+                                    <span>{a.name}</span>
+                                    <span className="text-gray-300">(Rs.{a.price.toFixed(2)})</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </td>
                           <td className="py-1.5 text-right">
                             {order.status !== "Delivered" && order.status !== "Cancelled" && can("UPDATE_ORDERS") ? (
                               <span className="inline-flex items-center gap-1">

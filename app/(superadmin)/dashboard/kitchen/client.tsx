@@ -2,6 +2,7 @@
 // import { CircleArrowDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
+import { useConfirm } from "@/app/_components/ConfirmPopup";
 
 interface Kitchen {
   id: number;
@@ -30,6 +31,7 @@ const emptyForm: KitchenForm = { name: "", slug: "", location: "", phone: "", em
 export default function KitchenClient() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
+  const confirm = useConfirm();
   const [kitchens, setKitchens] = useState<Kitchen[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -134,7 +136,7 @@ export default function KitchenClient() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm("Are you sure you want to delete this kitchen?")) return;
+    if (!await confirm("Are you sure you want to delete this kitchen?")) return;
     try {
       const res = await fetch(`/api/superadmin/kitchens?id=${id}`, { method: "DELETE" });
       const data = await res.json();

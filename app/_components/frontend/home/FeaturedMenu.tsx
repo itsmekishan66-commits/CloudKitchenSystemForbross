@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useCart } from "../cart/CartContext";
 import Link from "next/link";
 import { safeImageUrl } from "@/lib/image";
+import toast from "react-hot-toast";
 
 type ApiMenuItem = {
   id: number;
@@ -134,7 +135,7 @@ export default function FeaturedMenu() {
                   reviews={current.reviews}
                   price={Number(current.price)}
                   badge={current.badge || ""}
-                  onAddToCart={() => addToCart({ id: String(current.id), title: current.title, image: current.image || "", price: Number(current.price), quantity: 1 })}
+                  onAddToCart={() => { addToCart({ id: String(current.id), title: current.title, image: current.image || "", price: Number(current.price), quantity: 1 }); toast.success(`Added ${current.title} to cart`); }}
                 />
               )}
 
@@ -168,7 +169,7 @@ export default function FeaturedMenu() {
               reviews={food.reviews}
               price={Number(food.price)}
               badge={food.badge || ""}
-              onAddToCart={() => addToCart({ id: String(food.id), title: food.title, image: food.image || "", price: Number(food.price), quantity: 1 })}
+               onAddToCart={() => { addToCart({ id: String(food.id), title: food.title, image: food.image || "", price: Number(food.price), quantity: 1 }); toast.success(`Added ${food.title} to cart`); }}
             />
           )) : (
             <p className="col-span-full text-center text-gray-400 py-12"> No featured items available yet.</p>

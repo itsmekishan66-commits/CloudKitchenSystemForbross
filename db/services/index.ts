@@ -11,3 +11,5 @@ export * from "./site-settings";
 export * from "./contact-messages";
 export * from "./payments";
 export * from "./suppliers";
+// this is the code for menu recipe - recipe service
+export * from "./recipes";

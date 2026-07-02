@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { safeImageUrl } from "@/lib/image";
+import toast from "react-hot-toast";
 
 import type { CartItem as CartItemType } from "@/store/cartStore";
 
@@ -43,7 +44,12 @@ export default function CartItem({
           <button
             type="button"
             aria-label={`Decrease ${item.title} quantity`}
-            onClick={() => decreaseQty(item.id)}
+            onClick={() => {
+              if (item.quantity === 1) {
+                toast.success(`Removed ${item.title} from cart`);
+              }
+              decreaseQty(item.id);
+            }}
           >
             <Minus size={16} />
           </button>
@@ -63,7 +69,10 @@ export default function CartItem({
       <button
         type="button"
         aria-label={`Remove ${item.title}`}
-        onClick={() => removeItem(item.id)}
+        onClick={() => {
+          toast.success(`Removed ${item.title} from cart`);
+          removeItem(item.id);
+        }}
       >
         <Trash2 />
       </button>

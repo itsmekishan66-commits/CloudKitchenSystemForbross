@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
-import { Truck, Plus, Edit3, Trash2, ArrowLeft, Package, ShoppingBag, DollarSign, FileText, Pencil } from "lucide-react";
+import { useConfirm } from "@/app/_components/ConfirmPopup";
+import { Truck, Plus, ArrowLeft, Package, ShoppingBag, DollarSign, FileText } from "lucide-react";
 
 interface Supplier {
   id: number;
@@ -71,6 +72,7 @@ const emptyProductForm: {
 export default function SuppliersClient() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
+  const confirm = useConfirm();
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,7 +185,7 @@ export default function SuppliersClient() {
   }
 
   async function handleDeleteSupplier(id: number) {
-    if (!confirm("Delete this supplier and all associated data?")) return;
+    if (!await confirm("Delete this supplier and all associated data?")) return;
     try {
       await fetch(`/api/superadmin/suppliers?id=${id}`, { method: "DELETE" });
       if (selectedSupplier?.id === id) setSelectedSupplier(null);
@@ -261,7 +263,7 @@ export default function SuppliersClient() {
   }
 
   async function handleDeleteProduct(id: number) {
-    if (!confirm("Delete this product? It will also remove associated menu/inventory items.")) return;
+    if (!await confirm("Delete this product? It will also remove associated menu/inventory items.")) return;
     try {
       await fetch(`/api/superadmin/suppliers?id=${id}&type=product`, { method: "DELETE" });
       if (selectedSupplier) await loadProducts(selectedSupplier.id);
@@ -306,7 +308,7 @@ export default function SuppliersClient() {
   }
 
   async function handleDeleteSettlement(id: number) {
-    if (!confirm("Delete this settlement record?")) return;
+    if (!await confirm("Delete this settlement record?")) return;
     try {
       await fetch(`/api/superadmin/suppliers?id=${id}&type=settlement&supplierId=${selectedSupplier!.id}`, { method: "DELETE" });
       if (selectedSupplier) await loadSettlements(selectedSupplier.id);
@@ -431,8 +433,8 @@ export default function SuppliersClient() {
                       <td className="p-3 font-semibold">{p.productType === "direct_sellable" ? `Rs.${p.sellingPrice}` : "-"}</td>
                       <td className="p-3">{Number(p.quantity) > 0 ? `${p.quantity} ${p.purchaseUnit || "packs"}` : "0"}</td>
                       <td className="p-3">
-                        {can("UPDATE_SUPPLIERS") && <button onClick={() => openEditProduct(p)} className="mr-2 rounded bg-blue-500 px-2 py-1 text-white text-xs hover:bg-blue-600"><Edit3 size={14} /></button>}
-                        {can("DELETE_SUPPLIERS") && <button onClick={() => handleDeleteProduct(p.id)} className="rounded bg-red-500 px-2 py-1 text-white text-xs hover:bg-red-600"><Trash2 size={14} /></button>}
+                        {can("UPDATE_SUPPLIERS") && <button onClick={() => openEditProduct(p)} className="mr-2 rounded bg-blue-500 px-2 py-1 text-white text-xs hover:bg-blue-600">Edit</button>}
+                        {can("DELETE_SUPPLIERS") && <button onClick={() => handleDeleteProduct(p.id)} className="rounded bg-red-500 px-2 py-1 text-white text-xs hover:bg-red-600">Delete</button>}
                       </td>
                     </tr>
                     );
@@ -519,10 +521,10 @@ export default function SuppliersClient() {
                         <td className="p-3">
                           <div className="flex gap-1">
                             {can("UPDATE_SUPPLIERS") && (
-                              <button onClick={() => { setEditingSettlement(s); setSettlementForm({ amount: s.amount, paidNow: "", type: s.type, paymentMethod: s.paymentMethod || "", transactionId: s.transactionId || "", notes: s.notes || "" }); setShowSettlementModal(true); }} className="rounded bg-blue-500 px-2 py-1 text-white text-xs hover:bg-blue-600"><Pencil size={14} /></button>
+                              <button onClick={() => { setEditingSettlement(s); setSettlementForm({ amount: s.amount, paidNow: "", type: s.type, paymentMethod: s.paymentMethod || "", transactionId: s.transactionId || "", notes: s.notes || "" }); setShowSettlementModal(true); }} className="rounded bg-blue-500 px-2 py-1 text-white text-xs hover:bg-blue-600">Edit</button>
                             )}
                             {can("DELETE_SUPPLIERS") && (
-                              <button onClick={() => handleDeleteSettlement(s.id)} className="rounded bg-red-500 px-2 py-1 text-white text-xs hover:bg-red-600"><Trash2 size={14} /></button>
+                              <button onClick={() => handleDeleteSettlement(s.id)} className="rounded bg-red-500 px-2 py-1 text-white text-xs hover:bg-red-600">Delete</button>
                             )}
                           </div>
                         </td>
@@ -830,13 +832,13 @@ export default function SuppliersClient() {
                     {s.status}
                   </span>
                   {can("UPDATE_SUPPLIERS") && (
-                    <button onClick={(e) => { e.stopPropagation(); openEditSupplier(s); }} className="rounded-lg border p-2 text-gray-500 hover:bg-gray-50">
-                      <Edit3 size={16} />
+                    <button onClick={(e) => { e.stopPropagation(); openEditSupplier(s); }} className="rounded bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600">
+                      Edit
                     </button>
                   )}
                   {can("DELETE_SUPPLIERS") && (
-                    <button onClick={(e) => { e.stopPropagation(); handleDeleteSupplier(s.id); }} className="rounded-lg border p-2 text-red-500 hover:bg-red-50">
-                      <Trash2 size={16} />
+                    <button onClick={(e) => { e.stopPropagation(); handleDeleteSupplier(s.id); }} className="rounded bg-red-500 px-3 py-1 text-white text-sm hover:bg-red-600">
+                      Delete
                     </button>
                   )}
                 </div>

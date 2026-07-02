@@ -1,10 +1,11 @@
 "use client";
 // import { CircleArrowDown } from "lucide-react";
 import { useEffect, useState } from "react";
-import { FiTrash2, FiMail, FiPhone, FiMessageSquare } from "react-icons/fi";
+import { FiMail, FiPhone, FiMessageSquare } from "react-icons/fi";
 // import { FiRefreshCw } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { usePermissions } from "@/lib/permission-context";
+import { useConfirm } from "@/app/_components/ConfirmPopup";
 
 interface Message {
   id: number;
@@ -25,6 +26,7 @@ const sourceBadge: Record<string, string> = {
 export default function MessagesClient() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
+  const confirm = useConfirm();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -60,7 +62,7 @@ export default function MessagesClient() {
   }, []);
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Delete this message?")) return;
+    if (!await confirm("Delete this message?")) return;
     try {
       const res = await fetch("/api/superadmin/messages", {
         method: "DELETE",
@@ -162,13 +164,12 @@ export default function MessagesClient() {
                 </div>
 
                 {can("DELETE_MESSAGES") && (
-                <button
-                  onClick={() => handleDelete(msg.id)}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition ml-4"
-                  title="Delete"
-                >
-                  <FiTrash2 size={18} />
-                </button>
+                  <button
+                    onClick={() => handleDelete(msg.id)}
+                    className="rounded bg-red-500 px-3 py-1 text-white text-sm hover:bg-red-600 ml-4"
+                  >
+                    Delete
+                  </button>
                 )}
               </div>
             </div>

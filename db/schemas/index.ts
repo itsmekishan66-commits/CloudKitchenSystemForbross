@@ -15,3 +15,6 @@ export * from "./contact-messages";
 export * from "./payment";
 export * from "./suppliers";
 export * from "./delivery-zones";
+// this is the code for menu recipe - recipe schemas
+export * from "./recipes";
+export * from "./recipe-ingredients";

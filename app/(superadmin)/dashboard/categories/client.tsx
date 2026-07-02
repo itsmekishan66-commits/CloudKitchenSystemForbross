@@ -2,6 +2,7 @@
 // import { CircleArrowDown, } from 'lucide-react';
 import { useEffect, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
+import { useConfirm } from "@/app/_components/ConfirmPopup";
 
 interface Category {
   id: number;
@@ -24,6 +25,7 @@ const emptyForm: CategoryForm = { name: "", slug: "", image: "", isActive: true 
 export default function CategoriesClient() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
+  const confirm = useConfirm();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -111,7 +113,7 @@ export default function CategoriesClient() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm("Are you sure you want to delete this category?")) return;
+    if (!await confirm("Are you sure you want to delete this category?")) return;
     try {
       const res = await fetch(`/api/categories?id=${id}`, { method: "DELETE" });
       const data = await res.json();

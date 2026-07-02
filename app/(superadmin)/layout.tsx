@@ -3,6 +3,7 @@ import Sidebar from "./_components/Sidebar";
 import { getCurrentUser } from "@/lib/auth";
 import { getUserPermissions } from "@/lib/getUserPermissions";
 import { PermissionsProvider } from "@/lib/permission-context";
+import { ConfirmProvider } from "@/app/_components/ConfirmPopup";
 import { Toaster } from "react-hot-toast";
 
 export default async function SuperAdminLayout({
@@ -27,7 +28,9 @@ export default async function SuperAdminLayout({
 
                     <div className="flex text-extrabold text-3xl ml-10 ">You are {user.role}</div>
                     <PermissionsProvider permissions={userPermissions}>
-                        {children}
+                        <ConfirmProvider>
+                            {children}
+                        </ConfirmProvider>
                     </PermissionsProvider>
                     <Toaster position="top-right" /> 
                 </main>

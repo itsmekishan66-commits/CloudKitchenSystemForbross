@@ -5,6 +5,7 @@ import { useCart } from "../../_components/frontend/cart/CartContext";
 import Image from "next/image";
 import { FaPlusCircle, FaStar, FaStarHalfAlt } from "react-icons/fa";
 import { safeImageUrl } from "@/lib/image";
+import toast from "react-hot-toast";
 
 type AddonItem = { name: string; price: number };
 
@@ -322,6 +323,7 @@ function MenuContent() {
                           originalPrice: food.discountPercent > 0 ? food.price : undefined,
                           quantity: 1,
                         });
+                        toast.success(`Added ${food.name} to cart`);
                       }
                     }}
                     className="flex items-center gap-2 bg-linear-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md active:scale-95"
@@ -391,6 +393,7 @@ function MenuContent() {
                     quantity: 1,
                     addons: selectedAddons,
                   });
+                  toast.success(`Added ${addonModalFood.name} to cart`);
                   setAddonModalFood(null);
                   setSelectedAddons([]);
                 }}

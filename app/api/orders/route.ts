@@ -128,9 +128,10 @@ export async function POST(request: Request) {
     }
     const expectedCharge = Number(zone.deliveryCharge);
     deliverySavings = Math.max(0, expectedCharge - deliveryCharge);
-    // Apply free delivery if min order met
+    // Calculate items subtotal (excl delivery) for min order check
+    const itemsSubtotal = items.reduce((s, item) => s + item.price * item.quantity, 0);
     const effectiveCharge =
-      zone.minOrderAmount && total >= Number(zone.minOrderAmount) ? 0 : expectedCharge;
+      zone.minOrderAmount && itemsSubtotal >= Number(zone.minOrderAmount) ? 0 : expectedCharge;
 
     if (Math.abs(deliveryCharge - effectiveCharge) > 0.01) {
       return NextResponse.json(
@@ -183,6 +184,7 @@ export async function POST(request: Request) {
         meta: {
           image: item.image,
           clientId: item.id,
+          addons: item.addons,
         },
       })),
     });

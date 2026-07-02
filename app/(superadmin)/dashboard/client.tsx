@@ -3,20 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ShoppingBag,
-  IndianRupee,
-  Users,
-  UtensilsCrossed,
-  ClipboardList,
-  Package,
-  CreditCard,
-  LifeBuoy,
-  BarChart3,
-  Megaphone,
-  Settings,
-  ShieldCheck,
-  Tags,
-  MessageSquare,
+  ShoppingBag, IndianRupee, Users, UtensilsCrossed, ClipboardList, Package, CreditCard, LifeBuoy, BarChart3,
+  Megaphone, Settings, ShieldCheck, Tags, MessageSquare,
 } from "lucide-react";
 
 interface DashboardStats {
@@ -53,7 +41,7 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
       .then((data) => {
         if (!data.error && data.siteName) setSiteName(data.siteName);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -77,7 +65,7 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
 
   //yo ho to hide the sections of the dashboard
   const allmodules = [
-  // const modules = [
+    // const modules = [
     { name: "Orders", icon: ShoppingBag, href: "/dashboard/orders" },
     { name: "Customers", icon: Users, href: "/dashboard/customers" },
     { name: "Guest Users", icon: Users, href: "/dashboard/guest-users" },
@@ -170,104 +158,104 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
       </div>
 
       {can("/dashboard/orders") || can("/dashboard/menu") || can("/dashboard/customers") || can("/dashboard/kitchen") ? (
-      <div className="mt-10 grid gap-6 lg:grid-cols-3">
-        {can("/dashboard/orders") ? (
-        <div className="lg:col-span-2 rounded-3xl border border-white/20 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
-          <h2 className="mb-5 text-xl font-bold">Recent Orders</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="py-3 text-left">Order ID</th>
-                  <th className="py-3 text-left">Customer</th>
-                  <th className="py-3 text-left">Status</th>
-                  <th className="py-3 text-left">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(stats?.recentOrders ?? []).length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-gray-400">No orders yet</td>
-                  </tr>
-                ) : (
-                  stats?.recentOrders.map((order) => (
-                    <tr key={order.id} className="border-b">
-                      <td className="py-4">#{order.id}</td>
-                      <td>{order.customerName}</td>
-                      <td>
-                        <span className={`rounded-full px-3 py-1 text-sm ${statusColors[order.status] ?? "bg-gray-100 text-gray-700"}`}>
-                          {order.status}
-                        </span>
-                      </td>
-                      <td>Rs.{order.total}</td>
+        <div className="mt-10 grid gap-6 lg:grid-cols-3">
+          {can("/dashboard/orders") ? (
+            <div className="lg:col-span-2 rounded-3xl border border-white/20 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
+              <h2 className="mb-5 text-xl font-bold">Recent Orders</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="py-3 text-left">Order ID</th>
+                      <th className="py-3 text-left">Customer</th>
+                      <th className="py-3 text-left">Status</th>
+                      <th className="py-3 text-left">Amount</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        ) : null}
+                  </thead>
+                  <tbody>
+                    {(stats?.recentOrders ?? []).length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="py-8 text-center text-gray-400">No orders yet</td>
+                      </tr>
+                    ) : (
+                      stats?.recentOrders.map((order) => (
+                        <tr key={order.id} className="border-b">
+                          <td className="py-4">#{order.id}</td>
+                          <td>{order.customerName}</td>
+                          <td>
+                            <span className={`rounded-full px-3 py-1 text-sm ${statusColors[order.status] ?? "bg-gray-100 text-gray-700"}`}>
+                              {order.status}
+                            </span>
+                          </td>
+                          <td>Rs.{order.total}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
 
-        <div className="rounded-3xl border border-white/20 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
-          <h2 className="mb-5 text-xl font-bold">Quick Stats</h2>
-          <div className="space-y-5">
-            {can("/dashboard/menu") ? (
-            <div className="flex gap-3">
-              <div className="mt-2 h-3 w-3 rounded-full bg-green-500" />
-              <p className="text-sm text-gray-700">Total Menu Items: {stats?.totalMenuItems ?? 0}</p>
+          <div className="rounded-3xl border border-white/20 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
+            <h2 className="mb-5 text-xl font-bold">Quick Stats</h2>
+            <div className="space-y-5">
+              {can("/dashboard/menu") ? (
+                <div className="flex gap-3">
+                  <div className="mt-2 h-3 w-3 rounded-full bg-green-500" />
+                  <p className="text-sm text-gray-700">Total Menu Items: {stats?.totalMenuItems ?? 0}</p>
+                </div>
+              ) : null}
+              {can("/dashboard/orders") ? (
+                <div className="flex gap-3">
+                  <div className="mt-2 h-3 w-3 rounded-full bg-blue-500" />
+                  <p className="text-sm text-gray-700">Pending Orders: {stats?.pendingOrders ?? 0}</p>
+                </div>
+              ) : null}
+              {can("/dashboard/customers") ? (
+                <div className="flex gap-3">
+                  <div className="mt-2 h-3 w-3 rounded-full bg-purple-500" />
+                  <p className="text-sm text-gray-700">Admins & Staff: {stats?.totalAdmins ?? 0}</p>
+                </div>
+              ) : null}
+              {can("/dashboard/kitchen") ? (
+                <div className="flex gap-3">
+                  <div className="mt-2 h-3 w-3 rounded-full bg-orange-500" />
+                  <p className="text-sm text-gray-700">Active Kitchens: {stats?.activeKitchens ?? 0}</p>
+                </div>
+              ) : null}
             </div>
-            ) : null}
-            {can("/dashboard/orders") ? (
-            <div className="flex gap-3">
-              <div className="mt-2 h-3 w-3 rounded-full bg-blue-500" />
-              <p className="text-sm text-gray-700">Pending Orders: {stats?.pendingOrders ?? 0}</p>
-            </div>
-            ) : null}
-            {can("/dashboard/customers") ? (
-            <div className="flex gap-3">
-              <div className="mt-2 h-3 w-3 rounded-full bg-purple-500" />
-              <p className="text-sm text-gray-700">Admins & Staff: {stats?.totalAdmins ?? 0}</p>
-            </div>
-            ) : null}
-            {can("/dashboard/kitchen") ? (
-            <div className="flex gap-3">
-              <div className="mt-2 h-3 w-3 rounded-full bg-orange-500" />
-              <p className="text-sm text-gray-700">Active Kitchens: {stats?.activeKitchens ?? 0}</p>
-            </div>
-            ) : null}
           </div>
         </div>
-      </div>
       ) : null}
 
       <div className="mt-8 grid gap-6 md:grid-cols-3">
         {can("/dashboard/orders") ? (
-        <div className="rounded-3xl bg-red-50 p-6 shadow-lg">
-          <h2 className="text-lg font-bold text-red-600">Pending Orders</h2>
-          <p className="mt-4 text-4xl font-bold text-red-600">{stats?.pendingOrders ?? 0}</p>
-          <p className="mt-2 text-gray-600">Orders awaiting processing</p>
-        </div>
+          <div className="rounded-3xl bg-red-50 p-6 shadow-lg">
+            <h2 className="text-lg font-bold text-red-600">Pending Orders</h2>
+            <p className="mt-4 text-4xl font-bold text-red-600">{stats?.pendingOrders ?? 0}</p>
+            <p className="mt-2 text-gray-600">Orders awaiting processing</p>
+          </div>
         ) : null}
 
         {can("/dashboard/payment") ? (
-        <div className="rounded-3xl bg-green-50 p-6 shadow-lg">
-          <h2 className="text-lg font-bold text-green-600">Revenue</h2>
-          <p className="mt-4 text-4xl font-bold text-green-600">Rs.{(stats?.revenue?? 0).toLocaleString() ?? 0}</p>
-          <p className="mt-2 text-gray-600">Total revenue from all orders</p>
-        </div>
+          <div className="rounded-3xl bg-green-50 p-6 shadow-lg">
+            <h2 className="text-lg font-bold text-green-600">Revenue</h2>
+            <p className="mt-4 text-4xl font-bold text-green-600">Rs.{(stats?.revenue ?? 0).toLocaleString() ?? 0}</p>
+            <p className="mt-2 text-gray-600">Total revenue from all orders</p>
+          </div>
         ) : null}
 
         {can("/dashboard/customers") ? (
-        <div className="rounded-3xl bg-blue-50 p-6 shadow-lg">
-          <h2 className="text-lg font-bold text-blue-600">Users & Roles</h2>
-          <div className="mt-4 space-y-2">
-            <p>Customers: {stats?.totalCustomers ?? 0}</p>
-            <p>Admins & Staff: {stats?.totalAdmins ?? 0}</p>
-            <p>Active Kitchens: {stats?.activeKitchens ?? 0}</p>
-            <p>Menu Items: {stats?.totalMenuItems ?? 0}</p>
+          <div className="rounded-3xl bg-blue-50 p-6 shadow-lg">
+            <h2 className="text-lg font-bold text-blue-600">Users & Roles</h2>
+            <div className="mt-4 space-y-2">
+              <p>Customers: {stats?.totalCustomers ?? 0}</p>
+              <p>Admins & Staff: {stats?.totalAdmins ?? 0}</p>
+              <p>Active Kitchens: {stats?.activeKitchens ?? 0}</p>
+              <p>Menu Items: {stats?.totalMenuItems ?? 0}</p>
+            </div>
           </div>
-        </div>
         ) : null}
       </div>
     </div>

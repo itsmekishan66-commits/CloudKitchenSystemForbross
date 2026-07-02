@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePermissions } from "@/lib/permission-context";
+import { useConfirm } from "@/app/_components/ConfirmPopup";
 
 interface Promotion {
   id: number;
@@ -36,6 +37,7 @@ const emptyForm: PromotionForm = { title: "", description: "", discountType: "pe
 export default function PromotionsClient() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
+  const confirm = useConfirm();
   const router = useRouter();
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,7 +143,7 @@ export default function PromotionsClient() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm("Are you sure you want to delete this promotion?")) return;
+    if (!await confirm("Are you sure you want to delete this promotion?")) return;
     try {
       const res = await fetch(`/api/superadmin/promotions?id=${id}`, { method: "DELETE" });
       const data = await res.json();

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle, CreditCard, Landmark, Smartphone } from "lucide-react";
 import { usePermissions } from "@/lib/permission-context";
+import toast from "react-hot-toast";
 
 interface OrderItem {
   id: number;
@@ -110,7 +111,7 @@ export default function SettlePaymentPage() {
       setDone(true);
     } catch (err) {
       console.error(err);
-      alert("Failed to settle payment. Please try again.");
+      toast.error("Failed to settle payment. Please try again.");
     } finally {
       setSubmitting(false);
     }

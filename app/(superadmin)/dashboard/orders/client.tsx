@@ -1,7 +1,6 @@
 "use client";
 // import { CircleArrowDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { usePermissions } from "@/lib/permission-context";
 import OrdersTable from "../../_components/OrdersTable";
 
 interface OrderItem {
@@ -22,6 +21,7 @@ interface Order {
   paymentMethod: string;
   total: string;
   deliveryCharge: string;
+  landmarkName?: string;
   status: string;
   paymentSettled?: number | null;
   createdAt: Date | string;
@@ -33,7 +33,7 @@ export default function OrdersClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  
+
   //to download the file
   // const [open, setOpen] = useState(false);
   //  const handleDownload = (type: string) => {
@@ -62,6 +62,19 @@ export default function OrdersClient() {
       .catch(() => setError("Unable to load orders."))
       .finally(() => setLoading(false));
   }, []);
+
+
+  //to make pag reload after certain time interval , so that user can see the changes in real time
+  //not a good practice said by senior developer(bijay dulal)
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     window.location.reload();
+  //   }, 5000); 
+  //   console.log("Interval set to reload the page every 5 seconds.");
+
+  //   return () => clearInterval(interval);
+  // }, []);
+
 
   if (loading) {
     return (

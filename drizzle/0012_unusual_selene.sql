@@ -1,0 +1,1 @@
+ALTER TABLE `orders` ADD `landmark_name` varchar(200);

@@ -13,6 +13,7 @@ export const orders = mysqlTable("orders", {
   status: mysqlEnum("status", ["Pending", "Preparing", "Out For Delivery", "Delivered", "Cancelled",]).notNull().default("Pending"),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   deliveryCharge: decimal("delivery_charge", { precision: 10, scale: 2 }).notNull().default("0"),
+  landmarkName: varchar("landmark_name", { length: 200 }),
   discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).notNull().default("0"),
   paymentSettled: boolean("payment_settled").default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),

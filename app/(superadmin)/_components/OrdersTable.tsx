@@ -27,6 +27,7 @@ interface Order {
   paymentMethod: string;
   total: string;
   deliveryCharge: string;
+  landmarkName?: string;
   status: string;
   paymentSettled?: number | null;
   createdAt: Date | string;
@@ -195,7 +196,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
             className={`rounded-xl shadow overflow-hidden border-l-4 ${!order.isGuest && order.userId
               ? "border-l-green-500 bg-green-200"
               : "border-l-gray-300 bg-white"
-            }`}
+              }`}
           >
             <div className="p-4 flex items-center justify-between flex-wrap gap-3 border-b border-gray-100">
               <div className="flex items-center gap-4 flex-wrap">
@@ -216,21 +217,21 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   {order.status}
                 </span>
                 {can("UPDATE_ORDERS") ? (
-                <select
-                  value={order.status}
-                  onChange={(event) => updateStatus(order.id, event.target.value)}
-                  className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-300"
-                >
-                  <option value="Pending">Pending</option>
-                  <option value="Preparing">Preparing</option>
-                  <option value="Out For Delivery">Out For Delivery</option>
-                  <option value="Delivered">Delivered</option>
-                  <option value="Cancelled">Cancelled</option>
-                </select>
+                  <select
+                    value={order.status}
+                    onChange={(event) => updateStatus(order.id, event.target.value)}
+                    className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Preparing">Preparing</option>
+                    <option value="Out For Delivery">Out For Delivery</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
                 ) : (
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(order.status)}`}>
-                  {order.status}
-                </span>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(order.status)}`}>
+                    {order.status}
+                  </span>
                 )}
                 {order.status === "Delivered" && (
                   order.paymentSettled ? (
@@ -259,6 +260,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   <p><span className="text-gray-400">Name:</span> {order.customerName}</p>
                   <p><span className="text-gray-400">Phone:</span> {order.phone}</p>
                   <p><span className="text-gray-400">Address:</span> {order.address}</p>
+                  {order.landmarkName && <p><span className="text-gray-400">Landmark:</span> {order.landmarkName}</p>}
                   {order.userEmail && <p><span className="text-gray-400">Email:</span> {order.userEmail}</p>}
                   <p><span className="text-gray-400">Payment:</span> {order.paymentMethod}</p>
                 </div>
@@ -297,12 +299,12 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                           <td className="py-1.5">
                             {item.title}
                             {item.meta?.addons && item.meta.addons.length > 0 && (
-                              <div className="text-xs text-gray-400 mt-0.5 space-y-0.5">
+                              <div className="text-xs text-gray-500 mt-0.5 space-y-0.5">
                                 {item.meta.addons.map((a, i) => (
                                   <div key={i} className="flex gap-1">
                                     <span className="text-orange-400">+</span>
                                     <span>{a.name}</span>
-                                    <span className="text-gray-300">(Rs.{a.price.toFixed(2)})</span>
+                                    <span className="text-gray-500">(Rs.{a.price.toFixed(2)})</span>
                                   </div>
                                 ))}
                               </div>

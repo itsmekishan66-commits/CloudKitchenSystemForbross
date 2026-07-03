@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
-
-import {
-  createOrder,
-  getOrdersWithDetails,
-  updateOrderStatus,
-} from "@/db/services/orders";
+import {createOrder,getOrdersWithDetails,updateOrderStatus,} from "@/db/services/orders";
 import { createUser } from "@/db/services/users";
-import type { NewOrder } from "@/db/schemas";
+import type { DeliveryZone, NewOrder } from "@/db/schemas";
 import { getCurrentUser } from "@/lib/auth";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -117,9 +112,10 @@ export async function POST(request: Request) {
   }
 
   let deliverySavings = 0;
+  let zone: DeliveryZone | null = null;
   if (zoneId) {
     const { getZoneById } = await import("@/db/services/delivery-zones");
-    const zone = await getZoneById(zoneId);
+    zone = await getZoneById(zoneId);
     if (!zone || !zone.isActive) {
       return NextResponse.json(
         { error: "Selected delivery area is not available" },
@@ -175,6 +171,7 @@ export async function POST(request: Request) {
       paymentMethod,
       deliveryCharge: deliveryCharge.toFixed(2),
       total: total.toFixed(2),
+      landmarkName: zone?.landmarkName || "",
       discountAmount: (itemSavings + deliverySavings).toFixed(2),
       items: items.map((item) => ({
         menuItemId: null,

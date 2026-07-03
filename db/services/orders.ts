@@ -31,6 +31,7 @@ export async function getOrdersWithDetails() {
       status: orders.status,
       total: orders.total,
       deliveryCharge: orders.deliveryCharge,
+      landmarkName: orders.landmarkName,
       discountAmount: orders.discountAmount,
       paymentSettled: orders.paymentSettled,
       createdAt: orders.createdAt,

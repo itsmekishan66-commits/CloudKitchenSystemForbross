@@ -25,15 +25,6 @@ Nullable — existing orders get `NULL` and simply won't display a landmark.
 npm run db:generate
 npm run db:migrate
 ```
-
-This produces a new `.sql` file in `drizzle/` (e.g. `0010_xxx.sql`):
-
-```sql
-ALTER TABLE `orders` ADD `landmark_name` varchar(200);
-```
-
-Then applies it to MySQL.
-
 ---
 
 ## Step 3 — Save the landmark name at order creation

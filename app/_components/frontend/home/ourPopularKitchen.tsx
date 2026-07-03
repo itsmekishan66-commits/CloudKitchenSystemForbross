@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import Link from "next/link";
+// import { ChevronLeft, ChevronRight } from "lucide-react";
+// import Link from "next/link";
 
 export default function PopularKitchens() {
   const [siteName, setSiteName] = useState("Cloud Kitchen");
@@ -55,9 +55,9 @@ export default function PopularKitchens() {
     setCurrentIndex((prev) => (prev - 1 + kitchens.length) % kitchens.length);
   }, [kitchens.length]);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchX.current = e.touches[0].clientX;
-  };
+  // const handleTouchStart = (e: React.TouchEvent) => {
+  //   touchX.current = e.touches[0].clientX;
+  // };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     const diff = touchX.current - e.changedTouches[0].clientX;
@@ -72,117 +72,20 @@ export default function PopularKitchens() {
   // this is the function that will be called when the user clicks the button
   return (
 
-    <section className="bg-[#f5f5f5] py-8 md:py-16">
+    <div className="bg-black py-8 md:py-16">
 
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto ">
 
-        {/* Popular Kitchens */}
-        <div>
-          <div className="text-center mb-10">
-            <p className="text-red-800 mt-2">
-              Crafted by culinary masters for your convenience.
-            </p>
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-4">
-              Our Popular Kitchens
-            </h2>
+        {/* popular kitchen */}
 
-          </div>
-
-          {/* Mobile carousel */}
-          <div className="md:hidden relative" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-            {current && (
-              <div
-                key={current.name}
-                className="bg-white rounded-2xl overflow-hidden shadow-md"
-              >
-                <div className="relative h-52">
-                  <Image
-                    src={current.image}
-                    alt={current.name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="p-5">
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    {current.name}
-                  </h3>
-                  <p className="text-red-700 text-xs font-semibold tracking-widest mt-1">
-                    {current.category}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <button
-              onClick={goPrev}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow flex items-center justify-center hover:bg-white transition"
-            >
-              <ChevronLeft size={20} />
-            </button>
-            <button
-              onClick={goNext}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow flex items-center justify-center hover:bg-white transition"
-            >
-              <ChevronRight size={20} />
-            </button>
-
-            <div className="flex justify-center gap-2 mt-6">
-              {kitchens.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentIndex(i)}
-                  className={`w-2.5 h-2.5 rounded-full transition ${i === currentIndex ? "bg-red-900" : "bg-gray-300"
-                    }`}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Desktop grid */}
-          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {kitchens.map((kitchen) => (
-              <div
-                key={kitchen.name}
-                className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-              >
-                <div className="relative h-52">
-                  <Image
-                    src={kitchen.image}
-                    alt={kitchen.name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-
-                <div className="p-5">
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    {kitchen.name}
-                  </h3>
-
-                  <p className="text-red-700 text-xs font-semibold tracking-widest mt-1">
-                    {kitchen.category}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center mt-6 md:mt-14">
-            <Link href="/menu" className="inline-block border border-red-900 text-red-900 px-10 py-4 rounded-full hover:bg-red-900 hover:text-white transition">
-              View All Kitchens
-            </Link>
-          </div>
-        </div>
 
         {/* App Download Banner */}
-        <div className="mt-16">
+        {/* <div className="mt-16">
 
           <div className="relative overflow-hidden rounded-[30px] bg-linear-to-r from-[#8b0000] to-[#9f0000] shadow-xl">
 
             <div className="grid lg:grid-cols-2 items-center">
 
-              {/* Left */}
               <div className="p-10 md:p-16">
 
                 <h2 className="text-4xl md:text-5xl font-bold text-white">
@@ -208,7 +111,6 @@ export default function PopularKitchens() {
 
               </div>
 
-              {/* Right Phone Mockup */}
               <div className="hidden lg:flex justify-center items-center py-10">
 
                 <div className="w-42.5 h-80 bg-white rounded-[35px] border-4 border-gray-200 shadow-2xl relative">
@@ -223,17 +125,166 @@ export default function PopularKitchens() {
 
             </div>
 
-            {/* Decorative Blur */}
             <div className="absolute -left-20 bottom-0 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
 
           </div>
 
+        </div> */}
+
+        <div className="relative bg-[url('/smoky-atmosphere-background.jpg')] bg-no-repeat bg-cover bg-bottom overflow-hidden text-white mt-10  rounded-4xl border border-gray-500 ">
+          <div className="relative z-10 w-full mx-auto px-6 max-h-4xl flex items-center">
+            {/* Dark overlay */}
+            <div className="absolute inset-0 bg-black/50" />
+            {/* Orange block behind phones */}
+            <div className="absolute right-0 top-35 w-40% h-84 bg-orange-600" />
+
+            <div className="relative z-10  mx-auto px-6">
+              <div className="grid lg:grid-cols-2 items-center">
+                <div className="text-white space-y-6">
+
+                  <p className="text-gray-300 text-md">Ready to Order?</p>
+                  <h1 className="font-serif text-2xl md:text-4xl font-bold text-white/90 max-w-2xl">
+                    Download the App & Order Your Favorites Instantly!
+                  </h1>
+
+                  <button className="rounded-full bg-orange-600 px-8 py-4 text-white font-semibold hover:bg-orange-700 transition">
+                    Download the App
+                  </button>
+                </div>
+
+                <div className="relative h-110">
+                  <Image src="/dualMobile.png"
+                    alt="Food app"
+                    width={800}
+                    height={800}
+                    className="absolute top-30 right-1 z-40 drop-shadow-[0_30px_60px_rgba(0,0,0,0.7)]" />
+
+                  <Image src="/chilli.png"
+                    alt=""
+                    width={300}
+                    height={200}
+                    className=" absolute top-1.5 right-1 z-30 " />
+
+                  <Image src="/corn.png"
+                    alt=""
+                    width={150}
+                    height={200}
+                    className="absolute right-90 top-74 rotate-[-25deg] z-30" />
+
+                  <Image src="/scooter.png"
+                    alt=""
+                    width={160}
+                    height={160}
+                    className="absolute right-5 bottom-7.5 z-30" />
+
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
 
-    </section>
+    </div>
 
 
   );
 }
+        // {/* Popular Kitchens */}
+        // <div>
+        //   <div className="text-center mb-10">
+        //     <p className="text-red-800 mt-2">
+        //       Crafted by culinary masters for your convenience.
+        //     </p>
+        //     <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-4">
+        //       Our Popular Kitchens
+        //     </h2>
+
+        //   </div>
+
+        //   {/* Mobile carousel */}
+        //   <div className="md:hidden relative" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        //     {current && (
+        //       <div
+        //         key={current.name}
+        //         className="bg-white rounded-2xl overflow-hidden shadow-md"
+        //       >
+        //         <div className="relative h-52">
+        //           <Image
+        //             src={current.image}
+        //             alt={current.name}
+        //             fill
+        //             className="object-cover"
+        //           />
+        //         </div>
+        //         <div className="p-5">
+        //           <h3 className="text-2xl font-bold text-gray-900">
+        //             {current.name}
+        //           </h3>
+        //           <p className="text-red-700 text-xs font-semibold tracking-widest mt-1">
+        //             {current.category}
+        //           </p>
+        //         </div>
+        //       </div>
+        //     )}
+
+        //     <button
+        //       onClick={goPrev}
+        //       className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow flex items-center justify-center hover:bg-white transition"
+        //     >
+        //       <ChevronLeft size={20} />
+        //     </button>
+        //     <button
+        //       onClick={goNext}
+        //       className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow flex items-center justify-center hover:bg-white transition"
+        //     >
+        //       <ChevronRight size={20} />
+        //     </button>
+
+        //     <div className="flex justify-center gap-2 mt-6">
+        //       {kitchens.map((_, i) => (
+        //         <button
+        //           key={i}
+        //           onClick={() => setCurrentIndex(i)}
+        //           className={`w-2.5 h-2.5 rounded-full transition ${i === currentIndex ? "bg-red-900" : "bg-gray-300"
+        //             }`}
+        //         />
+        //       ))}
+        //     </div>
+        //   </div>
+
+        //   {/* Desktop grid */}
+        //   <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        //     {kitchens.map((kitchen) => (
+        //       <div
+        //         key={kitchen.name}
+        //         className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+        //       >
+        //         <div className="relative h-52">
+        //           <Image
+        //             src={kitchen.image}
+        //             alt={kitchen.name}
+        //             fill
+        //             className="object-cover"
+        //           />
+        //         </div>
+
+        //         <div className="p-5">
+        //           <h3 className="text-2xl font-bold text-gray-900">
+        //             {kitchen.name}
+        //           </h3>
+
+        //           <p className="text-red-700 text-xs font-semibold tracking-widest mt-1">
+        //             {kitchen.category}
+        //           </p>
+        //         </div>
+        //       </div>
+        //     ))}
+        //   </div>
+
+        //   <div className="text-center mt-6 md:mt-14">
+        //     <Link href="/menu" className="inline-block border border-red-900 text-red-900 px-10 py-4 rounded-full hover:bg-red-900 hover:text-white transition">
+        //       View All Kitchens
+        //     </Link>
+        //   </div>
+        // </div>

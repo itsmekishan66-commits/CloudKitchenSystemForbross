@@ -121,7 +121,7 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 backdrop-blur-md bg-transparent shadow-lg">
+    <nav className="fixed top-0 left-0 w-full z-50 backdrop-blur-md bg-transparent shadow-lg backdrop-saturate-200">
       <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
 
         {/* Logo */}
@@ -129,11 +129,11 @@ export default function Navbar() {
           {logoUrl ? (
             <img src={logoUrl} alt={siteName} className="h-10 w-10 rounded-full object-cover" />
           ) : (
-            <div className="bg-orange-100 h-10 w-10 rounded-full flex items-center justify-center font-bold text-red-800">
+            <div className="bg-orange-100 h-10 w-10 rounded-full flex items-center justify-center font-bold text-white">
               {siteName.charAt(0).toUpperCase()}
             </div>
           )}
-          <h1 className="font-bold text-xl whitespace-nowrap">
+          <h1 className="font-bold text-xl whitespace-nowrap text-white">
             {(() => {
               const parts = siteName.split(" ");
               if (parts.length > 1) {
@@ -152,7 +152,7 @@ export default function Navbar() {
               href={link.href}
               className={`px-4 py-2 rounded-full transition-all duration-300 ${isActive(link.href)
                 ? "bg-red-900 text-white"
-                : "text-black hover:bg-white/40 hover:text-red-800"
+                : "text-white hover:bg-white/40 hover:text-red-800"
                 }`}
             >
               {link.name}
@@ -171,14 +171,14 @@ export default function Navbar() {
               }
             }}
           >
-            <Search size={18} className="text-black hover:text-orange-600" />
+            <Search size={18} className="text-white hover:text-orange-600" />
           </button>
           <input
             type="text"
             value={navSearch}
             onChange={(e) => setNavSearch(e.target.value)}
             placeholder="Search food..."
-            className="outline-none ml-2 bg-transparent text-black text-sm w-40"
+            className="outline-none ml-2 bg-transparent text-white text-sm w-40"
             onKeyDown={(e) => {
               if (e.key === "Enter" && navSearch.trim()) {
                 setSearchOpen(false);
@@ -215,7 +215,7 @@ export default function Navbar() {
         <div className="flex items-center gap-4">
 
           {/* Cart */}
-          <div onClick={() => setCartOpen(true)} className="text-black relative cursor-pointer">
+          <div onClick={() => setCartOpen(true)} className="text-white relative cursor-pointer">
             <ShoppingCart size={25} />
             <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs h-5 w-5 rounded-full flex items-center justify-center">
               {cartCount}
@@ -266,7 +266,7 @@ export default function Navbar() {
           {/* Mobile Hamburger */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="hide-on-desktop z-100 top-10 text-black"
+            className="hide-on-desktop z-100 top-10 text-white"
           >
             {mobileOpen ? <X size={26} /> : <Menu size={26} />}
           </button>

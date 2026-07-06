@@ -34,6 +34,7 @@ interface Order {
   landmarkName?: string;
   status: string;
   paymentSettled?: number | boolean | null;
+  previousDues?: number;
   createdAt: Date | string;
   items: OrderItem[];
 }
@@ -412,9 +413,19 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                               {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
                             </tr>
                           )}
+
+                          {/* Previous dues to be added in superadmin orders above the total */}
+                          {Number(order.previousDues || 0) > 0 && (
+                            <tr>
+                              <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1 text-right text-amber-600 text-xs">Previous Dues</td>
+                              <td className="py-1 text-right text-amber-600 text-xs font-semibold">Rs.{Number(order.previousDues).toFixed(2)}</td>
+                              {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
+                            </tr>
+                          )}
+
                           <tr>
                             <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1.5 text-right font-semibold text-gray-700">Total</td>
-                            <td className="py-1.5 text-right font-bold">Rs.{order.total}</td>
+                            <td className="py-1.5 text-right font-bold">Rs.{(Number(order.total) + Number(order.previousDues || 0)).toFixed(2)}</td>
                             {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
                           </tr>
                         </>

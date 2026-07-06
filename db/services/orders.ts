@@ -47,7 +47,7 @@ export async function getOrdersWithDetails() {
     .orderBy(desc(orders.createdAt));
 
 
-    //N+1 query problem
+  //N+1 query problem
 
   const ordersWithItems = await Promise.all(
     rawOrders.map(async (row) => {
@@ -59,7 +59,31 @@ export async function getOrdersWithDetails() {
     }),
   );
 
-  return ordersWithItems;
+  // return ordersWithItems;
+
+  // Compute previous dues per customer
+  const duesByUser = new Map<number, number>();
+  for (const o of ordersWithItems) {
+    if (!o.userId) continue;
+    const due = Number(o.dueAmount) || 0;
+    if (due > 0) {
+      duesByUser.set(o.userId, (duesByUser.get(o.userId) || 0) + due);
+    }
+  }
+  const seenUser = new Set<number>();
+  return ordersWithItems.map((order) => {
+    let previousDues = 0;
+    if (order.userId) {
+      if (!seenUser.has(order.userId)) {
+        seenUser.add(order.userId);
+        previousDues = Math.max(
+          0,
+          (duesByUser.get(order.userId) || 0) - (Number(order.dueAmount) || 0),
+        );
+      }
+    }
+    return { ...order, previousDues };
+  });
 }
 
 export async function getOrdersByUserId(userId: number) {

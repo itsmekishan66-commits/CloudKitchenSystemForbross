@@ -31,7 +31,7 @@ export default function CartDrawer({ open, onClose }: Props) {
 
       {/* Drawer */}
       <div
-        className={`fixed top-0 right-0 h-screen w-full max-w-100 bg-white z-100 shadow-xl flex flex-col  overflow-hidden transition-transform duration-300 ease-in-out ${open ? "translate-x-0" : "translate-x-full"}
+        className={`fixed top-0 right-0 h-screen w-full max-w-100 bg-black z-100 shadow-xl flex flex-col  overflow-hidden transition-transform duration-300 ease-in-out ${open ? "translate-x-0" : "translate-x-full"}
         `}
       >
         {/* Header */}
@@ -69,7 +69,7 @@ export default function CartDrawer({ open, onClose }: Props) {
         </div>
 
         {/* Footer / Summary */}
-        <div className="border-t p-6 bg-white">
+        <div className="border-t p-6 bg-black">
           <CartSummary totalPrice={totalPrice} />
         </div>
       </div>

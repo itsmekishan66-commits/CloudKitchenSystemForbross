@@ -206,11 +206,11 @@ export default function CheckoutForm() {
   const addressSection = (
     <>
       <div className="relative">
-        <MapPin size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+        <MapPin size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
         <select
           required
           value={selectedZoneId ?? ""}
-          className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 text-sm appearance-none"
+          className="w-full pl-10 pr-10 py-3 bg-gray-700 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm text-white appearance-none"
           onChange={(e) => setSelectedZoneId(e.target.value ? Number(e.target.value) : null)}
         >
           <option value="">Select Delivery landmark</option>
@@ -221,24 +221,24 @@ export default function CheckoutForm() {
             </option>
           ))}
         </select>
-        <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
       </div>
 
       <div className="relative">
-        <MapPin size={18} className="absolute left-3.5 top-3 text-gray-400" />
+        <MapPin size={18} className="absolute left-3.5 top-3 text-gray-500" />
         <textarea
           required
           placeholder="your exact street address, house number, apartment, etc."
           value={form.streetAddress}
           rows={3}
-          className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 text-sm resize-none"
+          className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm text-white resize-none placeholder-gray-400"
           onChange={(e) => setForm({ ...form, streetAddress: e.target.value })}
         />
       </div>
 
       {selectedZoneId && (
         <div className="flex justify-between items-center text-sm px-1">
-          <span className="text-gray-600">Delivery Charge</span>
+          <span className="text-gray-400">Delivery Charge</span>
           <span className="font-medium">
             {deliveryCharge === 0 ? (
               <span className="text-green-600">FREE</span>
@@ -257,7 +257,7 @@ export default function CheckoutForm() {
               <span>- Rs. {couponDiscount.toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between items-center font-bold text-base px-1 pt-2 border-t">
+          <div className="flex justify-between items-center font-bold text-base px-1 pt-2 border-t border-gray-600">
             <span>Total</span>
             <span>Rs. {grandTotal.toFixed(2)}</span>
           </div>
@@ -269,31 +269,31 @@ export default function CheckoutForm() {
   const formFields = (
     <>
       <div className="relative">
-        <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+        <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
         <input
           required
           placeholder="Full Name"
           value={form.customerName}
-          className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 text-sm"
+          className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm text-white placeholder-gray-400"
           onChange={(e) => setForm({ ...form, customerName: e.target.value })}
         />
       </div>
 
       <div className="relative">
-        <Phone size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+        <Phone size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
         <input
           required
           placeholder="Phone Number"
           value={form.phone}
-          className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 text-sm"
+          className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm text-white placeholder-gray-400"
           onChange={(e) => setForm({ ...form, phone: e.target.value })}
         />
       </div>
 
       {addressSection}
 
-      <div className="rounded-xl border border-orange-200 bg-orange-50 p-3">
-        <label className="text-sm font-medium text-orange-700">Coupon Code</label>
+      <div className="rounded-xl border border-gray-600 bg-gray-700 p-3">
+        <label className="text-sm font-medium text-orange-400">Coupon Code</label>
         <div className="mt-2 flex gap-2">
           <div className="relative flex-1">
             <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400" />
@@ -302,7 +302,7 @@ export default function CheckoutForm() {
               value={couponCode}
               onChange={(e) => setCouponCode(e.target.value)}
               placeholder="Enter promo code"
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-orange-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-500 bg-gray-600 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
           <button
@@ -314,10 +314,10 @@ export default function CheckoutForm() {
             {couponLoading ? "..." : "Apply"}
           </button>
         </div>
-        {couponError ? <p className="mt-2 text-sm text-red-600">{couponError}</p> : null}
-        {couponMessage ? <p className="mt-2 text-sm text-green-600">{couponMessage}</p> : null}
+        {couponError ? <p className="mt-2 text-sm text-red-400">{couponError}</p> : null}
+        {couponMessage ? <p className="mt-2 text-sm text-green-400">{couponMessage}</p> : null}
         {appliedCoupon ? (
-          <p className="mt-2 text-xs text-orange-700">
+          <p className="mt-2 text-xs text-orange-400">
             Applied coupon: <span className="font-semibold">{appliedCoupon.code}</span>
           </p>
         ) : null}
@@ -326,8 +326,8 @@ export default function CheckoutForm() {
   );
 
   const guestModal = (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+      <div className="bg-gray-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
         <div className="relative bg-linear-to-r from-orange-500 to-red-600 p-6 text-white">
           <button
             type="button"
@@ -344,7 +344,7 @@ export default function CheckoutForm() {
           {formFields}
 
           {error && (
-            <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>
+            <p className="rounded-xl bg-red-900/30 p-3 text-sm text-red-400">{error}</p>
           )}
 
           <button
@@ -366,7 +366,7 @@ export default function CheckoutForm() {
           <button
             type="button"
             onClick={() => router.push("/")}
-            className="border-2 w-full text-center text-sm text-gray-500 hover:text-gray-700 py-2 transition"
+            className="border-2 w-full text-center text-sm text-gray-400 hover:text-white py-2 transition"
           >
             Cancel
           </button>
@@ -379,19 +379,19 @@ export default function CheckoutForm() {
     <>
       {showGuestModal && guestModal}
 
-      <form onSubmit={handleSubmit} className="space-y-5 max-w-xl">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
-          <h2 className="font-bold text-lg text-gray-900">Delivery Details</h2>
+      <form onSubmit={handleSubmit} className="space-y-5 max-w-xl -mt-8">
+        <div className="bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-700 space-y-4">
+          <h2 className="font-bold text-lg text-white">Delivery Details</h2>
           {formFields}
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h2 className="font-bold text-lg text-gray-900 mb-4">Payment Method</h2>
+        <div className="bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-700">
+          <h2 className="font-bold text-lg text-white mb-4">Payment Method</h2>
           <PaymentMethods value={paymentMethod} onChange={setPaymentMethod} />
         </div>
 
         {error ? (
-          <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>
+          <p className="rounded-xl bg-red-900/30 p-3 text-sm text-red-400">{error}</p>
         ) : null}
 
         <button
@@ -411,7 +411,7 @@ export default function CheckoutForm() {
         <button
           type="button"
           onClick={() => router.push("/")}
-          className="border-2 border-gray-800 rounded-3xl w-full text-center text-md text-red-800 hover:text-black py-3 transition"
+          className="border-2 border-gray-600 rounded-3xl w-full text-center text-md text-red-400 hover:text-white py-3 transition"
         >
           Cancel Order
         </button>

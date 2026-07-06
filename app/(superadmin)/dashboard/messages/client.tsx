@@ -1,7 +1,8 @@
 "use client";
 // import { CircleArrowDown } from "lucide-react";
 import { useEffect, useState } from "react";
-import { FiMail, FiPhone, FiMessageSquare } from "react-icons/fi";
+import { FiMail, FiPhone, FiMessageSquare  } from "react-icons/fi";
+// import { MdDelete } from "react-icons/md";
 // import { FiRefreshCw } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { usePermissions } from "@/lib/permission-context";
@@ -167,8 +168,8 @@ export default function MessagesClient() {
                   <button
                     onClick={() => handleDelete(msg.id)}
                     className="rounded bg-red-500 px-3 py-1 text-white text-sm hover:bg-red-600 ml-4"
-                  >
-                    Delete
+                  > Delete
+                    {/* <MdDelete size={20} /> */}
                   </button>
                 )}
               </div>

@@ -21,6 +21,7 @@ export async function GET() {
       totalSaved: stats.totalSaved,
       totalDues: stats.totalDues,
       activeOrders: stats.activeOrders,
+      creditBalance: stats.creditBalance,
       favoriteItems: favorites.length,
     });
   } catch (error) {

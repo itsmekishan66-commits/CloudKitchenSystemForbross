@@ -35,6 +35,7 @@ interface Order {
   status: string;
   paymentSettled?: number | boolean | null;
   previousDues?: number;
+  userCreditBalance?: number;
   createdAt: Date | string;
   items: OrderItem[];
 }
@@ -227,12 +228,26 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
               <div className="flex items-center gap-4 flex-wrap">
                 <span className="font-medium text-gray-900">#{order.id}</span>
                 <span className="text-gray-700">{order.customerName}</span>
+                {!order.isGuest && order.userId && Number(order.userCreditBalance || 0) > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                    Credit: Rs {Number(order.userCreditBalance).toFixed(0)}
+                  </span>
+                )}
                 {order.isGuest || !order.userId ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500">Guest</span>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">Logged</span>
                 )}
-                <span className="text-gray-500">Rs.{order.total}</span>
+                {!order.isGuest && order.userId && Number(order.userCreditBalance || 0) > 0 ? (
+                  <span className="text-gray-500">
+                    Rs.{(Number(order.total) - Number(order.userCreditBalance)).toFixed(2)}
+                    <span className="text-xs text-emerald-600 ml-1">
+                      (Rs.{order.total} - Rs.{Number(order.userCreditBalance).toFixed(2)} credit)
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-gray-500">Rs.{order.total}</span>
+                )}
                 {Number(order.deliveryCharge) > 0 && (
                   <span className="text-xs text-gray-400">(incl. Rs.{Number(order.deliveryCharge).toFixed(2)} delivery)</span>
                 )}
@@ -295,6 +310,9 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   {order.landmarkName && <p><span className="text-gray-400">Landmark:</span> {order.landmarkName}</p>}
                   {order.userEmail && <p><span className="text-gray-400">Email:</span> {order.userEmail}</p>}
                   <p><span className="text-gray-400">Payment:</span> {order.paymentMethod}</p>
+                  {!order.isGuest && order.userId && Number(order.userCreditBalance || 0) > 0 && (
+                    <p><span className="text-gray-400">Credit:</span> Rs {Number(order.userCreditBalance).toFixed(2)}</p>
+                  )}
                 </div>
               </div>
 

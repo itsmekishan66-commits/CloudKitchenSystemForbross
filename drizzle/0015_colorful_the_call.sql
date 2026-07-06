@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `credit_balance_over_paid` decimal(10,2) DEFAULT '0';

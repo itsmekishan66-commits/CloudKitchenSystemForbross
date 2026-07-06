@@ -56,12 +56,12 @@ export default async function DashboardPage() {
               <p className="text-sm font-medium text-black/80">Total Spending</p>
               <Wallet size={24} className="text-black/60" />
             </div>
-            <p className="text-3xl font-bold mt-3">Rs.{stats.totalSpent.toFixed(2)}</p>
+            <p className="text-3xl font-bold mt-3">Rs.{(stats.totalSpent + stats.totalSaved).toFixed(2)}</p>
 
             {stats.totalSaved > 0 && (
               <>
                 <p className="text-sm text-black/70 mt-1">
-                  After Discount: <span className="font-semibold">Rs.{(stats.totalSpent - stats.totalSaved).toFixed(2)}</span>
+                  After Discount: <span className="font-semibold">Rs.{(stats.totalSpent).toFixed(2)}</span>
                 </p>
                 <p className="text-xs text-green-800 font-medium mt-1 bg-green-200/50 inline-block px-2 py-0.5 rounded-full">
                   Saved Rs.{stats.totalSaved.toFixed(2)}
@@ -71,6 +71,11 @@ export default async function DashboardPage() {
             {stats.totalDues > 0 && (
               <p className="text-xs text-amber-800 font-medium mt-1 bg-amber-200/50 inline-block px-2 py-0.5 rounded-full">
                 Includes Rs.{stats.totalDues.toFixed(2)} dues pending
+              </p>
+            )}
+            {stats.creditBalance > 0 && (
+              <p className="text-xs text-emerald-800 font-medium mt-1 bg-emerald-200/50 inline-block px-2 py-0.5 rounded-full">
+                Credit Balance: Rs.{stats.creditBalance.toFixed(2)} available
               </p>
             )}
           </div>

@@ -41,6 +41,7 @@ export async function getOrdersWithDetails() {
       updatedAt: orders.updatedAt,
       userEmail: users.email,
       isGuest: users.isGuest,
+      creditBalance: users.creditBalance,
     })
     .from(orders)
     .leftJoin(users, eq(orders.userId, users.id))
@@ -82,7 +83,7 @@ export async function getOrdersWithDetails() {
         );
       }
     }
-    return { ...order, previousDues };
+    return { ...order, previousDues, userCreditBalance: Number(order.creditBalance ?? 0) };
   });
 }
 
@@ -254,12 +255,21 @@ export async function getUserOrderStats(userId: number) {
   const orderTotal = Number(deliveredStats?.totalSpent ?? 0);
   const dues = Number(deliveredStats?.totalDues ?? 0);
 
+  const [user] = await db
+    .select({ creditBalance: users.creditBalance })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  const creditBalance = Number(user?.creditBalance ?? 0);
+
   return {
     totalOrders: Number(orderStats?.totalOrders ?? 0),
     totalSpent: orderTotal + dues,
     totalSaved: Number(deliveredStats?.totalSaved ?? 0),
     totalDues: dues,
     activeOrders: Number(activeOrderCount?.count ?? 0),
+    creditBalance,
   };
 }
 

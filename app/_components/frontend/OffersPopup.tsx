@@ -24,13 +24,13 @@ export default function OffersPopup() {
   const typingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!botOpen) {
-      setTypedText("");
-      return;
-    }
+    // if (!botOpen) {
+    //   setTypedText("");
+    //   return;
+    // }
 
     let i = 0;
-    setTypedText("");
+    // setTypedText("");
 
     function typeChar() {
       if (i < botMessage.length) {
@@ -115,7 +115,7 @@ export default function OffersPopup() {
       {/* Bot Icon + Typing Bubble */}
       <span className="fixed bottom-28 right-8 z-50 flex flex-col items-end gap-2">
         {botOpen && (
-          <div className="w-72 rounded-2xl rounded-br-sm bg-white p-4 shadow-xl border border-gray-100">
+          <div className="max-w-116 rounded-2xl rounded-br-sm bg-white p-8 shadow-xl border border-gray-100">
             <div className="flex items-start gap-3">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500">
                 <Bot size={16} className="text-white" />

@@ -281,6 +281,14 @@ export default function CustomersClient() {
                         Delete
                       </button>
                       )}
+                      {can("VIEW_USERS") && user.role==="customer" && (
+                      <button
+                        onClick={() => router.push(`/dashboard/customers/${user.id}`)}
+                        className="rounded-lg border border-gray-200 px-3 py-1 text-sm text-white bg-gray-600"
+                      >
+                        View
+                      </button>
+                      )}
                     </div>
                   </td>
                 </tr>

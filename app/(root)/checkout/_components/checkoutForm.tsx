@@ -205,7 +205,7 @@ export default function CheckoutForm() {
 
   const addressSection = (
     <>
-      <div className="relative">
+      <div className="relative overflow-y-auto">          
         <MapPin size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
         <select
           required
@@ -239,7 +239,7 @@ export default function CheckoutForm() {
       {selectedZoneId && (
         <div className="flex justify-between items-center text-sm px-1">
           <span className="text-gray-400">Delivery Charge</span>
-          <span className="font-medium">
+          <span className="text-white font-medium">
             {deliveryCharge === 0 ? (
               <span className="text-green-600">FREE</span>
             ) : (
@@ -257,7 +257,7 @@ export default function CheckoutForm() {
               <span>- Rs. {couponDiscount.toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between items-center font-bold text-base px-1 pt-2 border-t border-gray-600">
+          <div className="flex justify-between items-center font-bold text-white px-1 pt-2 border-t border-gray-600">
             <span>Total</span>
             <span>Rs. {grandTotal.toFixed(2)}</span>
           </div>

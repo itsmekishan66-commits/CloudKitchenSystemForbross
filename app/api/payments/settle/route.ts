@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { createTransaction, createDue, updateDue, getDues } from "@/db/services/payments";
 import { updateOrderPaymentStatus } from "@/db/services/orders";
-import { orders } from "@/db/schemas";
+import { orders, users } from "@/db/schemas";
 import type { NewTransaction, NewDue } from "@/db/schemas";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     if (user instanceof NextResponse) return user;
 
     const payload = await request.json();
-    const { orderId, cashAmount, onlineAmount, discount, paymentMethod, markAsDue, duePersonName, dueRole, accountId } = payload;
+    const { orderId, cashAmount, onlineAmount, discount, paymentMethod, markAsDue, duePersonName, dueRole, accountId, overpayment } = payload;
 
     const totalReceived = (Number(cashAmount) || 0) + (Number(onlineAmount) || 0);
     const discountAmount = Number(discount) || 0;
@@ -104,6 +104,20 @@ export async function POST(request: Request) {
           remaining: String(newRemaining),
           status: newStatus,
         });
+      }
+    }
+
+    const overpaymentAmt = Number(overpayment) || 0;
+    if (overpaymentAmt > 0) {
+      const [orderRecord] = await db.select().from(orders).where(eq(orders.id, Number(orderId))).limit(1);
+      if (orderRecord?.userId) {
+        const [creditUser] = await db.select().from(users).where(eq(users.id, orderRecord.userId)).limit(1);
+        if (creditUser) {
+          const currentCredit = Number(creditUser.creditBalance || 0);
+          await db.update(users)
+            .set({ creditBalance: String(currentCredit + overpaymentAmt) })
+            .where(eq(users.id, orderRecord.userId));
+        }
       }
     }
 

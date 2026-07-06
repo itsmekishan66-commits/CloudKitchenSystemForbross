@@ -24,7 +24,7 @@ export default async function SuperAdminLayout({
             <Toaster position="top-right" />
             <div className="flex">
                 <Sidebar role={user.role} userPermissions={userPermissions} />
-                <main className="flex-1 p-2 bg-gray-100 min-h-screen ml-68">
+                <main className="flex-1 p-2 bg-gray-100 min-h-screen ml-68 overflow-y-auto no-scrollbar">
 
                     {/* <div className="flex text-extrabold text-3xl ml-10 ">You are {user.role}</div> */}
                     <PermissionsProvider permissions={userPermissions}>

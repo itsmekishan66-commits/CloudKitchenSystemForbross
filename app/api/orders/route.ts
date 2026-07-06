@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import {createOrder,getOrdersWithDetails,updateOrderStatus,} from "@/db/services/orders";
 import { getActivePromotionByCode, incrementPromotionUsage } from "@/db/services/promotions";
 import { createUser } from "@/db/services/users";
+import { db } from "@/db";
+import { eq } from "drizzle-orm";
+import { users } from "@/db/schemas";
 import type { DeliveryZone, NewOrder } from "@/db/schemas";
 import { getCurrentUser } from "@/lib/auth";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
@@ -225,6 +228,18 @@ export async function POST(request: Request) {
         };
       }),
     });
+
+    if (userId) {
+      const [creditUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (creditUser && Number(creditUser.creditBalance || 0) > 0) {
+        const credit = Number(creditUser.creditBalance);
+        const orderTotal = Number(total);
+        const appliedCredit = Math.min(credit, orderTotal);
+        await db.update(users)
+          .set({ creditBalance: String(credit - appliedCredit) })
+          .where(eq(users.id, userId));
+      }
+    }
 
     if (appliedCoupon) {
       await incrementPromotionUsage(appliedCoupon.id);

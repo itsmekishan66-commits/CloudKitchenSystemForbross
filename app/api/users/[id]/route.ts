@@ -8,6 +8,47 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { users, roles } from "@/db/schemas";
 import { getUserByEmail, getRoleIdByName } from "@/db/services";
 
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const currentUser = await apiRequirePermissions(PERMISSIONS.VIEW_USERS);
+    if (currentUser instanceof NextResponse) {
+      return currentUser;
+    }
+
+    const { id } = await params;
+    const userId = Number(id);
+    if (isNaN(userId)) {
+      return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
+    }
+
+    const [user] = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      phone: users.phone,
+      address: users.address,
+      isGuest: users.isGuest,
+      creditBalance: users.creditBalance,
+      createdAt: users.createdAt,
+      role: roles.name,
+    })
+    .from(users)
+    .leftJoin(roles, eq(users.roleId, roles.id))
+    .where(eq(users.id, userId))
+    .limit(1);
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ user });
+  } catch (error) {
+    console.error("Failed to fetch user", error);
+    return NextResponse.json({ error: "Unable to fetch user" }, { status: 500 });
+  }
+}
+
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const currentUser = await apiRequirePermissions(PERMISSIONS.UPDATE_USERS);

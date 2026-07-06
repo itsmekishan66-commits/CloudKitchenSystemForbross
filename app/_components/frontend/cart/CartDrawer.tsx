@@ -35,7 +35,7 @@ export default function CartDrawer({ open, onClose }: Props) {
         `}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b p-6">
+        <div className="text-white flex items-center justify-between border-b p-6">
           <h2 className="text-2xl font-bold">Your Cart</h2>
 
           <button
@@ -50,7 +50,7 @@ export default function CartDrawer({ open, onClose }: Props) {
         {/* Cart Items */}
         <div className="flex-1 overflow-y-auto p-6">
           {items.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-gray-500">
+            <div className="flex h-full items-center justify-center text-white">
               Your cart is empty
             </div>
           ) : (
@@ -69,7 +69,7 @@ export default function CartDrawer({ open, onClose }: Props) {
         </div>
 
         {/* Footer / Summary */}
-        <div className="border-t p-6 bg-black">
+        <div className="border-t p-6 text-white bg-black">
           <CartSummary totalPrice={totalPrice} />
         </div>
       </div>

@@ -34,6 +34,8 @@ export default function OrdersClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const perPage = 20;
 
   //to download the file
   // const [open, setOpen] = useState(false);
@@ -49,6 +51,10 @@ export default function OrdersClient() {
     const q = search.toLowerCase();
     return orders.filter((o) => o.customerName.toLowerCase().includes(q) || (o.phone ?? "").toLowerCase().includes(q) || (o.address ?? "").toLowerCase().includes(q) || String(o.id).includes(q));
   }, [orders, search]);
+
+  const totalPages = Math.ceil(filteredOrders.length / perPage);
+  const start = (page - 1) * perPage;
+  const visibleOrders = filteredOrders.slice(start, start + perPage);
 
   useEffect(() => {
     fetch("/api/orders")
@@ -111,12 +117,36 @@ export default function OrdersClient() {
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           placeholder="Search orders..."
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
         />
       </div>
-      <OrdersTable orders={filteredOrders} />
+      <OrdersTable orders={visibleOrders} />
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
+          <p className="text-sm text-gray-500">
+            Page {page} of {totalPages} ({filteredOrders.length} orders)
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

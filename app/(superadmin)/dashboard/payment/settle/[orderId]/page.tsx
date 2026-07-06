@@ -59,6 +59,8 @@ export default function SettlePaymentPage() {
   const [duePersonName, setDuePersonName] = useState("");
   const [dueRole, setDueRole] = useState<"customer" | "supplier" | "staff">("customer");
 
+
+
   useEffect(() => {
     if (!orderId) return;
     if (!hasSettleAccess) {
@@ -106,6 +108,7 @@ export default function SettlePaymentPage() {
   const received = cashVal + onlineVal;
   const base = hasDue ? dueAmt : total;
   const remaining = base - received - discountVal;
+  const overpayment = Math.max(0, received - base);
 
   async function handleSubmit() {
     if (received <= 0 && !markAsDue) return;
@@ -125,6 +128,7 @@ export default function SettlePaymentPage() {
           dueAmount: markAsDue ? remaining : 0,
           duePersonName: markAsDue ? duePersonName : undefined,
           dueRole: markAsDue ? dueRole : undefined,
+          overpayment: overpayment > 0 ? overpayment : 0,
         }),
       });
       if (!res.ok) throw new Error("Settlement failed");
@@ -376,10 +380,19 @@ export default function SettlePaymentPage() {
             <div className="flex justify-between font-bold text-base pt-1.5 border-t border-gray-200">
               <span>Remaining</span>
               <span className={remaining > 0 ? "text-amber-600" : "text-emerald-600"}>
-                Rs {remaining.toFixed(2)}
+                {overpayment > 0 ? "Rs 0" : `Rs ${remaining.toFixed(2)}`}
               </span>
             </div>
           </div>
+
+          {/* Overpayment notice */}
+          {overpayment > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <p className="text-sm font-medium text-amber-700">
+                Customer overpaid by Rs {overpayment.toFixed(2)} — will be credited to customer balance
+              </p>
+            </div>
+          )}
 
           {/* Mark as Due */}
           {remaining > 0 && (

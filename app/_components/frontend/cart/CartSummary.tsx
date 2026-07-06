@@ -40,7 +40,7 @@ export default function CartSummary({
       <div className="flex justify-between items-center text-lg font-bold">
         <span>Total</span>
 
-        <span className="text-red-900">Rs. {grandTotal.toFixed(2)}</span>
+        <span className="text-white">Rs. {grandTotal.toFixed(2)}</span>
       </div>
 
       {totalPrice > 0 ? (

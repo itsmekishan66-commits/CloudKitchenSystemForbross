@@ -26,7 +26,7 @@ export default function CartItem({
   removeItem,
 }: Props) {
   return (
-    <div className="flex gap-4 border-b pb-4">
+    <div className="text-white flex gap-4 border-b pb-4">
       <Image
         src={safeImageUrl(item.image)}
         alt={item.title}
@@ -38,7 +38,7 @@ export default function CartItem({
       <div className="flex-1">
         <h4 className="font-semibold">{item.title}</h4>
 
-        <p className="text-red-900">Rs.{item.price}</p>
+        <p className="text-red-800">Rs.{item.price}</p>
 
         <div className="flex items-center gap-2 mt-2">
           <button

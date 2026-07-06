@@ -188,7 +188,7 @@ export default function CustomersClient() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Customers & Users</h1>
+        <h1 className="text-2xl font-bold">Customers & Users <span className="text-base font-normal text-gray-400 ml-2">({users.length} {filter === "" ? "total" : filter})</span></h1>
         <div className="flex items-center justify-end gap-4">
           {can("DOWNLOAD_USERS") && (
           <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
@@ -402,7 +402,7 @@ export default function CustomersClient() {
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="text-lg font-bold mb-2">Delete User</h2>
             <p className="text-sm text-gray-600 mb-6">
-              Are you sure you want to delete <strong>{deleteTarget.name}</strong> ({deleteTarget.email})? This cannot be undone.
+              Are you sure you want to delete <strong>{deleteTarget.name}</strong> ({deleteTarget.email})? The user will be hidden from the system but their data will be preserved.
             </p>
             <div className="flex gap-3 justify-end">
               <button

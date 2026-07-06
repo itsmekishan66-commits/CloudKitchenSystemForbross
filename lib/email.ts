@@ -43,6 +43,25 @@ function getTransport() {
   });
 }
 
+export async function sendOtpEmail(name: string, email: string, otp: string) {
+  const from = process.env.MAIL_FROM ?? process.env.SMTP_USER;
+
+  await getTransport().sendMail({
+    from,
+    to: email,
+    subject: `Your ${await getSiteName()} verification code`,
+    text: [
+      `Hi ${name},`,
+      "",
+      `Your verification code is: ${otp}`,
+      "",
+      "This code expires in 10 minutes.",
+      "",
+      "If you did not create an account, please ignore this email.",
+    ].join("\n"),
+  });
+}
+
 export async function sendContactMessage(message: ContactMessage) {
   const to = process.env.CONTACT_TO_EMAIL ?? process.env.SMTP_USER;
 

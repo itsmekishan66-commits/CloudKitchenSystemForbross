@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users, roles } from "@/db/schemas";
 import { requirePermission } from "@/lib/requirePermission";
@@ -33,7 +33,7 @@ export default async function CustomerDetailPage({
     })
     .from(users)
     .leftJoin(roles, eq(users.roleId, roles.id))
-    .where(eq(users.id, userId))
+    .where(and(eq(users.id, userId), eq(users.deleted, false)))
     .limit(1);
 
   if (!user) notFound();

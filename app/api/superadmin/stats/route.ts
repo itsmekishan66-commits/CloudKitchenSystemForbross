@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
@@ -31,7 +31,7 @@ export async function GET() {
       .select({ count: sql<number>`count(*)` })
       .from(users)
       .leftJoin(roles, eq(users.roleId, roles.id))
-      .where(eq(roles.name, "customer"));
+      .where(and(eq(roles.name, "customer"), eq(users.deleted, false)));
 
     const [menuCount] = await db
       .select({ count: sql<number>`count(*)` })
@@ -46,7 +46,7 @@ export async function GET() {
       .select({ count: sql<number>`count(*)` })
       .from(users)
       .leftJoin(roles, eq(users.roleId, roles.id))
-      .where(sql`${roles.name} not in ('customer')`);
+      .where(and(sql`${roles.name} not in ('customer')`, eq(users.deleted, false)));
 
     const [pendingOrders] = await db
       .select({ count: sql<number>`count(*)` })

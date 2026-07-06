@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
 
       run(() => db.select({ count: sql<number>`count(*)` }).from(users)
         .leftJoin(roles, eq(users.roleId, roles.id))
-        .where(eq(roles.name, "customer")), [{ count: 0 }]),
+        .where(and(eq(roles.name, "customer"), eq(users.deleted, false))), [{ count: 0 }]),
 
       run(() => db.select({ count: sql<number>`count(*)` }).from(menuItems), [{ count: 0 }]),
 
@@ -143,7 +143,7 @@ export async function GET(request: Request) {
         newCustomers: sql<number>`count(*)`,
       }).from(users)
         .leftJoin(roles, eq(users.roleId, roles.id))
-        .where(eq(roles.name, "customer"))
+        .where(and(eq(roles.name, "customer"), eq(users.deleted, false)))
         .groupBy(sql`date_format(${users.createdAt}, '%Y-%m')`)
         .orderBy(sql`date_format(${users.createdAt}, '%Y-%m')`), []),
 

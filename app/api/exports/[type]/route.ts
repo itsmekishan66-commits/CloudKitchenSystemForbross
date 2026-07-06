@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { generateCSV } from "@/lib/exports/csv";
 import { generateExcel } from "@/lib/exports/excel";
 import { generatePDF } from "@/lib/exports/pdf";
@@ -29,7 +29,7 @@ async function fetchData(source: string): Promise<NextResponse | Record<string, 
                     createdAt: users.createdAt,
                 })
                 .from(users)
-                .where(eq(users.isGuest, true))
+                .where(and(eq(users.isGuest, true), eq(users.deleted, false)))
                 .orderBy(users.name) as unknown as Record<string, unknown>[];
         }
         case "inventory": {
@@ -53,7 +53,7 @@ async function fetchData(source: string): Promise<NextResponse | Record<string, 
                 .select({ count: sql<number>`count(*)` })
                 .from(users)
                 .leftJoin(roles, eq(users.roleId, roles.id))
-                .where(eq(roles.name, "customer"));
+                .where(and(eq(roles.name, "customer"), eq(users.deleted, false)));
 
             const [menuStats] = await db
                 .select({ count: sql<number>`count(*)` })

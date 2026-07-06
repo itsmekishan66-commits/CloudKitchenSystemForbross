@@ -1,6 +1,6 @@
 import { randomBytes, scryptSync } from "crypto";
 import { redirect } from "next/navigation";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { auth } from "@/auth";
 
 import { db } from "@/db";
@@ -25,13 +25,18 @@ export async function getCurrentUser(): Promise<UserWithRole | null> {
       passwordHash: users.passwordHash,
       roleId: users.roleId,
       isGuest: users.isGuest,
+      creditBalance: users.creditBalance,
+      deleted: users.deleted,
+      emailVerified: users.emailVerified,
+      verificationOtp: users.verificationOtp,
+      verificationOtpExpires: users.verificationOtpExpires,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
       role: sql<string>`coalesce(${roles.name}, 'customer')`,
     })
     .from(users)
     .leftJoin(roles, eq(users.roleId, roles.id))
-    .where(eq(users.id, session.user.id))
+    .where(and(eq(users.id, session.user.id), eq(users.deleted, false)))
     .limit(1);
   return user ?? null;
 }

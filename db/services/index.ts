@@ -1,4 +1,5 @@
 export * from "./activity-logs";
+export * from "./pending-registrations";
 export * from "./categories";
 export * from "./inventory";
 export * from "./kitchens";

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { hashPassword } from "@/lib/auth";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
 import { users, roles } from "@/db/schemas";
-import { createUser, getRoleIdByName, getUserByEmail } from "@/db/services";
+import { createUser, getRoleIdByName, getUserByEmailIncludingDeleted } from "@/db/services";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const existing = await getUserByEmail(email.toLowerCase());
+    const existing = await getUserByEmailIncludingDeleted(email.toLowerCase());
     if (existing) {
       return NextResponse.json({ error: "A user with this email already exists" }, { status: 409 });
     }
@@ -79,6 +79,7 @@ export async function GET(request: Request) {
       })
       .from(users)
       .leftJoin(roles, eq(users.roleId, roles.id))
+      .where(eq(users.deleted, false))
       .orderBy(users.name);
 
     let filtered = await query;

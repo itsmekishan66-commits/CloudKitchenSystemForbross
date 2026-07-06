@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { hashPassword } from "@/lib/auth";
@@ -35,7 +35,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     })
     .from(users)
     .leftJoin(roles, eq(users.roleId, roles.id))
-    .where(eq(users.id, userId))
+    .where(and(eq(users.id, userId), eq(users.deleted, false)))
     .limit(1);
 
     if (!user) {
@@ -76,7 +76,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         .select({ currentRole: roles.name })
         .from(users)
         .leftJoin(roles, eq(users.roleId, roles.id))
-        .where(eq(users.id, userId))
+        .where(and(eq(users.id, userId), eq(users.deleted, false)))
         .limit(1);
 
       if (target?.currentRole === "super-admin" && role !== "super-admin") {
@@ -129,7 +129,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
     }
 
-    await db.delete(users).where(eq(users.id, userId));
+    await db.update(users).set({ deleted: true }).where(eq(users.id, userId));
 
     return NextResponse.json({ ok: true });
   } catch (error) {

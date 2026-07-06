@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
+import { randomInt } from "crypto";
 
-import { createUser, getRoleIdByName, getUserByEmail } from "@/db/services";
+import { db } from "@/db";
+import { getRoleIdByName, getUserByEmailIncludingDeleted, createPendingRegistration } from "@/db/services";
+import { pendingRegistrations } from "@/db/schemas";
+import { eq } from "drizzle-orm";
 import { hashPassword } from "@/lib/auth";
+import { sendOtpEmail } from "@/lib/email";
 
 type RegisterPayload = {
   name?: string;
@@ -44,25 +49,46 @@ export async function POST(request: Request) {
     }
   }
 
-  const existing = await getUserByEmail(email);
-
-  if (existing) {
+  const existingUser = await getUserByEmailIncludingDeleted(email);
+  if (existingUser) {
     return NextResponse.json(
       { error: "An account already exists for this email" },
       { status: 409 },
     );
   }
 
-  const roleId = await getRoleIdByName(role);
+  const [existingPending] = await db
+    .select({ id: pendingRegistrations.id })
+    .from(pendingRegistrations)
+    .where(eq(pendingRegistrations.email, email))
+    .limit(1);
 
-  const userId = await createUser({
-    name,
+  if (existingPending) {
+    await db.delete(pendingRegistrations).where(eq(pendingRegistrations.id, existingPending.id));
+  }
+
+  const roleId = await getRoleIdByName(role);
+  const passwordHash = hashPassword(password);
+  const otp = String(randomInt(100000, 999999));
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  await createPendingRegistration({
     email,
+    name,
     phone: phone || null,
     address: address || null,
-    passwordHash: hashPassword(password),
-    roleId: roleId ?? undefined,
+    passwordHash,
+    roleId,
+    otp,
+    expiresAt,
   });
 
-  return NextResponse.json({ ok: true });
+  try {
+    await sendOtpEmail(name, email, otp);
+  } catch (err) {
+    console.error("Failed to send OTP email", err);
+    return NextResponse.json({ error: "Failed to send verification email. Check SMTP settings." }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, requiresOtp: true });
 }

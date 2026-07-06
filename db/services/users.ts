@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
 import { db } from "@/db";
 import { roles, users, type NewUser } from "@/db/schemas";
 
@@ -15,12 +15,21 @@ export async function getUserById(id: number) {
   const [user] = await db
     .select()
     .from(users)
-    .where(eq(users.id, id))
+    .where(and(eq(users.id, id), eq(users.deleted, false)))
     .limit(1);
   return user ?? null;
 }
 
 export async function getUserByEmail(email: string) {
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.email, email), eq(users.deleted, false)))
+    .limit(1);
+  return user ?? null;
+}
+
+export async function getUserByEmailIncludingDeleted(email: string) {
   const [user] = await db
     .select()
     .from(users)
@@ -45,6 +54,7 @@ export async function getUsers() {
     })
     .from(users)
     .leftJoin(roles, eq(users.roleId, roles.id))
+    .where(eq(users.deleted, false))
     .orderBy(asc(users.name));
   return result;
 }
@@ -62,5 +72,43 @@ export async function updateUser(
 }
 
 export async function deleteUser(id: number) {
-  await db.delete(users).where(eq(users.id, id));
+  await db.update(users).set({ deleted: true }).where(eq(users.id, id));
+}
+
+export async function setUserOtp(
+  id: number,
+  otp: string,
+  expires: Date,
+) {
+  await db
+    .update(users)
+    .set({ verificationOtp: otp, verificationOtpExpires: expires })
+    .where(eq(users.id, id));
+}
+
+export async function verifyUserOtp(email: string, otp: string) {
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(
+      and(
+        eq(users.email, email),
+        eq(users.verificationOtp, otp),
+        gte(users.verificationOtpExpires, new Date()),
+      ),
+    )
+    .limit(1);
+
+  if (!user) return null;
+
+  await db
+    .update(users)
+    .set({
+      emailVerified: true,
+      verificationOtp: null,
+      verificationOtpExpires: null,
+    })
+    .where(eq(users.id, user.id));
+
+  return user;
 }

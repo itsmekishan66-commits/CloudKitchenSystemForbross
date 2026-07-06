@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { signIn, getSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
+import { Eye, EyeOff } from "lucide-react";
 
 type AuthFormProps = {
   mode: "login" | "register";
@@ -15,6 +16,16 @@ export default function AuthForm({ mode, role = "customer", onSuccess }: AuthFor
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [step, setStep] = useState<"form" | "otp">("form");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const otp0 = useRef<HTMLInputElement>(null);
+  const otp1 = useRef<HTMLInputElement>(null);
+  const otp2 = useRef<HTMLInputElement>(null);
+  const otp3 = useRef<HTMLInputElement>(null);
+  const otp4 = useRef<HTMLInputElement>(null);
+  const otp5 = useRef<HTMLInputElement>(null);
+  const otpRefs = [otp0, otp1, otp2, otp3, otp4, otp5];
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -50,7 +61,14 @@ export default function AuthForm({ mode, role = "customer", onSuccess }: AuthFor
         const data = await response.json();
 
         if (!response.ok) {
+          toast.error(data.error ?? "Registration failed");
           setError(data.error ?? "Registration failed");
+          return;
+        }
+
+        if (data.requiresOtp) {
+          toast.success("Verification code sent to your email");
+          setStep("otp");
           return;
         }
 
@@ -66,6 +84,7 @@ export default function AuthForm({ mode, role = "customer", onSuccess }: AuthFor
       });
 
       if (result?.error) {
+        toast.error("Invalid email or password");
         setError("Invalid email or password");
         return;
       }
@@ -89,6 +108,90 @@ export default function AuthForm({ mode, role = "customer", onSuccess }: AuthFor
     }
   }
 
+  async function handleOtpVerify() {
+    const code = otp.join("");
+    if (code.length !== 6) {
+      setError("Please enter the full 6-digit code");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email.toLowerCase().trim(), otp: code }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Verification failed");
+        setError(data.error ?? "Verification failed");
+        return;
+      }
+      toast.success("Email verified! Now login with your registered email to get inside our Cloud Kitchen");
+      setTimeout(() => router.push("/login"), 400);
+    } catch {
+      setError("Unable to verify code");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleOtpChange(index: number, value: string) {
+    if (!/^\d*$/.test(value)) return;
+    const next = [...otp];
+    next[index] = value.slice(-1);
+    setOtp(next);
+    if (value && index < 5) {
+      otpRefs[index + 1].current?.focus();
+    }
+  }
+
+  function handleOtpKeyDown(index: number, e: React.KeyboardEvent) {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      otpRefs[index - 1].current?.focus();
+    }
+  }
+
+  if (step === "otp") {
+    return (
+      <div className="space-y-6">
+        <div className="text-center text-white">
+          <p className="text-sm text-gray-300 mb-1">Verification code sent to</p>
+          <p className="font-medium">{form.email}</p>
+        </div>
+
+        <div className="flex gap-2 justify-center">
+          {otp.map((digit, i) => (
+            <input
+              key={i}
+              ref={otpRefs[i]}
+              type="text"
+              inputMode="numeric"
+              maxLength={1}
+              value={digit}
+              onChange={(e) => handleOtpChange(i, e.target.value)}
+              onKeyDown={(e) => handleOtpKeyDown(i, e)}
+              className="w-10 h-12 text-center text-lg font-bold text-white rounded-xl border bg-transparent focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none"
+            />
+          ))}
+        </div>
+
+        {error ? (
+          <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700 text-center">{error}</p>
+        ) : null}
+
+        <button
+          onClick={handleOtpVerify}
+          disabled={loading}
+          className="w-full rounded-xl bg-red-900 py-3 text-white disabled:opacity-60"
+        >
+          {loading ? "Verifying..." : "Verify Email"}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {isRegister ? (
@@ -110,15 +213,24 @@ export default function AuthForm({ mode, role = "customer", onSuccess }: AuthFor
         onChange={(event) => setForm({ ...form, email: event.target.value })}
       />
 
-      <input
-        required
-        type="password"
-        placeholder="Password"
-        minLength={8}
-        className="w-full text-white rounded-xl border p-3"
-        value={form.password}
-        onChange={(event) => setForm({ ...form, password: event.target.value })}
-      />
+      <div className="relative">
+        <input
+          required
+          type={showPassword ? "text" : "password"}
+          placeholder="Password"
+          minLength={8}
+          className="w-full text-white rounded-xl border p-3 pr-10"
+          value={form.password}
+          onChange={(event) => setForm({ ...form, password: event.target.value })}
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword(!showPassword)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white"
+        >
+          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+        </button>
+      </div>
 
       {isRegister ? (
         <>

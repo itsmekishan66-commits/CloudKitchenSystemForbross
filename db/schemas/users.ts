@@ -18,6 +18,10 @@ export const users = mysqlTable("users", {
   roleId: int("role_id").references(() => roles.id),
   isGuest: boolean("is_guest").notNull().default(false),
   creditBalance: decimal("credit_balance_over_paid", { precision: 10, scale: 2 }).default("0"),
+  deleted: boolean("deleted").notNull().default(false),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  verificationOtp: varchar("verification_otp", { length: 6 }),
+  verificationOtpExpires: timestamp("verification_otp_expires"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
 });

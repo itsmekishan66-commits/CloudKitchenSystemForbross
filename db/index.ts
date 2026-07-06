@@ -21,13 +21,15 @@ function getPool() {
   const pool = mysql.createPool({
     uri: databaseUrl,
     waitForConnections: true,
-    connectionLimit: 10,
+    connectionLimit: 50,
+    queueLimit: 0,
   });
 
-  if (process.env.NODE_ENV !== "production") {
-    globalForDb.mysqlPool = pool;
-  }
-
+  // if (process.env.NODE_ENV !== "production") {
+  //     globalForDb.mysqlPool = pool;
+  //   } this causing problem in build so comment out and add one line below
+  globalForDb.mysqlPool = pool;
+  
   return pool;
 }
 

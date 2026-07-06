@@ -5,7 +5,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import useCart from "@/hooks/useCart";
 import useUser from "@/hooks/useUser";
 import PaymentMethods from "./paymentMethods";
-import { User, Phone, MapPin, ShoppingBag, ChevronDown } from "lucide-react";
+import { User, Phone, MapPin, ShoppingBag, ChevronDown, Tag } from "lucide-react";
 
 type Zone = {
   id: number;
@@ -19,13 +19,24 @@ type OrderResponse = {
   orderId?: number;
 };
 
+type AppliedCoupon = {
+  code: string;
+  discountType: "percentage" | "fixed";
+  discountValue: number;
+};
+
 export default function CheckoutForm() {
   const router = useRouter();
   const { items, totalPrice, clearCart } = useCart();
   const { user, loading: userLoading } = useUser();
 
   const [loading, setLoading] = useState(false);
+  const [couponLoading, setCouponLoading] = useState(false);
   const [error, setError] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [couponMessage, setCouponMessage] = useState("");
+  const [couponError, setCouponError] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
 
   const [paymentMethod, setPaymentMethod] = useState("COD");
 
@@ -79,7 +90,57 @@ export default function CheckoutForm() {
     return charge;
   }, [selectedZoneId, zones, totalPrice]);
 
-  const grandTotal = totalPrice + deliveryCharge;
+  const couponDiscount = useMemo(() => {
+    if (!appliedCoupon) return 0;
+    const base = totalPrice;
+    if (appliedCoupon.discountType === "percentage") {
+      return Math.min(base, base * (appliedCoupon.discountValue / 100));
+    }
+    return Math.min(base, appliedCoupon.discountValue);
+  }, [appliedCoupon, totalPrice]);
+
+  const grandTotal = Math.max(0, totalPrice + deliveryCharge - couponDiscount);
+
+  const handleApplyCoupon = useCallback(async () => {
+    const trimmedCode = couponCode.trim();
+    if (!trimmedCode) {
+      setCouponError("Enter a coupon code.");
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError("");
+    setCouponMessage("");
+
+    try {
+      const response = await fetch(`/api/promotions?code=${encodeURIComponent(trimmedCode)}`);
+      const data = await response.json();
+
+      if (!response.ok || !data.promotion) {
+        setCouponError(data.error || "Coupon not found or no longer valid.");
+        setAppliedCoupon(null);
+        return;
+      }
+
+      const promotion = data.promotion as {
+        code: string;
+        discountType: "percentage" | "fixed";
+        discountValue: string;
+      };
+
+      setAppliedCoupon({
+        code: promotion.code,
+        discountType: promotion.discountType,
+        discountValue: Number(promotion.discountValue) || 0,
+      });
+      setCouponMessage(`Coupon applied: ${promotion.code}`);
+    } catch {
+      setCouponError("Unable to validate coupon right now.");
+      setAppliedCoupon(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  }, [couponCode]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -117,6 +178,8 @@ export default function CheckoutForm() {
             paymentMethod,
             items,
             total: grandTotal,
+            couponCode: appliedCoupon?.code || undefined,
+            couponDiscount,
           }),
         });
 
@@ -135,7 +198,7 @@ export default function CheckoutForm() {
         setLoading(false);
       }
     },
-    [form, items, grandTotal, deliveryCharge, selectedZoneId, paymentMethod, clearCart, router],
+    [form, items, grandTotal, deliveryCharge, selectedZoneId, paymentMethod, clearCart, router, appliedCoupon, couponDiscount],
   );
 
   const showGuestModal = !userLoading && !user;
@@ -187,10 +250,18 @@ export default function CheckoutForm() {
       )}
 
       {selectedZoneId && (
-        <div className="flex justify-between items-center font-bold text-base px-1 pt-2 border-t">
-          <span>Total</span>
-          <span>Rs. {grandTotal.toFixed(2)}</span>
-        </div>
+        <>
+          {couponDiscount > 0 && (
+            <div className="flex justify-between items-center text-sm px-1 text-green-600">
+              <span>Coupon Discount</span>
+              <span>- Rs. {couponDiscount.toFixed(2)}</span>
+            </div>
+          )}
+          <div className="flex justify-between items-center font-bold text-base px-1 pt-2 border-t">
+            <span>Total</span>
+            <span>Rs. {grandTotal.toFixed(2)}</span>
+          </div>
+        </>
       )}
     </>
   );
@@ -220,6 +291,37 @@ export default function CheckoutForm() {
       </div>
 
       {addressSection}
+
+      <div className="rounded-xl border border-orange-200 bg-orange-50 p-3">
+        <label className="text-sm font-medium text-orange-700">Coupon Code</label>
+        <div className="mt-2 flex gap-2">
+          <div className="relative flex-1">
+            <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400" />
+            <input
+              type="text"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value)}
+              placeholder="Enter promo code"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-orange-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleApplyCoupon}
+            disabled={couponLoading}
+            className="rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
+          >
+            {couponLoading ? "..." : "Apply"}
+          </button>
+        </div>
+        {couponError ? <p className="mt-2 text-sm text-red-600">{couponError}</p> : null}
+        {couponMessage ? <p className="mt-2 text-sm text-green-600">{couponMessage}</p> : null}
+        {appliedCoupon ? (
+          <p className="mt-2 text-xs text-orange-700">
+            Applied coupon: <span className="font-semibold">{appliedCoupon.code}</span>
+          </p>
+        ) : null}
+      </div>
     </>
   );
 

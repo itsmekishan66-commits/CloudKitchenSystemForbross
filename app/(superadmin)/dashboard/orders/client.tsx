@@ -21,9 +21,10 @@ interface Order {
   paymentMethod: string;
   total: string;
   deliveryCharge: string;
+  dueAmount?: string | null;
   landmarkName?: string;
   status: string;
-  paymentSettled?: number | null;
+  paymentSettled?: number | boolean | null;
   createdAt: Date | string;
   items: OrderItem[];
 }

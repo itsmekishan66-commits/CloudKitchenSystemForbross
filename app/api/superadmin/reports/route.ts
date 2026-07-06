@@ -26,6 +26,18 @@ export async function GET(request: Request) {
     const days = parseInt(searchParams.get("range") || "30", 10);
     const intervalDays = isNaN(days) || days <= 0 ? 30 : days;
 
+    const customStart = searchParams.get("startDate");
+    const customEnd = searchParams.get("endDate");
+    const useCustomRange = customStart && customEnd;
+
+    const dateFilter = useCustomRange
+      ? sql`${orders.createdAt} >= ${customStart} and ${orders.createdAt} <= date_add(${customEnd}, interval 1 day)`
+      : sql`${orders.createdAt} >= date_sub(now(), interval ${intervalDays} day)`;
+
+    const expenseDateFilter = useCustomRange
+      ? sql`${transactions.type} = 'expense' and ${transactions.createdAt} >= ${customStart} and ${transactions.createdAt} <= date_add(${customEnd}, interval 1 day)`
+      : sql`${transactions.type} = 'expense' and ${transactions.createdAt} >= date_sub(now(), interval ${intervalDays} day)`;
+
     const run = async <T>(fn: () => Promise<T>, fallback: T): Promise<T> => {
       try { return await fn(); } catch { return fallback; }
     };
@@ -49,7 +61,8 @@ export async function GET(request: Request) {
         totalOrders: sql<number>`count(*)`,
         totalRevenue: sql<string>`coalesce(sum(${orders.total}),0)`,
         avgOrderValue: sql<string>`coalesce(avg(${orders.total}),0)`,
-      }).from(orders), [{ totalOrders: 0, totalRevenue: "0", avgOrderValue: "0" }]),
+      }).from(orders)
+        .where(dateFilter), [{ totalOrders: 0, totalRevenue: "0", avgOrderValue: "0" }]),
 
       run(() => db.select({ count: sql<number>`count(*)` }).from(users)
         .leftJoin(roles, eq(users.roleId, roles.id))
@@ -58,13 +71,13 @@ export async function GET(request: Request) {
       run(() => db.select({ count: sql<number>`count(*)` }).from(menuItems), [{ count: 0 }]),
 
       run(() => db.select({ totalExpenses: sql<string>`coalesce(sum(${transactions.amount}),0)` })
-        .from(transactions).where(eq(transactions.type, "expense")), [{ totalExpenses: "0" }]),
+        .from(transactions).where(expenseDateFilter), [{ totalExpenses: "0" }]),
 
       run(() => db.select({
         date: sql<string>`date(${orders.createdAt})`,
         revenue: sql<string>`coalesce(sum(${orders.total}),0)`,
       }).from(orders)
-        .where(sql`${orders.createdAt} >= date_sub(now(), interval ${intervalDays} day)`)
+        .where(dateFilter)
         .groupBy(sql`date(${orders.createdAt})`)
         .orderBy(sql`date(${orders.createdAt})`), []),
 
@@ -72,7 +85,7 @@ export async function GET(request: Request) {
         date: sql<string>`date(${transactions.createdAt})`,
         expenses: sql<string>`coalesce(sum(${transactions.amount}),0)`,
       }).from(transactions)
-        .where(sql`${transactions.type} = 'expense' and ${transactions.createdAt} >= date_sub(now(), interval ${intervalDays} day)`)
+        .where(expenseDateFilter)
         .groupBy(sql`date(${transactions.createdAt})`)
         .orderBy(sql`date(${transactions.createdAt})`), []),
 
@@ -80,7 +93,7 @@ export async function GET(request: Request) {
         date: sql<string>`date(${orders.createdAt})`,
         orders: sql<number>`count(*)`,
       }).from(orders)
-        .where(sql`${orders.createdAt} >= date_sub(now(), interval ${intervalDays} day)`)
+        .where(dateFilter)
         .groupBy(sql`date(${orders.createdAt})`)
         .orderBy(sql`date(${orders.createdAt})`), []),
 
@@ -89,6 +102,7 @@ export async function GET(request: Request) {
         orders: sql<number>`count(*)`,
         revenue: sql<string>`coalesce(sum(${orders.total}),0)`,
       }).from(orders)
+        .where(dateFilter)
         .groupBy(sql`hour(${orders.createdAt})`)
         .orderBy(sql`hour(${orders.createdAt})`), []),
 
@@ -97,6 +111,7 @@ export async function GET(request: Request) {
         orders: sql<number>`count(*)`,
         revenue: sql<string>`coalesce(sum(${orders.total}),0)`,
       }).from(orders)
+        .where(dateFilter)
         .groupBy(sql`dayname(${orders.createdAt})`)
         .orderBy(sql`dayofweek(${orders.createdAt})`), []),
 
@@ -105,6 +120,8 @@ export async function GET(request: Request) {
         totalQuantity: sql<number>`sum(${orderItems.quantity})`,
         totalRevenue: sql<string>`coalesce(sum(${orderItems.price} * ${orderItems.quantity}),0)`,
       }).from(orderItems)
+        .leftJoin(orders, eq(orderItems.orderId, orders.id))
+        .where(dateFilter)
         .groupBy(orderItems.title)
         .orderBy(sql`sum(${orderItems.quantity}) desc`)
         .limit(10), []),
@@ -114,8 +131,10 @@ export async function GET(request: Request) {
         totalQuantity: sql<number>`coalesce(sum(${orderItems.quantity}),0)`,
         totalRevenue: sql<string>`coalesce(sum(${orderItems.price} * ${orderItems.quantity}),0)`,
       }).from(orderItems)
+        .leftJoin(orders, eq(orderItems.orderId, orders.id))
         .leftJoin(menuItems, eq(orderItems.menuItemId, menuItems.id))
         .leftJoin(categories, eq(menuItems.categoryId, categories.id))
+        .where(dateFilter)
         .groupBy(categories.name)
         .orderBy(sql`coalesce(sum(${orderItems.quantity}),0) desc`), []),
 
@@ -133,6 +152,7 @@ export async function GET(request: Request) {
         count: sql<number>`count(*)`,
         revenue: sql<string>`coalesce(sum(${orders.total}),0)`,
       }).from(orders)
+        .where(dateFilter)
         .groupBy(orders.status), []),
     ]);
 

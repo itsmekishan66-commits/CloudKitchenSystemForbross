@@ -37,7 +37,7 @@ export default function PaymentsPage() {
   return (
     <div className="space-y-16 gap-5 flex flex-col items-center justify-center">
       NOT YET IMPLEMENTED THE PAYMENT
-      <h1 className="text-2xl md:text-3xl font-bold text-gray-900">COMMING SOON........</h1>
+      <h1 className="text-2xl md:text-3xl font-bold text-white">COMMING SOON........</h1>
     </div>
   );
 };

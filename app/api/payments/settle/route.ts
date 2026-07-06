@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { createTransaction, createDue } from "@/db/services/payments";
-import { markOrderPaymentSettled } from "@/db/services/orders";
+import { createTransaction, createDue, updateDue, getDues } from "@/db/services/payments";
+import { updateOrderPaymentStatus } from "@/db/services/orders";
 import { orders } from "@/db/schemas";
 import type { NewTransaction, NewDue } from "@/db/schemas";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     if (user instanceof NextResponse) return user;
 
     const payload = await request.json();
-    const { orderId, cashAmount, onlineAmount, discount, paymentMethod, markAsDue, duePersonName, dueRole } = payload;
+    const { orderId, cashAmount, onlineAmount, discount, paymentMethod, markAsDue, duePersonName, dueRole, accountId } = payload;
 
     const totalReceived = (Number(cashAmount) || 0) + (Number(onlineAmount) || 0);
     const discountAmount = Number(discount) || 0;
@@ -41,13 +41,14 @@ export async function POST(request: Request) {
     }
 
     if (Number(onlineAmount) > 0) {
-      const mappedMethod = paymentMethod === "card" ? "card" : paymentMethod === "bank" ? "bank" : "esewa";
+      const mappedMethod = paymentMethod === "card" ? "card" : paymentMethod === "netbanking" ? "bank" : paymentMethod === "bank" ? "bank" : "esewa";
       const txData: NewTransaction = {
         id: crypto.randomUUID(),
         type: "online_received",
         amount: String(onlineAmount),
         receivedFrom: `Order #${orderId}`,
         paymentMethod: mappedMethod,
+        accountId: accountId || null,
         transactionId: `SETTLE-${orderId}-${Date.now()}`,
         notes: discountAmount > 0 ? `Discount: Rs ${discountAmount}` : null,
       };
@@ -72,21 +73,38 @@ export async function POST(request: Request) {
       }
     }
 
-    if (markAsDue && (Number(payload.dueAmount) > 0)) {
+    const remainingDue = Math.max(0, Number(payload.dueAmount) || 0);
+
+    if (markAsDue && remainingDue > 0) {
       const dueData: NewDue = {
         id: crypto.randomUUID(),
         personName: duePersonName || `Order #${orderId} Customer`,
         role: dueRole || "customer",
-        totalDue: String(payload.dueAmount),
+        totalDue: String(remainingDue),
         paid: "0",
-        remaining: String(payload.dueAmount),
+        remaining: String(remainingDue),
         status: "pending",
       };
       await createDue(dueData);
-    }
+      await updateOrderPaymentStatus(Number(orderId), false, remainingDue.toFixed(2));
+    } else if (Number(cashAmount) > 0 || Number(onlineAmount) > 0) {
+      await updateOrderPaymentStatus(Number(orderId), remainingDue <= 0, remainingDue.toFixed(2));
 
-    if (Number(cashAmount) > 0 || Number(onlineAmount) > 0) {
-      await markOrderPaymentSettled(Number(orderId));
+      const allDues = await getDues();
+      const orderDue = allDues.find(
+        (d) => d.personName === `Order #${orderId}` && d.role === "customer" && Number(d.remaining) > 0
+      );
+      if (orderDue) {
+        const paidNow = totalReceived + discountAmount;
+        const newPaid = Math.min(Number(orderDue.paid) + paidNow, Number(orderDue.totalDue));
+        const newRemaining = Number(orderDue.totalDue) - newPaid;
+        const newStatus = newRemaining <= 0 ? "paid" : newPaid > 0 ? "partial" : "pending";
+        await updateDue(orderDue.id, {
+          paid: String(newPaid),
+          remaining: String(newRemaining),
+          status: newStatus,
+        });
+      }
     }
 
     return NextResponse.json({ ok: true }, { status: 201 });

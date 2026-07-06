@@ -6,6 +6,20 @@ import { getAvailableMenuItems } from "@/db/services/menu-items";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
 import { orders, orderItems } from "@/db/schemas";
+import { getAllZones } from "@/db/services/delivery-zones";
+
+async function getEffectiveDeliveryCharge(landmarkName: string | null, subtotal: number, fallbackCharge: number) {
+  const trimmedLandmark = landmarkName?.trim();
+  if (!trimmedLandmark) return fallbackCharge;
+
+  const zones = await getAllZones();
+  const matchingZone = zones.find((zone) => zone.isActive && zone.landmarkName?.toLowerCase() === trimmedLandmark.toLowerCase());
+
+  if (!matchingZone) return fallbackCharge;
+
+  const minOrderAmount = Number(matchingZone.minOrderAmount ?? 0) || 0;
+  return subtotal >= minOrderAmount ? 0 : Number(matchingZone.deliveryCharge ?? 0);
+}
 
 export async function PATCH(request: Request) {
   try {
@@ -44,11 +58,13 @@ export async function PATCH(request: Request) {
     await db.update(orderItems).set({ quantity: newQty }).where(eq(orderItems.id, itemId));
 
     const [order] = await db.select().from(orders).where(eq(orders.id, item.orderId)).limit(1);
-    const deliveryCharge = Number(order?.deliveryCharge ?? 0);
     const allItems = await db.select().from(orderItems).where(eq(orderItems.orderId, item.orderId));
     const itemsSubtotal = allItems.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
-    const newTotal = (itemsSubtotal + deliveryCharge).toFixed(2);
-    await db.update(orders).set({ total: newTotal }).where(eq(orders.id, item.orderId));
+    const deliveryCharge = await getEffectiveDeliveryCharge(order?.landmarkName ?? null, itemsSubtotal, Number(order?.deliveryCharge ?? 0));
+    const discountAmount = Number(order?.discountAmount ?? 0);
+
+    const newTotal = Math.max(0, itemsSubtotal + deliveryCharge - discountAmount).toFixed(2);
+    await db.update(orders).set({ total: newTotal, deliveryCharge: deliveryCharge.toFixed(2) }).where(eq(orders.id, item.orderId));
 
     return NextResponse.json({ ok: true, quantity: newQty, total: newTotal });
   } catch (error) {
@@ -77,7 +93,6 @@ export async function DELETE(request: Request) {
     await db.delete(orderItems).where(eq(orderItems.id, itemId));
 
     const [order] = await db.select().from(orders).where(eq(orders.id, item.orderId)).limit(1);
-    const deliveryCharge = Number(order?.deliveryCharge ?? 0);
 
     const remaining = await db.select().from(orderItems).where(eq(orderItems.orderId, item.orderId));
 
@@ -87,8 +102,11 @@ export async function DELETE(request: Request) {
     }
 
     const itemsSubtotal = remaining.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
-    const newTotal = (itemsSubtotal + deliveryCharge).toFixed(2);
-    await db.update(orders).set({ total: newTotal }).where(eq(orders.id, item.orderId));
+    const deliveryCharge = await getEffectiveDeliveryCharge(order?.landmarkName ?? null, itemsSubtotal, Number(order?.deliveryCharge ?? 0));
+    const discountAmount = Number(order?.discountAmount ?? 0);
+
+    const newTotal = Math.max(0, itemsSubtotal + deliveryCharge - discountAmount).toFixed(2);
+    await db.update(orders).set({ total: newTotal, deliveryCharge: deliveryCharge.toFixed(2) }).where(eq(orders.id, item.orderId));
 
     return NextResponse.json({ ok: true, total: newTotal, empty: false });
   } catch (error) {
@@ -142,11 +160,13 @@ export async function POST(request: Request) {
       meta: body.meta || null,
     });
 
-    const deliveryCharge = Number(order.deliveryCharge ?? 0);
     const allItems = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
     const itemsSubtotal = allItems.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
-    const newTotal = (itemsSubtotal + deliveryCharge).toFixed(2);
-    await db.update(orders).set({ total: newTotal }).where(eq(orders.id, orderId));
+    const deliveryCharge = await getEffectiveDeliveryCharge(order.landmarkName ?? null, itemsSubtotal, Number(order.deliveryCharge ?? 0));
+    const discountAmount = Number(order.discountAmount ?? 0);
+
+    const newTotal = Math.max(0, itemsSubtotal + deliveryCharge - discountAmount).toFixed(2);
+    await db.update(orders).set({ total: newTotal, deliveryCharge: deliveryCharge.toFixed(2) }).where(eq(orders.id, orderId));
 
     return NextResponse.json({ ok: true, total: newTotal }, { status: 201 });
   } catch (error) {

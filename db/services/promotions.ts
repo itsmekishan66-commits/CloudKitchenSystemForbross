@@ -1,4 +1,4 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { promotions, type NewPromotion } from "@/db/schemas";
@@ -14,6 +14,24 @@ export async function getActivePromotions() {
 export async function getPromotionById(id: number) {
   const [promotion] = await db.select().from(promotions).where(eq(promotions.id, id)).limit(1);
   return promotion ?? null;
+}
+
+export async function getActivePromotionByCode(code: string) {
+  const normalized = code.trim().toLowerCase();
+  const [promotion] = await db
+    .select()
+    .from(promotions)
+    .where(sql`lower(${promotions.code}) = ${normalized}`)
+    .limit(1);
+
+  return promotion ?? null;
+}
+
+export async function incrementPromotionUsage(id: number) {
+  await db
+    .update(promotions)
+    .set({ usageCount: sql`${promotions.usageCount} + 1` })
+    .where(eq(promotions.id, id));
 }
 
 export async function createPromotion(promotion: NewPromotion) {

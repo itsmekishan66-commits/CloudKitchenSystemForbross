@@ -2,12 +2,14 @@ import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
+  inventoryItems,
   orderItems,
   orders,
   roles,
   type NewOrder,
   type NewOrderItem,
   menuItems,
+  supplierProducts,
   users,
 } from "@/db/schemas";
 
@@ -33,6 +35,7 @@ export async function getOrdersWithDetails() {
       deliveryCharge: orders.deliveryCharge,
       landmarkName: orders.landmarkName,
       discountAmount: orders.discountAmount,
+      dueAmount: orders.dueAmount,
       paymentSettled: orders.paymentSettled,
       createdAt: orders.createdAt,
       updatedAt: orders.updatedAt,
@@ -108,11 +111,74 @@ export async function updateOrderStatus(
   id: number,
   status: NewOrder["status"],
 ) {
-  await db.update(orders).set({ status }).where(eq(orders.id, id));
+  await db.transaction(async (tx) => {
+    const [existingOrder] = await tx.select().from(orders).where(eq(orders.id, id)).limit(1);
+
+    if (!existingOrder) {
+      throw new Error("Order not found");
+    }
+
+    if (status === "Delivered" && existingOrder.status !== "Delivered") {
+      const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, id));
+
+      for (const item of items) {
+        const menuItemId = item.menuItemId ?? null;
+        if (!menuItemId) continue;
+
+        const [linkedProduct] = await tx
+          .select()
+          .from(supplierProducts)
+          .where(and(eq(supplierProducts.menuItemId, menuItemId), eq(supplierProducts.productType, "direct_sellable")))
+          .limit(1);
+
+        if (!linkedProduct || !linkedProduct.inventoryItemId) continue;
+
+        const [inventoryItem] = await tx
+          .select()
+          .from(inventoryItems)
+          .where(eq(inventoryItems.id, linkedProduct.inventoryItemId))
+          .limit(1);
+
+        if (!inventoryItem) continue;
+
+        const soldQuantity = Number(item.quantity) || 0;
+        const currentStock = Number(inventoryItem.quantity) || 0;
+        if (currentStock < soldQuantity) {
+          throw new Error(`Insufficient stock for ${linkedProduct.name}`);
+        }
+
+        const unitsPerPack = Number(linkedProduct.unitsPerPack) || 1;
+        const remainingSupplierStock = Math.max(0, Number(linkedProduct.quantity || 0) - soldQuantity / unitsPerPack);
+        const remainingInventoryStock = currentStock - soldQuantity;
+
+        await tx
+          .update(supplierProducts)
+          .set({ quantity: remainingSupplierStock.toFixed(2) })
+          .where(eq(supplierProducts.id, linkedProduct.id));
+
+        await tx
+          .update(inventoryItems)
+          .set({ quantity: remainingInventoryStock.toFixed(2) })
+          .where(eq(inventoryItems.id, linkedProduct.inventoryItemId));
+      }
+    }
+
+    await tx.update(orders).set({ status }).where(eq(orders.id, id));
+  });
+}
+
+export async function updateOrderPaymentStatus(id: number, settled: boolean, dueAmount?: string | number) {
+  const updateData: { paymentSettled: boolean; dueAmount?: string } = { paymentSettled: settled };
+
+  if (dueAmount !== undefined) {
+    updateData.dueAmount = String(dueAmount);
+  }
+
+  await db.update(orders).set(updateData).where(eq(orders.id, id));
 }
 
 export async function markOrderPaymentSettled(id: number) {
-  await db.update(orders).set({ paymentSettled: true }).where(eq(orders.id, id));
+  await updateOrderPaymentStatus(id, true, "0.00");
 }
 
 export async function getUserOrdersWithItems(userId: number) {
@@ -147,6 +213,7 @@ export async function getUserOrderStats(userId: number) {
     .select({
       totalSpent: sql<string>`coalesce(sum(${orders.total}), 0)`,
       totalSaved: sql<string>`coalesce(sum(${orders.discountAmount}), 0)`,
+      totalDues: sql<string>`coalesce(sum(${orders.dueAmount}), 0)`,
     })
     .from(orders)
     .where(and(eq(orders.userId, userId), eq(orders.status, "Delivered")));
@@ -160,10 +227,14 @@ export async function getUserOrderStats(userId: number) {
       sql`${orders.userId} = ${userId} and ${orders.status} in ('Pending', 'Preparing', 'Out For Delivery')`,
     );
 
+  const orderTotal = Number(deliveredStats?.totalSpent ?? 0);
+  const dues = Number(deliveredStats?.totalDues ?? 0);
+
   return {
     totalOrders: Number(orderStats?.totalOrders ?? 0),
-    totalSpent: Number(deliveredStats?.totalSpent ?? 0),
+    totalSpent: orderTotal + dues,
     totalSaved: Number(deliveredStats?.totalSaved ?? 0),
+    totalDues: dues,
     activeOrders: Number(activeOrderCount?.count ?? 0),
   };
 }

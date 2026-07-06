@@ -105,8 +105,8 @@ export default function NotificationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Notifications</h1>
-          <p className="text-gray-400 mt-1">Stay updated on your order status</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Notifications</h1>
+          <p className="text-zinc-400 mt-1">Stay updated on your order status</p>
         </div>
         {notifications.length > 0 && (
           <span className="bg-orange-500 text-white text-xs font-bold px-2.5 py-1.5 rounded-full">
@@ -116,10 +116,10 @@ export default function NotificationsPage() {
       </div>
 
       {notifications.length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 shadow-sm border border-gray-100 text-center">
-          <Bell size={64} className="mx-auto text-gray-200 mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">No Notifications</h2>
-          <p className="text-gray-400">
+        <div className="bg-zinc-900 rounded-2xl p-12 shadow-sm border border-zinc-800 text-center">
+          <Bell size={64} className="mx-auto text-zinc-600 mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">No Notifications</h2>
+          <p className="text-zinc-400">
             You&apos;ll see order updates here when you place orders
           </p>
         </div>
@@ -132,7 +132,7 @@ export default function NotificationsPage() {
               <Link
                 key={notif.id}
                 href="/user/dashboard/order"
-                className="block bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md transition-all group"
+                className="block bg-zinc-900 rounded-2xl border border-zinc-800 p-4 hover:shadow-md transition-all group"
               >
                 <div className="flex items-start gap-4">
                   <div
@@ -141,11 +141,11 @@ export default function NotificationsPage() {
                     <Icon size={22} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-gray-900 group-hover:text-orange-500 transition-colors">
+                    <h4 className="font-semibold text-white group-hover:text-orange-400 transition-colors">
                       {notif.title}
                     </h4>
-                    <p className="text-sm text-gray-500 mt-0.5">{notif.message}</p>
-                    <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                    <p className="text-sm text-zinc-400 mt-0.5">{notif.message}</p>
+                    <p className="text-xs text-zinc-500 mt-2 flex items-center gap-1">
                       <Clock size={12} />
                       {relativeTime(notif.time)}
                     </p>

@@ -63,10 +63,10 @@ function SidebarContent() {
   }
 
   return (
-    <aside className="hidden md:block sticky top-0 h-screen w-64 shrink-0 bg-white/80 backdrop-blur-xl shadow-lg border-r border-gray-100 p-5 pt-24 overflow-y-auto z-40">
+    <aside className="hidden md:block sticky top-0 h-screen w-64 shrink-0 bg-gray-900/95 backdrop-blur-xl shadow-lg border-r border-gray-800 p-5 pt-24 overflow-y-auto z-40">
       <div className="flex items-center gap-2 mb-6">
-        <div className="h-8 w-1 rounded-full bg-white" />
-        <h2 className="text-xl font-bold text-black">
+        <div className="h-8 w-1 rounded-full bg-red-500" />
+        <h2 className="text-xl font-bold text-white">
           Categories
         </h2>
       </div>
@@ -79,11 +79,11 @@ function SidebarContent() {
               onClick={() => handleClick(a.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium group ${
                 isActive
-                  ? "bg-red-700 text-white shadow-md shadow-orange-200 scale-[1.02]"
-                  : "text-gray-600 hover:bg-orange-50 hover:text-orange-600"
+                  ? "bg-red-700 text-white shadow-md scale-[1.02]"
+                  : "text-gray-400 hover:bg-gray-800 hover:text-orange-400"
               }`}
             >
-              <span className={`${isActive ? "text-white" : "text-gray-400 group-hover:text-orange-500"} transition-colors`}>
+              <span className={`${isActive ? "text-white" : "text-gray-500 group-hover:text-orange-400"} transition-colors`}>
                 {a.icon}
               </span>
               {a.label}
@@ -91,8 +91,8 @@ function SidebarContent() {
           );
         })}
       </div>
-      <div className="mt-8 pt-6 border-t border-gray-100">
-        <p className="text-xs text-gray-400 px-4 leading-relaxed">
+      <div className="mt-8 pt-6 border-t border-gray-800">
+        <p className="text-xs text-gray-500 px-4 leading-relaxed">
         Select a category to browse.
         </p>
       </div>
@@ -103,11 +103,11 @@ function SidebarContent() {
 export default function MenuSidebar() {
   return (
     <Suspense fallback={
-      <aside className="hidden md:block sticky top-0 h-screen w-64 shrink-0 bg-white p-5 pt-24">
+      <aside className="hidden md:block sticky top-0 h-screen w-64 shrink-0 bg-gray-900 p-5 pt-24">
         <div className="animate-pulse space-y-4">
-          <div className="h-6 w-32 bg-gray-200 rounded" />
+          <div className="h-6 w-32 bg-gray-700 rounded" />
           {Array.from({ length: 8}).map((_, i) => (
-            <div key={i} className="h-10 w-full bg-gray-100 rounded-xl" />
+            <div key={i} className="h-10 w-full bg-gray-700 rounded-xl" />
           ))}
         </div>
       </aside>

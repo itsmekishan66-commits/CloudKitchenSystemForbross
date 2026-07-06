@@ -9,6 +9,7 @@ export const transactions = mysqlTable("transactions", {
     receivedFrom: varchar("received_from", { length: 255 }),
     paidTo: varchar("paid_to", { length: 255 }),
     paymentMethod: mysqlEnum("payment_method", ["cash", "bank", "esewa", "khalti", "fonepay", "card"]).notNull(),
+    accountId: varchar("account_id", { length: 36 }),
     transactionId: varchar("transaction_id", { length: 255 }),
     notes: text("notes"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -23,6 +24,23 @@ export const dues = mysqlTable("dues", {
     paid: decimal("paid", { precision: 10, scale: 2 }).notNull().default("0"),
     remaining: decimal("remaining", { precision: 10, scale: 2 }).notNull().default("0"),
     status: mysqlEnum("status", ["pending", "partial", "paid"]).notNull().default("pending"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").onUpdateNow(),
+});
+
+export const paymentAccounts = mysqlTable("payment_accounts", {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    accountName: varchar("account_name", { length: 255 }).notNull(),
+    holderName: varchar("holder_name", { length: 255 }).notNull(),
+    method: mysqlEnum("method", ["esewa", "khalti", "netbanking", "card"]).notNull(),
+    accountNumber: varchar("account_number", { length: 255 }).notNull(),
+    phoneNumber: varchar("phone_number", { length: 20 }),
+    bankName: varchar("bank_name", { length: 255 }),
+    branch: varchar("branch", { length: 255 }),
+    openingBalance: decimal("opening_balance", { precision: 10, scale: 2 }).default("0"),
+    qrCode: varchar("qr_code", { length: 500 }),
+    notes: text("notes"),
+    status: mysqlEnum("status", ["active", "inactive"]).default("active"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").onUpdateNow(),
 });

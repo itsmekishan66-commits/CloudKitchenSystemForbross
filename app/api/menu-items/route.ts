@@ -4,6 +4,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import {
   getMenuItems,
+  getAvailableMenuItems,
   createMenuItem,
   updateMenuItem,
   deleteMenuItem,
@@ -17,9 +18,12 @@ function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const items = await getMenuItems();
+    const { searchParams } = new URL(request.url);
+    const available = searchParams.get("available");
+
+    const items = available === "true" ? await getAvailableMenuItems() : await getMenuItems();
     return NextResponse.json({ items });
   } catch (error) {
     console.error("Failed to load menu items", error);

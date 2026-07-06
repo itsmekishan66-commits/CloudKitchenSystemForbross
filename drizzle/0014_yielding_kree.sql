@@ -1,0 +1,1 @@
+ALTER TABLE `payment_accounts` ADD `qr_code` varchar(500);

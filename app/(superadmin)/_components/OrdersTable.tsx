@@ -13,6 +13,8 @@ interface OrderItem {
     image?: string;
     clientId?: string;
     addons?: { name: string; price: number }[];
+    originalPrice?: number;
+    discountPercent?: number;
   };
 }
 
@@ -27,9 +29,11 @@ interface Order {
   paymentMethod: string;
   total: string;
   deliveryCharge: string;
+  discountAmount?: string | null;
+  dueAmount?: string | null;
   landmarkName?: string;
   status: string;
-  paymentSettled?: number | null;
+  paymentSettled?: number | boolean | null;
   createdAt: Date | string;
   items: OrderItem[];
 }
@@ -39,6 +43,8 @@ interface MenuItem {
   title: string;
   price: string;
   image: string | null;
+  addons?: { name: string; price: number }[];
+  discountPercent?: string | null;
 }
 
 export default function OrdersTable({ orders }: { orders: Order[] }) {
@@ -55,6 +61,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
   const [selectedMenuItem, setSelectedMenuItem] = useState("");
   const [addQty, setAddQty] = useState(1);
   const [adding, setAdding] = useState(false);
+  const [selectedAddons, setSelectedAddons] = useState<{ name: string; price: number }[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -136,6 +143,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
     setAddItemOrder(order);
     setSelectedMenuItem("");
     setAddQty(1);
+    setSelectedAddons([]);
     setAdding(false);
     try {
       const res = await fetch("/api/orders/items");
@@ -152,6 +160,20 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
     const item = menuItems.find((m) => m.id.toString() === selectedMenuItem);
     if (!item) return;
     setAdding(true);
+
+    const basePrice = Number(item.price);
+    const discountPct = item.discountPercent ? Number(item.discountPercent) : 0;
+    const discountedBase = discountPct > 0 ? basePrice - (basePrice * discountPct) / 100 : basePrice;
+    const addonTotal = selectedAddons.reduce((sum, a) => sum + Number(a.price), 0);
+    const finalPrice = discountedBase + addonTotal;
+
+    const meta: Record<string, unknown> = {};
+    if (selectedAddons.length > 0) meta.addons = selectedAddons;
+    if (discountPct > 0) {
+      meta.originalPrice = basePrice + addonTotal;
+      meta.discountPercent = discountPct;
+    }
+
     const res = await fetch("/api/orders/items", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -159,8 +181,10 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
         orderId: addItemOrder.id,
         menuItemId: item.id,
         title: item.title,
-        price: item.price,
+        price: finalPrice,
         quantity: addQty,
+        meta: Object.keys(meta).length > 0 ? meta : undefined,
+        discountPercent: discountPct > 0 ? discountPct : undefined,
       }),
     });
     const data = await res.json();
@@ -234,7 +258,14 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   </span>
                 )}
                 {order.status === "Delivered" && (
-                  order.paymentSettled ? (
+                  Number(order.dueAmount ?? 0) > 0 ? (
+                    <button
+                      onClick={() => router.push(`/dashboard/payment/settle/${order.id}`)}
+                      className="text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg px-3 py-1.5 transition-colors cursor-pointer"
+                    >
+                      Due Rs {Number(order.dueAmount ?? 0).toFixed(2)}
+                    </button>
+                  ) : order.paymentSettled ? (
                     <span className="text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5">
                       Settled
                     </span>
@@ -297,14 +328,24 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                       order.items.map((item) => (
                         <tr key={item.id} className="border-b border-gray-100">
                           <td className="py-1.5">
-                            {item.title}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span>{item.title}</span>
+                              {item.meta?.discountPercent ? (
+                                <span className="inline-flex items-center rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">
+                                  -{item.meta.discountPercent}%
+                                </span>
+                              ) : null}
+                            </div>
+                            {item.meta?.discountPercent && item.meta?.originalPrice ? (
+                              <span className="text-xs text-gray-400 line-through">Rs.{Number(item.meta.originalPrice).toFixed(2)}</span>
+                            ) : null}
                             {item.meta?.addons && item.meta.addons.length > 0 && (
                               <div className="text-xs text-gray-500 mt-0.5 space-y-0.5">
                                 {item.meta.addons.map((a, i) => (
                                   <div key={i} className="flex gap-1">
                                     <span className="text-orange-400">+</span>
                                     <span>{a.name}</span>
-                                    <span className="text-gray-500">(Rs.{a.price.toFixed(2)})</span>
+                                    <span className="text-gray-500">(Rs.{Number(a.price).toFixed(2)})</span>
                                   </div>
                                 ))}
                               </div>
@@ -364,6 +405,13 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                             <td className="py-1 text-right text-gray-500 text-xs">Rs.{Number(order.deliveryCharge).toFixed(2)}</td>
                             {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
                           </tr>
+                          {Number(order.discountAmount || 0) > 0 && (
+                            <tr>
+                              <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1 text-right text-green-600 text-xs">Coupon Discount</td>
+                              <td className="py-1 text-right text-green-600 text-xs">- Rs.{Number(order.discountAmount).toFixed(2)}</td>
+                              {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
+                            </tr>
+                          )}
                           <tr>
                             <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1.5 text-right font-semibold text-gray-700">Total</td>
                             <td className="py-1.5 text-right font-bold">Rs.{order.total}</td>
@@ -469,7 +517,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
       {/* Add Item Modal */}
       {addItemOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl max-h-[80vh] overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">Add Item to Order #{addItemOrder.id}</h2>
             <div className="space-y-4">
               <div>
@@ -488,17 +536,89 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                 />
                 <select
                   value={selectedMenuItem}
-                  onChange={(e) => setSelectedMenuItem(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedMenuItem(e.target.value);
+                    setSelectedAddons([]);
+                  }}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-orange-400"
                 >
                   <option value="">-- Select item --</option>
-                  {menuItems.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.title} (Rs.{m.price})
-                    </option>
-                  ))}
+                  {menuItems.map((m) => {
+                    const dp = m.discountPercent ? Number(m.discountPercent) : 0;
+                    const base = Number(m.price);
+                    const display = dp > 0 ? base - (base * dp) / 100 : base;
+                    return (
+                      <option key={m.id} value={m.id}>
+                        {m.title} — Rs.{display.toFixed(0)}{dp > 0 ? ` (-${dp}%)` : ""}{m.addons && m.addons.length > 0 ? ` [${m.addons.length} addon${m.addons.length > 1 ? "s" : ""}]` : ""}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
+
+              {selectedMenuItem && (() => {
+                const item = menuItems.find((m) => m.id.toString() === selectedMenuItem);
+                if (!item) return null;
+                const basePrice = Number(item.price);
+                const discountPct = item.discountPercent ? Number(item.discountPercent) : 0;
+                const discountedBase = discountPct > 0 ? basePrice - (basePrice * discountPct) / 100 : basePrice;
+                const addonTotal = selectedAddons.reduce((sum, a) => sum + Number(a.price), 0);
+                const finalPrice = (discountedBase + addonTotal) * addQty;
+
+                return (
+                  <>
+                    {discountPct > 0 && (
+                      <div className="rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-700">
+                        <span className="line-through text-gray-400">Rs.{basePrice.toFixed(2)}</span>
+                        <span className="ml-2 font-semibold text-green-600">-{discountPct}%</span>
+                        <span className="ml-2">= Rs.{discountedBase.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {item.addons && item.addons.length > 0 && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Add-ons / Extras</label>
+                        <div className="space-y-2">
+                          {item.addons.map((addon, i) => (
+                            <label key={i} className="flex items-center gap-3 p-2 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={selectedAddons.some((a) => a.name === addon.name)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedAddons((prev) => [...prev, addon]);
+                                  } else {
+                                    setSelectedAddons((prev) => prev.filter((a) => a.name !== addon.name));
+                                  }
+                                }}
+                                className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                              />
+                              <span className="text-sm text-gray-700 flex-1">{addon.name}</span>
+                              <span className="text-sm text-gray-500">+Rs.{Number(addon.price).toFixed(2)}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="rounded-lg bg-gray-50 p-3 text-sm space-y-1">
+                      <div className="flex justify-between text-gray-500">
+                        <span>Unit Price</span>
+                        <span>Rs.{discountedBase.toFixed(2)}{addonTotal > 0 ? ` + ${addonTotal.toFixed(2)} addons` : ""}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-500">
+                        <span>Quantity</span>
+                        <span>× {addQty}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold text-gray-800 border-t border-gray-200 pt-1">
+                        <span>Total</span>
+                        <span>Rs.{finalPrice.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
                 <input

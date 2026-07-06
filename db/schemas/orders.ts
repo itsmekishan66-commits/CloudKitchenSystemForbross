@@ -15,6 +15,7 @@ export const orders = mysqlTable("orders", {
   deliveryCharge: decimal("delivery_charge", { precision: 10, scale: 2 }).notNull().default("0"),
   landmarkName: varchar("landmark_name", { length: 200 }),
   discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  dueAmount: decimal("due_amount", { precision: 10, scale: 2 }).notNull().default("0"),
   paymentSettled: boolean("payment_settled").default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),

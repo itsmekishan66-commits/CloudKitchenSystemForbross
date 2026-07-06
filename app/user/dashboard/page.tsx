@@ -31,24 +31,24 @@ export default async function DashboardPage() {
           title="Total Orders"
           value={stats.totalOrders}
           icon={ShoppingBag}
-          gradient="bg-linear-to-br from-orange-200 to-orange-300"
+          gradient="bg-linear-to-br from-orange-400 to-orange-300"
           subtitle="All time"
         />
         <StatsCard
           title="Active Orders"
           value={stats.activeOrders}
           icon={TrendingUp}
-          gradient="bg-linear-to-br from-orange-200 to-orange-300"
+          gradient="bg-linear-to-br from-orange-400 to-orange-300"
           subtitle="In progress"
         />
         <StatsCard
           title="Favorite Items"
           value={favorites.length}
           icon={Heart}
-          gradient="bg-linear-to-br from-orange-200 to-orange-300"
+          gradient="bg-linear-to-br from-orange-400 to-orange-300"
           subtitle="Most ordered"
         />
-        <div className="relative overflow-hidden rounded-2xl p-6 bg-linear-to-br from-orange-200 to-orange-300 shadow-lg transition-transform duration-300 hover:scale-[1.02] hover:shadow-xl">
+        <div className="relative overflow-hidden rounded-2xl p-6 bg-linear-to-br from-orange-400 to-orange-300 shadow-lg transition-transform duration-300 hover:scale-[1.02] hover:shadow-xl">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
           <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
           <div className="relative z-10">
@@ -57,6 +57,7 @@ export default async function DashboardPage() {
               <Wallet size={24} className="text-black/60" />
             </div>
             <p className="text-3xl font-bold mt-3">Rs.{stats.totalSpent.toFixed(2)}</p>
+
             {stats.totalSaved > 0 && (
               <>
                 <p className="text-sm text-black/70 mt-1">
@@ -66,6 +67,11 @@ export default async function DashboardPage() {
                   Saved Rs.{stats.totalSaved.toFixed(2)}
                 </p>
               </>
+            )}
+            {stats.totalDues > 0 && (
+              <p className="text-xs text-amber-800 font-medium mt-1 bg-amber-200/50 inline-block px-2 py-0.5 rounded-full">
+                Includes Rs.{stats.totalDues.toFixed(2)} dues pending
+              </p>
             )}
           </div>
         </div>

@@ -81,22 +81,22 @@ export default function ProfilePage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">My Profile</h1>
-        <p className="text-gray-400 mt-1">Manage your personal information</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-white">My Profile</h1>
+        <p className="text-zinc-400 mt-1">Manage your personal information</p>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
-        <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 mb-6 border-b border-gray-100">
+      <div className="bg-zinc-900 rounded-2xl shadow-sm border border-zinc-800 p-6 md:p-8">
+        <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 mb-6 border-b border-zinc-800">
           <div className="w-20 h-20 rounded-full bg-linear-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold text-2xl shadow-lg">
             {initials}
           </div>
           <div className="text-center sm:text-left">
-            <h2 className="text-xl font-bold text-gray-900">{profile?.name}</h2>
-            <p className="text-gray-400 flex items-center gap-1.5 justify-center sm:justify-start mt-1">
+            <h2 className="text-xl font-bold text-white">{profile?.name}</h2>
+            <p className="text-zinc-400 flex items-center gap-1.5 justify-center sm:justify-start mt-1">
               <Mail size={14} />
               {profile?.email}
             </p>
-            <span className="inline-block mt-2 text-xs bg-orange-50 text-orange-600 px-3 py-1 rounded-full font-medium capitalize">
+            <span className="inline-block mt-2 text-xs bg-orange-900/30 text-orange-400 px-3 py-1 rounded-full font-medium capitalize">
               {profile?.role}
             </span>
           </div>
@@ -104,7 +104,7 @@ export default function ProfilePage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-sm font-medium text-zinc-300 mb-1.5">
               <User size={14} className="inline mr-1.5" />
               Full Name
             </label>
@@ -112,13 +112,13 @@ export default function ProfilePage() {
               type="text"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-300 text-sm"
+              className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm text-white placeholder-zinc-400"
               placeholder="Your full name"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-sm font-medium text-zinc-300 mb-1.5">
               <Mail size={14} className="inline mr-1.5" />
               Email
             </label>
@@ -126,13 +126,13 @@ export default function ProfilePage() {
               type="email"
               value={profile?.email ?? ""}
               disabled
-              className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-500 cursor-not-allowed"
+              className="w-full px-4 py-2.5 bg-zinc-700 border border-zinc-700 rounded-xl text-sm text-zinc-400 cursor-not-allowed"
             />
-            <p className="text-xs text-gray-400 mt-1">Email cannot be changed</p>
+            <p className="text-xs text-zinc-500 mt-1">Email cannot be changed</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-sm font-medium text-zinc-300 mb-1.5">
               <Phone size={14} className="inline mr-1.5" />
               Phone Number
             </label>
@@ -140,13 +140,13 @@ export default function ProfilePage() {
               type="tel"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-300 text-sm"
+              className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm text-white placeholder-zinc-400"
               placeholder="Your phone number"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-sm font-medium text-zinc-300 mb-1.5">
               <MapPin size={14} className="inline mr-1.5" />
               Address
             </label>
@@ -154,7 +154,7 @@ export default function ProfilePage() {
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
               rows={3}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-300 text-sm resize-none"
+              className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm text-white placeholder-zinc-400 resize-none"
               placeholder="Your delivery address"
             />
           </div>

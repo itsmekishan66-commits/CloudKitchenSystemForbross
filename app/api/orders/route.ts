@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {createOrder,getOrdersWithDetails,updateOrderStatus,} from "@/db/services/orders";
+import { getActivePromotionByCode, incrementPromotionUsage } from "@/db/services/promotions";
 import { createUser } from "@/db/services/users";
 import type { DeliveryZone, NewOrder } from "@/db/schemas";
 import { getCurrentUser } from "@/lib/auth";
@@ -22,6 +23,8 @@ type OrderPayload = {
   items?: CartItem[];
   zoneId?: number;
   deliveryCharge?: number;
+  couponCode?: string;
+  couponDiscount?: number;
 };
 
 
@@ -77,6 +80,8 @@ export async function POST(request: Request) {
   const paymentMethod = cleanText(payload.paymentMethod) || "COD";
   const total = Number(payload.total);
   const items = Array.isArray(payload.items) ? payload.items : [];
+  const couponCode = cleanText(payload.couponCode);
+  const couponDiscount = Number(payload.couponDiscount) || 0;
 
   if (!customerName || !phone || !address) {
     return NextResponse.json(
@@ -163,6 +168,36 @@ export async function POST(request: Request) {
       return sum + Math.max(0, item.originalPrice - discountedItemPrice) * item.quantity;
     }, 0);
 
+    let appliedCoupon = null as { id: number; code: string } | null;
+    let appliedCouponDiscount = Math.max(0, couponDiscount);
+
+    if (couponCode) {
+      const promotion = await getActivePromotionByCode(couponCode);
+      if (!promotion) {
+        return NextResponse.json({ error: "Invalid coupon code" }, { status: 400 });
+      }
+
+      const now = new Date();
+      const startsAt = promotion.startsAt ? new Date(promotion.startsAt) : null;
+      const endsAt = promotion.endsAt ? new Date(promotion.endsAt) : null;
+      const usageLimit = Number(promotion.usageLimit ?? 0) || 0;
+      const usageCount = Number(promotion.usageCount ?? 0) || 0;
+      const isValid = (!startsAt || startsAt <= now) && (!endsAt || endsAt >= now) && (usageLimit === 0 || usageCount < usageLimit);
+
+      if (!isValid) {
+        return NextResponse.json({ error: "Coupon is no longer valid" }, { status: 400 });
+      }
+
+      const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      if (promotion.discountType === "percentage") {
+        appliedCouponDiscount = Math.min(subtotal, subtotal * (Number(promotion.discountValue) / 100));
+      } else {
+        appliedCouponDiscount = Math.min(subtotal, Number(promotion.discountValue) || 0);
+      }
+
+      appliedCoupon = { id: promotion.id, code: promotion.code ?? couponCode };
+    }
+
     const orderId = await createOrder({
       userId,
       customerName,
@@ -172,19 +207,28 @@ export async function POST(request: Request) {
       deliveryCharge: deliveryCharge.toFixed(2),
       total: total.toFixed(2),
       landmarkName: zone?.landmarkName || "",
-      discountAmount: (itemSavings + deliverySavings).toFixed(2),
-      items: items.map((item) => ({
-        menuItemId: null,
-        title: item.title,
-        quantity: item.quantity,
-        price: item.price.toFixed(2),
-        meta: {
+      discountAmount: appliedCouponDiscount > 0 ? appliedCouponDiscount.toFixed(2) : "0.00",
+      items: items.map((item) => {
+        const meta: Record<string, unknown> = {
           image: item.image,
           clientId: item.id,
-          addons: item.addons,
-        },
-      })),
+        };
+        if (item.addons && item.addons.length > 0) meta.addons = item.addons;
+        if (item.originalPrice) meta.originalPrice = item.originalPrice;
+        if (item.discountPercent) meta.discountPercent = item.discountPercent;
+        return {
+          menuItemId: Number.isInteger(Number(item.id)) ? Number(item.id) : null,
+          title: item.title,
+          quantity: item.quantity,
+          price: item.price.toFixed(2),
+          meta,
+        };
+      }),
     });
+
+    if (appliedCoupon) {
+      await incrementPromotionUsage(appliedCoupon.id);
+    }
 
     return NextResponse.json({ orderId }, { status: 201 });
   } catch (error) {

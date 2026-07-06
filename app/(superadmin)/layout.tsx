@@ -26,7 +26,7 @@ export default async function SuperAdminLayout({
                 <Sidebar role={user.role} userPermissions={userPermissions} />
                 <main className="flex-1 p-2 bg-gray-100 min-h-screen ml-68">
 
-                    <div className="flex text-extrabold text-3xl ml-10 ">You are {user.role}</div>
+                    {/* <div className="flex text-extrabold text-3xl ml-10 ">You are {user.role}</div> */}
                     <PermissionsProvider permissions={userPermissions}>
                         <ConfirmProvider>
                             {children}

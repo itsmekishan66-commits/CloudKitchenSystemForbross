@@ -19,6 +19,7 @@ export async function GET() {
       totalOrders: stats.totalOrders,
       totalSpent: stats.totalSpent,
       totalSaved: stats.totalSaved,
+      totalDues: stats.totalDues,
       activeOrders: stats.activeOrders,
       favoriteItems: favorites.length,
     });

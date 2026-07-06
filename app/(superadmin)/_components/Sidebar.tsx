@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -27,6 +28,7 @@ import toast from "react-hot-toast";
 
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission, Role } from "@/lib/rbac";
+
 
 const menuItems = [
   {
@@ -143,7 +145,7 @@ export default function Sidebar({ role, userPermissions }: SidebarProps) {
       .then((data) => {
         if (!data.error && data.siteName) setSiteName(data.siteName);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const handleLogout = async () => {
@@ -178,9 +180,10 @@ export default function Sidebar({ role, userPermissions }: SidebarProps) {
         </h1>
 
         <p className="text-sm text-gray-500 mt-1">
-          Admin Dashboard
+          {role.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")} Dashboard
         </p>
       </div>
+
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">

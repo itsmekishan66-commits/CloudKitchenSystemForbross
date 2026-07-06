@@ -392,7 +392,7 @@ function SupplierStockView({ data, loading }: { data: any[]; loading: boolean })
               <th className="p-4 text-left">Supplier</th>
               <th className="p-4 text-left">Product</th>
               <th className="p-4 text-left">Pack</th>
-              <th className="p-4 text-left">Stock (packs)</th>
+              <th className="p-4 text-left">Remaining Stock (packs)</th>
               <th className="p-4 text-left">Total Units</th>
               <th className="p-4 text-left">Min Stock</th>
               <th className="p-4 text-left">Status</th>
@@ -491,7 +491,7 @@ function InventoryStockView({ items, loading }: { items: InventoryItem[]; loadin
             <tr>
               <th className="p-4 text-left">Name</th>
               <th className="p-4 text-left">Category</th>
-              <th className="p-4 text-left">Stock</th>
+              <th className="p-4 text-left">Remaining Stock</th>
               <th className="p-4 text-left">Unit</th>
               <th className="p-4 text-left">Min Stock</th>
               <th className="p-4 text-left">Status</th>

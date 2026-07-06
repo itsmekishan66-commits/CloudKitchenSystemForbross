@@ -55,6 +55,23 @@ const emptySupplierForm: {
   vatNumber: "", paymentTerms: "", status: "active", notes: "",
 };
 
+const sellUnitOptions = [
+  "Piece",
+  "Kg",
+  "Gram",
+  "Litre",
+  "ml",
+  "Pack",
+  "Box",
+  "Carton",
+  "Bottle",
+  "Tin",
+  "Jar",
+  "Bucket",
+  "Crate",
+  "Dozen",
+] as const;
+
 const emptyProductForm: {
   name: string; category: string; productType: "direct_sellable" | "inventory";
   purchaseUnit: string; unitsPerPack: string; sellUnit: string;
@@ -75,6 +92,7 @@ export default function SuppliersClient() {
   const confirm = useConfirm();
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
@@ -117,6 +135,14 @@ export default function SuppliersClient() {
     }
   }
 
+  async function loadCategories() {
+    try {
+      const res = await fetch("/api/categories");
+      const data = await res.json();
+      if (!data.error) setCategories(data.categories ?? []);
+    } catch { /* ignore */ }
+  }
+
   async function loadProducts(supplierId: number) {
     try {
       const res = await fetch(`/api/superadmin/suppliers?id=${supplierId}&type=products`);
@@ -133,7 +159,10 @@ export default function SuppliersClient() {
     } catch { /* ignore */ }
   }
 
-  useEffect(() => { void loadSuppliers(); }, []);
+  useEffect(() => {
+    void loadSuppliers();
+    void loadCategories();
+  }, []);
 
   // ---- Supplier CRUD ----
   function openCreateSupplier() {
@@ -550,10 +579,20 @@ export default function SuppliersClient() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Category</label>
-                  <input type="text" value={productForm.category} onChange={(e) => setProductForm({ ...productForm, category: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                  <select
+                    value={productForm.category}
+                    onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
+                    className="mt-1 w-full rounded-lg border p-3"
+                  >
+                    <option value="">Select category</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.name}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                {/* Product Type Radio */}
                 {!editingProduct && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Product Type</label>
@@ -628,9 +667,19 @@ export default function SuppliersClient() {
                     {productForm.productType === "direct_sellable" && (
                     <div>
                       <label className="block text-xs font-medium text-gray-600">Sell Unit *</label>
-                      <input type="text" value={productForm.sellUnit} onChange={(e) => {
-                        setProductForm({ ...productForm, sellUnit: e.target.value, errors: { ...productForm.errors, sellUnit: "" } });
-                      }} className={`mt-1 w-full rounded-lg border p-2.5 text-sm ${productForm.errors?.sellUnit ? "border-red-400" : ""}`} placeholder="Piece, Kg..." />
+                      <select
+                        value={productForm.sellUnit}
+                        onChange={(e) => {
+                          setProductForm({ ...productForm, sellUnit: e.target.value, errors: { ...productForm.errors, sellUnit: "" } });
+                        }}
+                        className={`mt-1 w-full rounded-lg border p-2.5 text-sm ${productForm.errors?.sellUnit ? "border-red-400" : ""}`}
+                      >
+                        {sellUnitOptions.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
                       {productForm.errors?.sellUnit && <p className="text-xs text-red-500 mt-1">{productForm.errors.sellUnit}</p>}
                     </div>
                     )}

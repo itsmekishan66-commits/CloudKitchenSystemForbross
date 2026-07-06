@@ -1,10 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   IndianRupee, ShoppingCart, Users, TrendingUp, TrendingDown,
   Wallet, Clock, CalendarDays, BarChart3, PieChart, Download,
-  ArrowUpRight, ArrowDownRight,
+  ArrowUpRight, ArrowDownRight, Calendar,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart as RPieChart, Pie, Cell,
@@ -65,14 +65,36 @@ export default function ReportsClient() {
   const [loading, setLoading] = useState(true);
   const [exportOpen, setExportOpen] = useState(false);
   const [range, setRange] = useState(30);
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [customOpen, setCustomOpen] = useState(false);
+  const [activeCustomRange, setActiveCustomRange] = useState<{ start: string; end: string } | null>(null);
+  const customRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch(`/api/superadmin/reports?range=${range}`)
+    const handleClickOutside = (e: MouseEvent) => {
+      if (customRef.current && !customRef.current.contains(e.target as Node)) {
+        setCustomOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (activeCustomRange) {
+      params.set("startDate", activeCustomRange.start);
+      params.set("endDate", activeCustomRange.end);
+    } else {
+      params.set("range", String(range));
+    }
+    fetch(`/api/superadmin/reports?${params.toString()}`)
       .then((r) => r.json())
       .then((d) => { if (!d.error) setData(d); })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [range]);
+  }, [range, activeCustomRange]);
 
   if (loading) return (
     <div className="flex items-center justify-center h-96">
@@ -101,7 +123,9 @@ export default function ReportsClient() {
     { title: "Net Profit", value: formatCurrency(data.profit), change: data.totalRevenue ? `${((data.profit / data.totalRevenue) * 100).toFixed(1)}% margin` : "0%", icon: TrendingUp, bg: data.profit >= 0 ? "bg-emerald-50" : "bg-red-50", tc: data.profit >= 0 ? "text-emerald-600" : "text-red-600" },
   ];
 
-  const rangeLabel = RANGES.find(r => r.value === range)?.label || `${range}d`;
+  const rangeLabel = activeCustomRange
+    ? `${new Date(activeCustomRange.start).toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${new Date(activeCustomRange.end).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+    : RANGES.find(r => r.value === range)?.label || `${range}d`;
 
   const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
   const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } };
@@ -127,12 +151,80 @@ export default function ReportsClient() {
             {RANGES.map((r) => (
               <button
                 key={r.value}
-                onClick={() => { setLoading(true); setRange(r.value); }}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${range === r.value ? "bg-orange-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-800"}`}
+                onClick={() => { setLoading(true); setRange(r.value); setActiveCustomRange(null); setCustomOpen(false); }}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${!activeCustomRange && range === r.value ? "bg-orange-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-800"}`}
               >
                 {r.label}
               </button>
             ))}
+            <div className="relative" ref={customRef}>
+              <button
+                onClick={() => setCustomOpen(!customOpen)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1 ${activeCustomRange ? "bg-orange-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-800"}`}
+              >
+                <Calendar size={12} />
+                Custom
+              </button>
+              <AnimatePresence>
+                {customOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-72 rounded-xl bg-white shadow-xl border border-gray-100 p-4 z-20"
+                  >
+                    <p className="text-sm font-semibold text-gray-800 mb-3">Select Date Range</p>
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Start Date</label>
+                        <input
+                          type="date"
+                          value={customStartDate}
+                          onChange={(e) => setCustomStartDate(e.target.value)}
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">End Date</label>
+                        <input
+                          type="date"
+                          value={customEndDate}
+                          onChange={(e) => setCustomEndDate(e.target.value)}
+                          min={customStartDate || undefined}
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={() => {
+                          if (customStartDate && customEndDate) {
+                            setLoading(true);
+                            setActiveCustomRange({ start: customStartDate, end: customEndDate });
+                            setCustomOpen(false);
+                          }
+                        }}
+                        disabled={!customStartDate || !customEndDate}
+                        className="flex-1 rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Apply
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCustomOpen(false);
+                          setCustomStartDate("");
+                          setCustomEndDate("");
+                        }}
+                        className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
           <span className="text-xs text-gray-400 bg-white/80 px-3 py-2 rounded-xl border border-gray-200">{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span>
           <div className="relative">

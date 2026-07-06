@@ -82,6 +82,7 @@ export async function POST(request: Request) {
     const data: NewPromotion = {
       title,
       description: clean(body.description) || null,
+      image: clean(body.image) || null,
       discountType: body.discountType || "percentage",
       discountValue: discountValue.toString(),
       code: clean(body.code) || null,
@@ -129,6 +130,10 @@ export async function PATCH(request: Request) {
 
     if (body.description !== undefined) {
       updateData.description = clean(body.description) || null;
+    }
+
+    if (body.image !== undefined) {
+      updateData.image = clean(body.image) || null;
     }
 
     if (body.discountType !== undefined) {

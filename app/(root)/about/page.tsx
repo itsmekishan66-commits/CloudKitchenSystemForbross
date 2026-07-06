@@ -40,20 +40,20 @@ export default async function AboutPage() {
   const ctaButtonText = (a.ctaButtonText as string) || "Order Now";
 
   return (
-    <main className="bg-white">
+    <main className="bg-black text-white">
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-linear-to-br from-orange-50 via-white to-red-50">
+      <section className="relative overflow-hidden bg-linear-to-br from-gray-900 via-black to-gray-800">
         <div className="max-w-7xl mx-auto px-6 py-24">
 
           <div className="grid lg:grid-cols-2 gap-16 items-center">
 
             <div>
-              <span className="bg-orange-100 text-red-700 px-4 py-2 rounded-full text-sm font-medium">
+              <span className="bg-gray-800 text-orange-400 px-4 py-2 rounded-full text-sm font-medium">
                 {heroBadge}
               </span>
 
-              <h1 className="mt-6 text-5xl lg:text-7xl font-bold leading-tight">
+              <h1 className="mt-6 text-5xl lg:text-7xl font-bold leading-tight text-white">
                 {heroHeading}
                 <span className="block text-red-500">
                   {heroHeadingAccent}
@@ -61,7 +61,7 @@ export default async function AboutPage() {
               </h1>
 
               {heroDescription && (
-                <p className="mt-6 text-lg text-gray-600 leading-relaxed">
+                <p className="mt-6 text-lg text-gray-400 leading-relaxed">
                   {heroDescription}
                 </p>
               )}
@@ -70,14 +70,14 @@ export default async function AboutPage() {
                 <a href="/menu" className="bg-red-900 hover:bg-red-800 text-white px-8 py-4 rounded-xl font-semibold transition">
                   Explore Menu
                 </a>
-                <a href="/contact" className="border border-gray-300 hover:border-orange-500 px-8 py-4 rounded-xl font-semibold transition">
+                <a href="/contact" className="border border-gray-600 hover:border-orange-500 text-gray-300 px-8 py-4 rounded-xl font-semibold transition">
                   Contact Us
                 </a>
               </div>
             </div>
 
             <div className="relative">
-              <div className="absolute inset-0 blur-3xl bg-orange-200 opacity-40 rounded-full"></div>
+              <div className="absolute inset-0 blur-3xl bg-orange-900 opacity-30 rounded-full"></div>
 
               <img
                 src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200"
@@ -92,13 +92,13 @@ export default async function AboutPage() {
 
       {/* Stats */}
       {stats.length > 0 && (
-        <section className="py-16 border-y">
+        <section className="py-16 border-y border-gray-800">
           <div className="max-w-7xl mx-auto px-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
               {stats.map((stat) => (
                 <div key={stat.label} className="text-center">
-                  <h3 className="text-4xl font-bold text-red-600">{stat.value}</h3>
-                  <p className="text-gray-600 mt-2">{stat.label}</p>
+                  <h3 className="text-4xl font-bold text-red-500">{stat.value}</h3>
+                  <p className="text-gray-400 mt-2">{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -120,12 +120,12 @@ export default async function AboutPage() {
               )}
             </div>
             <div>
-              <span className="text-redwhile-500 font-semibold uppercase tracking-wider">
+              <span className="text-orange-400 font-semibold uppercase tracking-wider">
                 {storySectionTitle}
               </span>
-              <h2 className="mt-4 text-4xl font-bold">{storyTitle}</h2>
+              <h2 className="mt-4 text-4xl font-bold text-white">{storyTitle}</h2>
               {storyParagraphs.map((p, i) => (
-                <p key={i} className="mt-4 text-gray-600 leading-relaxed">
+                <p key={i} className="mt-4 text-gray-400 leading-relaxed">
                   {p}
                 </p>
               ))}
@@ -136,20 +136,20 @@ export default async function AboutPage() {
 
       {/* Why Choose Us */}
       {features.length > 0 && (
-        <section className="bg-gray-50 py-24">
+        <section className="bg-gray-900 py-24">
           <div className="max-w-7xl mx-auto px-6">
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold">{featuresTitle}</h2>
-              {featuresSubtitle && <p className="text-gray-600 mt-4">{featuresSubtitle}</p>}
+              <h2 className="text-4xl font-bold text-white">{featuresTitle}</h2>
+              {featuresSubtitle && <p className="text-gray-400 mt-4">{featuresSubtitle}</p>}
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
               {features.map((item) => (
-                <div key={item.title} className="bg-white p-8 rounded-3xl shadow-sm hover:shadow-xl transition">
-                  <div className="w-14 h-14 rounded-2xl bg-orange-100 text-red-500 flex items-center justify-center text-2xl">
+                <div key={item.title} className="bg-gray-800 p-8 rounded-3xl shadow-sm hover:shadow-xl hover:shadow-black/50 transition border border-gray-700">
+                  <div className="w-14 h-14 rounded-2xl bg-gray-700 text-orange-400 flex items-center justify-center text-2xl">
                     {iconMap[item.title] || <FaStar />}
                   </div>
-                  <h3 className="mt-6 text-xl font-bold">{item.title}</h3>
-                  <p className="mt-3 text-gray-600">{item.desc}</p>
+                  <h3 className="mt-6 text-xl font-bold text-white">{item.title}</h3>
+                  <p className="mt-3 text-gray-400">{item.desc}</p>
                 </div>
               ))}
             </div>
@@ -162,14 +162,14 @@ export default async function AboutPage() {
         <section className="py-24">
           <div className="max-w-7xl mx-auto px-6">
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold">{processTitle}</h2>
+              <h2 className="text-4xl font-bold text-white">{processTitle}</h2>
             </div>
             <div className="grid md:grid-cols-3 gap-8">
               {process.map((step) => (
-                <div key={step.number} className="text-center p-8 border rounded-3xl">
-                  <div className="text-6xl font-bold text-orange-100">{step.number}</div>
-                  <h3 className="text-2xl font-bold mt-4">{step.title}</h3>
-                  <p className="text-gray-600 mt-3">{step.desc}</p>
+                <div key={step.number} className="text-center p-8 border border-gray-700 rounded-3xl">
+                  <div className="text-6xl font-bold text-gray-700">{step.number}</div>
+                  <h3 className="text-2xl font-bold mt-4 text-white">{step.title}</h3>
+                  <p className="text-gray-400 mt-3">{step.desc}</p>
                 </div>
               ))}
             </div>
@@ -179,22 +179,22 @@ export default async function AboutPage() {
 
       {/* Testimonials */}
       {testimonials.length > 0 && (
-        <section className="bg-orange-50 py-24">
+        <section className="bg-gray-900 py-24">
           <div className="max-w-7xl mx-auto px-6">
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold">{testimonialsTitle}</h2>
+              <h2 className="text-4xl font-bold text-white">{testimonialsTitle}</h2>
             </div>
             <div className="grid md:grid-cols-3 gap-8">
               {testimonials.map((item, i) => (
-                <div key={i} className="bg-white p-8 rounded-3xl shadow-sm">
+                <div key={i} className="bg-gray-800 p-8 rounded-3xl shadow-sm border border-gray-700">
                   <div className="flex gap-1 text-yellow-500">
                     {[...Array(5)].map((_, j) => <FaStar key={j} />)}
                   </div>
-                  <p className="mt-4 text-gray-600">{item.text}</p>
+                  <p className="mt-4 text-gray-400">{item.text}</p>
                   <div className="mt-6 flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-orange-200"></div>
+                    <div className="w-12 h-12 rounded-full bg-gray-700"></div>
                     <div>
-                      <h4 className="font-semibold">{item.name}</h4>
+                      <h4 className="font-semibold text-white">{item.name}</h4>
                       <p className="text-sm text-gray-500">{item.title}</p>
                     </div>
                   </div>

@@ -1,7 +1,5 @@
 "use client";
-// import { CircleArrowDown } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 
@@ -9,6 +7,7 @@ interface Promotion {
   id: number;
   title: string;
   description: string | null;
+  image: string | null;
   discountType: string;
   discountValue: string;
   code: string | null;
@@ -23,6 +22,7 @@ interface Promotion {
 interface PromotionForm {
   title: string;
   description: string;
+  image: string;
   discountType: string;
   discountValue: string;
   code: string;
@@ -32,33 +32,36 @@ interface PromotionForm {
   usageLimit: string;
 }
 
-const emptyForm: PromotionForm = { title: "", description: "", discountType: "percentage", discountValue: "", code: "", isActive: true, startsAt: "", endsAt: "", usageLimit: "" };
+type ModalMode = "promotion" | "offer";
+
+const emptyForm: PromotionForm = {
+  title: "",
+  description: "",
+  image: "",
+  discountType: "percentage",
+  discountValue: "",
+  code: "",
+  isActive: true,
+  startsAt: "",
+  endsAt: "",
+  usageLimit: "",
+};
 
 export default function PromotionsClient() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
   const confirm = useConfirm();
-  const router = useRouter();
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Promotion | null>(null);
+  const [modalMode, setModalMode] = useState<ModalMode>("promotion");
   const [form, setForm] = useState<PromotionForm>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"error" | "success">("success");
   const [search, setSearch] = useState("");
-  
-  //to download the file
-  // const [open, setOpen] = useState(false);
-  //  const handleDownload = (type: string) => {
-  //   if (type) {
-  //     window.open(`/api/exports/${type}`, "_blank");
-  //   }
-  // };
-
-  
-
 
   const filteredPromotions = useMemo(() => {
     if (!search.trim()) return promotions;
@@ -66,33 +69,54 @@ export default function PromotionsClient() {
     return promotions.filter((p) => p.title.toLowerCase().includes(q) || (p.code ?? "").toLowerCase().includes(q));
   }, [promotions, search]);
 
+  async function loadPromotions() {
+    try {
+      const res = await fetch("/api/superadmin/promotions");
+      const data = await res.json();
+      if (!data.error) setPromotions(data.promotions ?? []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function loadPromotions() {
+    let isMounted = true;
+
+    const fetchPromotions = async () => {
       try {
         const res = await fetch("/api/superadmin/promotions");
         const data = await res.json();
-        if (!data.error) setPromotions(data.promotions ?? []);
+        if (!data.error && isMounted) setPromotions(data.promotions ?? []);
       } catch (err) {
         console.error(err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
-    }
-    loadPromotions();
+    };
+
+    void fetchPromotions();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   function openCreate() {
     setEditing(null);
     setForm(emptyForm);
+    setModalMode("promotion");
     setShowModal(true);
   }
 
   function openEdit(promo: Promotion) {
     setEditing(promo);
+    setModalMode(promo.image ? "offer" : "promotion");
     setForm({
       title: promo.title,
       description: promo.description ?? "",
+      image: promo.image ?? "",
       discountType: promo.discountType,
       discountValue: promo.discountValue,
       code: promo.code ?? "",
@@ -104,9 +128,37 @@ export default function PromotionsClient() {
     setShowModal(true);
   }
 
+  async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    setMessage("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/images", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.error) {
+        setMessage(data.error);
+        setMessageType("error");
+        return;
+      }
+      setForm((prev) => ({ ...prev, image: data.path ?? "" }));
+    } catch {
+      setMessage("Image upload failed");
+      setMessageType("error");
+    } finally {
+      setUploadingImage(false);
+      event.target.value = "";
+    }
+  }
+
   function buildBody() {
     return {
       ...form,
+      image: form.image || null,
       usageLimit: form.usageLimit ? Number(form.usageLimit) : null,
       startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : null,
       endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : null,
@@ -114,6 +166,12 @@ export default function PromotionsClient() {
   }
 
   async function handleSave() {
+    if (!form.title.trim()) {
+      setMessage("Title is required");
+      setMessageType("error");
+      return;
+    }
+
     setSaving(true);
     setMessage("");
 
@@ -129,11 +187,16 @@ export default function PromotionsClient() {
       });
       const data = await res.json();
 
-      if (data.error) { setMessage(data.error); setMessageType("error"); return; }
+      if (data.error) {
+        setMessage(data.error);
+        setMessageType("error");
+        return;
+      }
 
       setShowModal(false);
-      router.refresh();
-      // await loadPromotions();
+      await loadPromotions();
+      setMessage(editing ? "Promotion updated" : modalMode === "offer" ? "Offer created" : "Promotion created");
+      setMessageType("success");
     } catch {
       setMessage("Failed to save promotion");
       setMessageType("error");
@@ -147,44 +210,46 @@ export default function PromotionsClient() {
     try {
       const res = await fetch(`/api/superadmin/promotions?id=${id}`, { method: "DELETE" });
       const data = await res.json();
-      if (data.error) { setMessage(data.error); setMessageType("error"); return; }
-      router.refresh();
-      // await loadPromotions();
+      if (data.error) {
+        setMessage(data.error);
+        setMessageType("error");
+        return;
+      }
+      await loadPromotions();
+      setMessage("Promotion deleted");
+      setMessageType("success");
     } catch {
       setMessage("Failed to delete promotion");
       setMessageType("error");
     }
   }
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500" />
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-orange-500" />
       </div>
     );
   }
 
-
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Promotions</h1>
         <div className="flex items-center justify-end gap-4">
-          {/* <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
-            <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
-              <option className="text-black" value="">Export</option>
-              <option className="text-black" value="pdf">PDF</option>
-              <option className="text-black" value="csv">CSV</option>
-              <option className="text-black" value="excel">Excel</option>
-            </select>
-          </button> */}
-          {can("CREATE_PROMOTIONS") && <button onClick={openCreate} className="rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600">+ Add Promotion</button>}
+          {can("CREATE_PROMOTIONS") && (
+            <button onClick={openCreate} className="rounded-xl bg-orange-500 px-5 py-3 font-semibold text-white hover:bg-orange-600">
+              + Add Promotion and Offers
+            </button>
+          )}
         </div>
       </div>
 
       {message && (
-        <div className={`mb-4 rounded-xl p-3 text-sm ${messageType === "error" ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700"}`}>{message}</div>
+        <div className={`mb-4 rounded-xl p-3 text-sm ${messageType === "error" ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700"}`}>
+          {message}
+        </div>
       )}
-
       <div className="mb-4">
         <input
           type="text"
@@ -195,11 +260,12 @@ export default function PromotionsClient() {
         />
       </div>
 
-      <div className="rounded-xl bg-white shadow overflow-hidden">
+      <div className="overflow-hidden rounded-xl bg-white shadow">
         <table className="w-full">
           <thead className="bg-gray-100">
             <tr>
               <th className="p-4 text-left">Title</th>
+              <th className="p-4 text-left">Image</th>
               <th className="p-4 text-left">Code</th>
               <th className="p-4 text-left">Discount</th>
               <th className="p-4 text-left">Usage</th>
@@ -209,13 +275,27 @@ export default function PromotionsClient() {
           </thead>
           <tbody>
             {filteredPromotions.length === 0 ? (
-              <tr><td colSpan={6} className="p-8 text-center text-gray-400">No promotions found</td></tr>
+              <tr>
+                <td colSpan={7} className="p-8 text-center text-gray-400">
+                  No promotions found
+                </td>
+              </tr>
             ) : (
               filteredPromotions.map((promo) => (
                 <tr key={promo.id} className="border-t">
                   <td className="p-4 font-medium">{promo.title}</td>
+                  <td className="p-4">
+                    {promo.image ? (
+                      <img src={promo.image} alt={promo.title} className="h-12 w-12 rounded-lg object-cover" />
+                    ) : (
+                      <span className="text-sm text-gray-400">No image</span>
+                    )}
+                  </td>
                   <td className="p-4 text-gray-500">{promo.code ?? "-"}</td>
-                  <td className="p-4">{promo.discountValue}{promo.discountType === "percentage" ? "%" : " Rs."}</td>
+                  <td className="p-4">
+                    {promo.discountValue}
+                    {promo.discountType === "percentage" ? "%" : " Rs."}
+                  </td>
                   <td className="p-4 text-gray-500">{promo.usageCount}{promo.usageLimit ? ` / ${promo.usageLimit}` : ""}</td>
                   <td className="p-4">
                     <span className={`rounded-full px-3 py-1 text-sm ${promo.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
@@ -223,8 +303,16 @@ export default function PromotionsClient() {
                     </span>
                   </td>
                   <td className="p-4">
-                    {can("UPDATE_PROMOTIONS") && <button onClick={() => openEdit(promo)} className="mr-2 rounded bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600">Edit</button>}
-                    {can("DELETE_PROMOTIONS") && <button onClick={() => handleDelete(promo.id)} className="rounded bg-red-500 px-3 py-1 text-white text-sm hover:bg-red-600">Delete</button>}
+                    {can("UPDATE_PROMOTIONS") && (
+                      <button onClick={() => openEdit(promo)} className="mr-2 rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600">
+                        Edit
+                      </button>
+                    )}
+                    {can("DELETE_PROMOTIONS") && (
+                      <button onClick={() => handleDelete(promo.id)} className="rounded bg-red-500 px-3 py-1 text-sm text-white hover:bg-red-600">
+                        Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
@@ -235,8 +323,8 @@ export default function PromotionsClient() {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-            <h2 className="mb-4 text-xl font-bold">{editing ? "Edit Promotion" : "Add Promotion"}</h2>
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="mb-4 text-xl font-bold">{editing ? (modalMode === "offer" ? "Edit Offer" : "Edit Promotion") : modalMode === "offer" ? "Add Offer" : "Add Promotion"}</h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Title</label>
@@ -245,6 +333,16 @@ export default function PromotionsClient() {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Description</label>
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="mt-1 w-full rounded-lg border p-3" rows={2} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Offer Image</label>
+                <input type="file" accept="image/*" onChange={handleImageUpload} className="mt-1 w-full rounded-lg border p-3" />
+                {uploadingImage ? <p className="mt-2 text-sm text-gray-500">Uploading image...</p> : null}
+                {form.image ? (
+                  <img src={form.image} alt="Offer preview" className="mt-3 h-28 w-full rounded-lg object-cover" />
+                ) : (
+                  <p className="mt-2 text-sm text-gray-400">No image selected yet.</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -279,11 +377,15 @@ export default function PromotionsClient() {
               </div>
               <div className="flex items-center gap-2">
                 <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} id="isActive" />
-                <label htmlFor="isActive" className="text-sm text-gray-700">Active</label>
+                <label htmlFor="isActive" className="text-sm text-gray-700">
+                  Active
+                </label>
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setShowModal(false)} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">Cancel</button>
+              <button onClick={() => setShowModal(false)} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">
+                Cancel
+              </button>
               <button onClick={handleSave} disabled={saving} className="rounded-lg bg-orange-500 px-4 py-2 text-white hover:bg-orange-600 disabled:opacity-50">
                 {saving ? "Saving..." : "Save"}
               </button>

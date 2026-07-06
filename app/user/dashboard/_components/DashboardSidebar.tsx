@@ -1,6 +1,6 @@
 "use client";
 
-import {LayoutDashboard,ShoppingCart,Heart,CreditCard,Bell,User,LogOut,Menu,X,ArrowLeft } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Heart, CreditCard, Bell, User, LogOut, Menu, X, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -19,7 +19,7 @@ export default function DashboardSidebar() {
       .then((data) => {
         if (!data.error && data.siteName) setSiteName(data.siteName);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const menus = [
@@ -34,13 +34,13 @@ export default function DashboardSidebar() {
 
   const sidebarContent = (
     <div className="flex gap-4 flex-col h-full w-full">
-      <div className="p-6 border-b border-gray-100">
+      <div className="p-6 border-b border-zinc-800">
         <Link href="/user/dashboard">
           <h2 className="text-2xl font-bold bg-linear-to-r from-orange-400 to-orange-500 bg-clip-text text-transparent">
             {siteName}
           </h2>
         </Link>
-        <p className="text-xs text-gray-400 mt-1">User Dashboard</p>
+        <p className="text-xs text-zinc-400 mt-1">User Dashboard</p>
       </div>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -56,8 +56,8 @@ export default function DashboardSidebar() {
             >
               <div
                 className={`flex items-center gap-3 w-full p-3 rounded-xl transition-all duration-200 ${isActive
-                    ? "bg-orange-300 text-black shadow-md shadow-orange-100 scale-[1.02]"
-                    : "text-black hover:bg-orange-50 hover:text-orange-600"
+                  ? "bg-linear-to-br from-orange-500 to-orange-300 text-white shadow-md shadow-orange-900/30 scale-[1.02]"
+                  : "text-zinc-300 hover:bg-zinc-800 hover:text-orange-400"
                   }`}
               >
                 <Icon size={20} />
@@ -68,14 +68,14 @@ export default function DashboardSidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-gray-100">
+      <div className="p-4 border-t border-zinc-800">
         <button
           onClick={async () => {
             await signOut({ redirect: false });
             toast.success("You have been logged out successfully!");
             setTimeout(() => router.push("/login"), 400);
           }}
-          className="flex items-center gap-3 w-full p-3 rounded-xl text-gray-500 hover:bg-red-50 hover:text-red-500 transition-all duration-200"
+          className="flex items-center gap-3 w-full p-3 rounded-xl text-zinc-400 hover:bg-red-900/30 hover:text-red-400 transition-all duration-200"
         >
           <LogOut size={20} />
           <span>Logout</span>
@@ -88,7 +88,7 @@ export default function DashboardSidebar() {
     <>
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
-        className="md:hidden fixed top-4 left-4 z-50 bg-white p-2.5 rounded-xl shadow-lg"
+        className="md:hidden fixed top-4 left-4 z-50 bg-zinc-800 p-2.5 rounded-xl shadow-lg"
       >
         {mobileOpen ? <X size={22} /> : <Menu size={22} />}
       </button>
@@ -101,7 +101,7 @@ export default function DashboardSidebar() {
       )}
 
       <aside
-        className={`fixed md:sticky top-0 left-0 z-40 h-screen w-74 bg-white shadow-lg transform transition-transform duration-300 ${mobileOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed md:sticky top-0 left-0 z-40 h-screen w-74 bg-zinc-900 border-r border-zinc-800 shadow-lg transform transition-transform duration-300 ${mobileOpen ? "translate-x-0" : "-translate-x-full"
           } md:translate-x-0`}
       >
         {sidebarContent}

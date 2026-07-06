@@ -1,0 +1,1 @@
+ALTER TABLE `promotions` ADD `image` varchar(500);

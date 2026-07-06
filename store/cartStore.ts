@@ -15,6 +15,7 @@ export interface CartItem {
   quantity: number;
   addons?: Addon[];
   originalPrice?: number;
+  discountPercent?: number;
 }
 
 interface CartStore {

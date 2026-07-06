@@ -32,15 +32,15 @@ export default function FavoritesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Favorite Foods</h1>
-        <p className="text-gray-400 mt-1">Your most ordered items</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-white">Favorite Foods</h1>
+        <p className="text-zinc-400 mt-1">Your most ordered items</p>
       </div>
 
       {favorites.length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 shadow-sm border border-gray-100 text-center">
-          <Heart size={64} className="mx-auto text-gray-200 mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">No Favorites Yet</h2>
-          <p className="text-gray-400 mb-6">
+        <div className="bg-zinc-900 rounded-2xl p-12 shadow-sm border border-zinc-800 text-center">
+          <Heart size={64} className="mx-auto text-zinc-600 mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">No Favorites Yet</h2>
+          <p className="text-zinc-400 mb-6">
             Start ordering and your frequently ordered items will show up here!
           </p>
           <a
@@ -56,7 +56,7 @@ export default function FavoritesPage() {
           {favorites.map((food, index) => (
             <div
               key={food.title}
-              className="relative bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-lg transition-all group"
+              className="relative bg-zinc-900 rounded-2xl border border-zinc-800 p-6 hover:shadow-lg hover:shadow-zinc-800/50 transition-all group"
             >
               {index === 0 && (
                 <div className="absolute -top-2 -right-2 bg-yellow-400 rounded-full p-2 shadow-lg">
@@ -68,20 +68,20 @@ export default function FavoritesPage() {
                 <Heart size={24} className="text-white fill-white" />
               </div>
 
-              <h3 className="text-lg font-bold text-gray-900">{food.title}</h3>
+              <h3 className="text-lg font-bold text-white">{food.title}</h3>
 
               <div className="mt-3 space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-400">Times ordered</span>
-                  <span className="font-semibold text-gray-900">{food.count}x</span>
+                  <span className="text-sm text-zinc-400">Times ordered</span>
+                  <span className="font-semibold text-white">{food.count}x</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-400">Price</span>
+                  <span className="text-sm text-zinc-400">Price</span>
                   <span className="font-semibold text-orange-500">RS.{food.price}</span>
                 </div>
               </div>
 
-              <div className="mt-4 w-full bg-gray-100 rounded-full h-2">
+              <div className="mt-4 w-full bg-zinc-800 rounded-full h-2">
                 <div
                   className="bg-linear-to-r from-orange-400 to-red-500 h-2 rounded-full transition-all"
                   style={{
@@ -89,7 +89,7 @@ export default function FavoritesPage() {
                   }}
                 />
               </div>
-              <p className="text-xs text-gray-400 mt-1 text-right">Popularity</p>
+              <p className="text-xs text-zinc-400 mt-1 text-right">Popularity</p>
             </div>
           ))}
         </div>

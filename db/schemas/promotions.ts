@@ -4,6 +4,7 @@ export const promotions = mysqlTable("promotions", {
   id: int("id").autoincrement().primaryKey(),
   title: varchar("title", { length: 160 }).notNull(),
   description: varchar("description", { length: 500 }),
+  image: varchar("image", { length: 500 }),
   discountType: mysqlEnum("discount_type", ["percentage", "fixed"])
     .notNull().default("percentage"),
   discountValue: decimal("discount_value", { precision: 10, scale: 2 }).notNull(),

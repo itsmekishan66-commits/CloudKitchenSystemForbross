@@ -44,46 +44,46 @@ export default function ContactForm() {
   return (
     <form onSubmit={handleSubmit} className="mt-8 space-y-5">
       <div>
-        <label className="block mb-2 font-medium">Full Name *</label>
+        <label className="block mb-2 font-medium text-gray-300">Full Name *</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="John Doe"
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-orange-400"
+          className="w-full bg-gray-700 border border-gray-600 text-white rounded-xl px-4 py-3 outline-none focus:border-orange-400 placeholder-gray-400"
         />
       </div>
 
       <div>
-        <label className="block mb-2 font-medium">Email Address *</label>
+        <label className="block mb-2 font-medium text-gray-300">Email Address *</label>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="john@example.com"
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-orange-400"
+          className="w-full bg-gray-700 border border-gray-600 text-white rounded-xl px-4 py-3 outline-none focus:border-orange-400 placeholder-gray-400"
         />
       </div>
 
       <div>
-        <label className="block mb-2 font-medium">Subject</label>
+        <label className="block mb-2 font-medium text-gray-300">Subject</label>
         <input
           type="text"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           placeholder="Order Inquiry"
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-orange-400"
+          className="w-full bg-gray-700 border border-gray-600 text-white rounded-xl px-4 py-3 outline-none focus:border-orange-400 placeholder-gray-400"
         />
       </div>
 
       <div>
-        <label className="block mb-2 font-medium">Message *</label>
+        <label className="block mb-2 font-medium text-gray-300">Message *</label>
         <textarea
           rows={6}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Type your message here..."
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 outline-none resize-none focus:border-orange-400"
+          className="w-full bg-gray-700 border border-gray-600 text-white rounded-xl px-4 py-3 outline-none resize-none focus:border-orange-400 placeholder-gray-400"
         />
       </div>
 

@@ -18,6 +18,11 @@ import {
   Landmark,
   Smartphone,
   CircleArrowDown,
+  Upload,
+  X,
+  Edit,
+  Trash2,
+  Power,
 } from "lucide-react";
 
 type PaymentMethod = "cash" | "bank" | "esewa" | "khalti" | "fonepay" | "card";
@@ -51,6 +56,21 @@ interface Due {
   remaining: number;
   status: "pending" | "partial" | "paid";
   createdAt: string;
+}
+
+interface PaymentAccount {
+  id: string;
+  accountName: string;
+  holderName: string;
+  method: string;
+  accountNumber: string;
+  phoneNumber: string | null;
+  bankName: string | null;
+  branch: string | null;
+  openingBalance: number;
+  qrCode: string | null;
+  notes: string | null;
+  status: string;
 }
 
 const typeConfig: Record<TransactionType, { label: string; color: string; bg: string; icon: typeof ArrowDownRight }> = {
@@ -195,7 +215,17 @@ export default function PaymentPage() {
   const [messageType, setMessageType] = useState<"success" | "error">("success");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [dues, setDues] = useState<Due[]>([]);
+  const [accounts, setAccounts] = useState<(PaymentAccount & { totalReceived: number; totalPaid: number; closingBalance: number })[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [activeTab, setActiveTab] = useState<"overview" | "accounts">("overview");
+  const [showAccountForm, setShowAccountForm] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<PaymentAccount | null>(null);
+  const [accountForm, setAccountForm] = useState({ accountName: "", holderName: "", method: "esewa", accountNumber: "", phoneNumber: "", bankName: "", branch: "", openingBalance: "", qrCode: "", notes: "" });
+  const [savingAccount, setSavingAccount] = useState(false);
+  const [uploadingQr, setUploadingQr] = useState(false);
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState<PaymentAccount | null>(null);
+  const [accountSearch, setAccountSearch] = useState("");
 
   useEffect(() => {
     fetch("/api/payments")
@@ -218,6 +248,11 @@ export default function PaymentPage() {
       })
       .catch((err) => console.error("Failed to load payments", err))
       .finally(() => setLoading(false));
+
+    fetch("/api/payments/accounts")
+      .then((res) => res.json())
+      .then((data) => setAccounts(data.accounts || []))
+      .catch(() => {});
   }, []);
 
   const PER_PAGE = 10;
@@ -254,9 +289,10 @@ export default function PaymentPage() {
   const filteredDues = useMemo(() => {
     const q = globalSearch.toLowerCase();
     return dues.filter((d) => {
+      const isActive = d.status !== "paid" && d.remaining > 0;
       const matchesSearch = !q || d.personName.toLowerCase().includes(q) || d.role.toLowerCase().includes(q);
       const matchesStatus = filterStatus === "all" || d.status === filterStatus;
-      return matchesSearch && matchesStatus;
+      return isActive && matchesSearch && matchesStatus;
     });
   }, [dues, globalSearch, filterStatus]);
 
@@ -358,6 +394,136 @@ export default function PaymentPage() {
     }
   }
 
+  const emptyAccountForm = { accountName: "", holderName: "", method: "esewa", accountNumber: "", phoneNumber: "", bankName: "", branch: "", openingBalance: "", qrCode: "", notes: "" };
+
+  function openAddAccount() {
+    setAccountForm(emptyAccountForm);
+    setEditingAccount(null);
+    setShowAccountForm(true);
+  }
+
+  function openEditAccount(account: PaymentAccount) {
+    setAccountForm({
+      accountName: account.accountName,
+      holderName: account.holderName,
+      method: account.method,
+      accountNumber: account.accountNumber,
+      phoneNumber: account.phoneNumber || "",
+      bankName: account.bankName || "",
+      branch: account.branch || "",
+      openingBalance: String(account.openingBalance),
+      qrCode: account.qrCode || "",
+      notes: account.notes || "",
+    });
+    setEditingAccount(account);
+    setShowAccountForm(true);
+  }
+
+  async function handleSaveAccount() {
+    if (!accountForm.accountName || !accountForm.holderName || !accountForm.accountNumber) {
+      setMessage("Account name, holder name, and account number are required");
+      setMessageType("error");
+      return;
+    }
+    setSavingAccount(true);
+    try {
+      const url = editingAccount ? `/api/payments/accounts/${editingAccount.id}` : "/api/payments/accounts";
+      const method = editingAccount ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...accountForm, openingBalance: Number(accountForm.openingBalance) || 0 }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to save account");
+      }
+      setShowAccountForm(false);
+      setEditingAccount(null);
+      setAccountForm(emptyAccountForm);
+      setMessage(editingAccount ? "Account updated" : "Account created");
+      setMessageType("success");
+      fetchAccounts();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Failed to save account");
+      setMessageType("error");
+    } finally {
+      setSavingAccount(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!confirmDeleteAccount) return;
+    try {
+      const res = await fetch(`/api/payments/accounts/${confirmDeleteAccount.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete account");
+      setConfirmDeleteAccount(null);
+      setMessage("Account deleted");
+      setMessageType("success");
+      fetchAccounts();
+    } catch {
+      setMessage("Failed to delete account");
+      setMessageType("error");
+    }
+  }
+
+  async function toggleAccountStatus(account: PaymentAccount) {
+    const newStatus = account.status === "active" ? "inactive" : "active";
+    try {
+      const res = await fetch(`/api/payments/accounts/${account.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error("Failed to update status");
+      setMessage(`Account ${newStatus === "active" ? "activated" : "deactivated"}`);
+      setMessageType("success");
+      fetchAccounts();
+    } catch {
+      setMessage("Failed to update status");
+      setMessageType("error");
+    }
+  }
+
+  async function handleUploadQr(file: File) {
+    setUploadingQr(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload/qr", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Upload failed");
+      }
+      const data = await res.json();
+      setAccountForm((prev) => ({ ...prev, qrCode: data.url }));
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Failed to upload QR code");
+      setMessageType("error");
+    } finally {
+      setUploadingQr(false);
+    }
+  }
+
+  function fetchAccounts() {
+    fetch("/api/payments/accounts")
+      .then((res) => res.json())
+      .then((data) => setAccounts(data.accounts || []))
+      .catch(() => {});
+  }
+
+  const filteredAccounts = useMemo(() => {
+    const q = accountSearch.toLowerCase();
+    return accounts.filter((a) => !q || a.accountName.toLowerCase().includes(q) || a.holderName.toLowerCase().includes(q) || a.accountNumber.toLowerCase().includes(q));
+  }, [accounts, accountSearch]);
+
+  const methodConfig: Record<string, { label: string; icon: typeof CreditCard; color: string; bg: string }> = {
+    esewa: { label: "eSewa", icon: Smartphone, color: "text-green-700", bg: "bg-green-50" },
+    khalti: { label: "Khalti", icon: Smartphone, color: "text-purple-700", bg: "bg-purple-50" },
+    netbanking: { label: "Net Banking", icon: Building2, color: "text-blue-700", bg: "bg-blue-50" },
+    card: { label: "Card", icon: CreditCard, color: "text-orange-700", bg: "bg-orange-50" },
+  };
+
   const paginatedTx = useMemo(() => filteredTransactions.slice(0, txPage * PER_PAGE), [filteredTransactions, txPage]);
   const paginatedReceivables = useMemo(() => filteredDues.filter((d) => d.role === "customer").slice(0, receivablePage * PER_PAGE), [filteredDues, receivablePage]);
   const paginatedDues = useMemo(() => filteredDues.filter((d) => d.role !== "customer").slice(0, duesPage * PER_PAGE), [filteredDues, duesPage]);
@@ -414,6 +580,24 @@ export default function PaymentPage() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+        <button
+          onClick={() => setActiveTab("overview")}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "overview" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => setActiveTab("accounts")}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "accounts" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+        >
+          Payment Accounts
+        </button>
+      </div>
+
+      {activeTab === "overview" && (
+      <>
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
@@ -465,6 +649,68 @@ export default function PaymentPage() {
 
       {/* Daily Balances Section */}
       <DailyBalancesSection transactions={transactions} />
+
+      {/* Account Balances Section */}
+      {accounts.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.14 }}
+          className="bg-white rounded-2xl border border-gray-100"
+        >
+          <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shadow-md">
+                <Building2 size={16} className="text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Payment Account Balances</h3>
+                <p className="text-xs text-gray-400">{accounts.length} accounts</p>
+              </div>
+            </div>
+            <a href="/dashboard/payment/accounts" className="text-xs font-medium text-orange-600 hover:text-orange-700">
+              Manage →
+            </a>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-50">
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Account</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Method</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Opening</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Received</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Paid</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {accounts.map((a, i) => (
+                  <motion.tr
+                    key={a.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors"
+                  >
+                    <td className="px-5 py-4">
+                      <p className="text-sm font-medium">{a.accountName}</p>
+                      <p className="text-xs text-gray-400">{a.holderName}</p>
+                    </td>
+                    <td className="px-5 py-4 text-sm capitalize text-gray-500">{a.method === "netbanking" ? "Net Banking" : a.method}</td>
+                    <td className="px-5 py-4 text-sm text-right">Rs {Number(a.openingBalance).toLocaleString()}</td>
+                    <td className="px-5 py-4 text-sm text-right text-emerald-600">+ Rs {a.totalReceived.toLocaleString()}</td>
+                    <td className="px-5 py-4 text-sm text-right text-red-600">- Rs {a.totalPaid.toLocaleString()}</td>
+                    <td className={`px-5 py-4 text-sm text-right font-bold ${a.closingBalance >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                      Rs {a.closingBalance.toLocaleString()}
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+      )}
 
       {/* Quick Actions — full width */}
       <motion.div
@@ -915,6 +1161,222 @@ export default function PaymentPage() {
           </div>
         </motion.div>
       </div>
+      </>
+      )}
+
+      {/* Accounts Tab */}
+      {activeTab === "accounts" && (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold">Payment Accounts</h2>
+            <p className="text-sm text-gray-500">Manage online payment accounts and track balances</p>
+          </div>
+          {can("CREATE_PAYMENTS") && (
+            <button onClick={openAddAccount} className="flex items-center gap-2 bg-orange-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-orange-600 transition-colors">
+              <Plus size={16} /> Add Account
+            </button>
+          )}
+        </div>
+
+        {/* Account Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-2xl p-5 border border-gray-100">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center mb-3"><Landmark size={18} className="text-blue-600" /></div>
+            <p className="text-gray-400 text-xs font-medium">Total Accounts</p>
+            <h3 className="text-xl font-bold mt-0.5">{accounts.length}</h3>
+          </div>
+          <div className="bg-white rounded-2xl p-5 border border-gray-100">
+            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center mb-3"><Power size={18} className="text-green-600" /></div>
+            <p className="text-gray-400 text-xs font-medium">Active Accounts</p>
+            <h3 className="text-xl font-bold mt-0.5">{accounts.filter((a) => a.status === "active").length}</h3>
+          </div>
+          <div className="bg-white rounded-2xl p-5 border border-gray-100">
+            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center mb-3"><CreditCard size={18} className="text-orange-600" /></div>
+            <p className="text-gray-400 text-xs font-medium">Total Balance</p>
+            <h3 className={`text-xl font-bold mt-0.5 ${accounts.reduce((s, a) => s + a.closingBalance, 0) >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+              Rs {accounts.reduce((s, a) => s + a.closingBalance, 0).toLocaleString()}
+            </h3>
+          </div>
+        </div>
+
+        {/* Account Search */}
+        <div className="relative max-w-sm">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
+          <input placeholder="Search accounts..." className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountSearch} onChange={(e) => setAccountSearch(e.target.value)} />
+        </div>
+
+        {/* Accounts Table */}
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-50">
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Account</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Method</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Account Number</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Opening</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Received</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Closing</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Status</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAccounts.map((account) => {
+                  const mc = methodConfig[account.method] || methodConfig.esewa;
+                  const Icon = mc.icon;
+                  return (
+                    <tr key={account.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          {account.qrCode && <img src={account.qrCode} alt="QR" className="w-8 h-8 rounded object-contain" />}
+                          <div>
+                            <p className="text-sm font-medium">{account.accountName}</p>
+                            <p className="text-xs text-gray-400">{account.holderName}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${mc.color} ${mc.bg}`}>
+                          <Icon size={12} /> {mc.label}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-sm font-mono text-gray-600">{account.accountNumber}</td>
+                      <td className="px-5 py-4 text-sm text-right">Rs {Number(account.openingBalance).toLocaleString()}</td>
+                      <td className="px-5 py-4 text-sm text-right text-emerald-600 font-medium">+ Rs {account.totalReceived.toLocaleString()}</td>
+                      <td className={`px-5 py-4 text-sm text-right font-bold ${account.closingBalance >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                        Rs {account.closingBalance.toLocaleString()}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${account.status === "active" ? "text-emerald-700 bg-emerald-50" : "text-gray-500 bg-gray-100"}`}>
+                          {account.status === "active" ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => toggleAccountStatus(account)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors" title={account.status === "active" ? "Deactivate" : "Activate"}>
+                            <Power size={14} className={account.status === "active" ? "text-green-600" : "text-gray-400"} />
+                          </button>
+                          {can("UPDATE_PAYMENTS") && (
+                            <button onClick={() => openEditAccount(account)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors" title="Edit">
+                              <Edit size={14} className="text-gray-500" />
+                            </button>
+                          )}
+                          {can("DELETE_PAYMENTS") && (
+                            <button onClick={() => setConfirmDeleteAccount(account)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                              <Trash2 size={14} className="text-red-400" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredAccounts.length === 0 && (
+                  <tr><td colSpan={8} className="text-center text-gray-400 py-8 text-sm">No payment accounts found</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      )}
+
+      {/* Add/Edit Account Modal */}
+      {showAccountForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-bold mb-4">{editingAccount ? "Edit Account" : "Add Payment Account"}</h2>
+            <div className="space-y-4">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Account Name *</label>
+                  <input type="text" placeholder="e.g. Ram's eSewa" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.accountName} onChange={(e) => setAccountForm({ ...accountForm, accountName: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Holder Name *</label>
+                  <input type="text" placeholder="e.g. Ram Shrestha" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.holderName} onChange={(e) => setAccountForm({ ...accountForm, holderName: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Method *</label>
+                  <select className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.method} onChange={(e) => setAccountForm({ ...accountForm, method: e.target.value })}>
+                    <option value="esewa">eSewa</option>
+                    <option value="khalti">Khalti</option>
+                    <option value="netbanking">Net Banking</option>
+                    <option value="card">Card</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Account Number / ID *</label>
+                  <input type="text" placeholder="Phone or account ID" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.accountNumber} onChange={(e) => setAccountForm({ ...accountForm, accountNumber: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Phone Number</label>
+                  <input type="text" placeholder="Optional" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.phoneNumber} onChange={(e) => setAccountForm({ ...accountForm, phoneNumber: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Opening Balance (Rs)</label>
+                  <input type="number" min="0" step="0.01" placeholder="0" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.openingBalance} onChange={(e) => setAccountForm({ ...accountForm, openingBalance: e.target.value })} />
+                </div>
+              </div>
+              {(accountForm.method === "netbanking" || accountForm.method === "card") && (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Bank Name</label>
+                    <input type="text" placeholder="Optional" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.bankName} onChange={(e) => setAccountForm({ ...accountForm, bankName: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Branch</label>
+                    <input type="text" placeholder="Optional" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.branch} onChange={(e) => setAccountForm({ ...accountForm, branch: e.target.value })} />
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">QR Code</label>
+                {accountForm.qrCode ? (
+                  <div className="relative inline-block">
+                    <img src={accountForm.qrCode} alt="QR Code" className="w-32 h-32 object-contain rounded-xl border border-gray-200" />
+                    <button type="button" onClick={() => setAccountForm({ ...accountForm, qrCode: "" })} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"><X size={12} /></button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-orange-400 transition-colors">
+                    <Upload size={20} className="text-gray-400 mb-1" />
+                    <span className="text-xs text-gray-400">{uploadingQr ? "Uploading..." : "Upload QR"}</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden" disabled={uploadingQr} onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadQr(file); }} />
+                  </label>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Notes</label>
+                <textarea placeholder="Optional notes" rows={2} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.notes} onChange={(e) => setAccountForm({ ...accountForm, notes: e.target.value })} />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => { setShowAccountForm(false); setEditingAccount(null); }} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+              <button onClick={handleSaveAccount} disabled={savingAccount} className="rounded-lg bg-orange-500 px-5 py-2 text-sm text-white font-semibold hover:bg-orange-600 disabled:opacity-50">{savingAccount ? "Saving..." : editingAccount ? "Update" : "Create"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Confirmation */}
+      {confirmDeleteAccount && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-bold mb-2">Delete Account</h2>
+            <p className="text-sm text-gray-600 mb-6">Are you sure you want to delete <strong>{confirmDeleteAccount.accountName}</strong>?</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setConfirmDeleteAccount(null)} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+              <button onClick={handleDeleteAccount} className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white hover:bg-red-600">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

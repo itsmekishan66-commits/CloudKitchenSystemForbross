@@ -44,43 +44,43 @@ export default function RecentOrders({ orders }: { orders: Order[] }) {
 
   if (orders.length === 0) {
     return (
-      <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center">
-        <Package size={48} className="mx-auto text-gray-300 mb-4" />
-        <h2 className="font-bold text-xl mb-2 text-gray-900">Recent Orders</h2>
-        <p className="text-gray-400">No orders yet. Start ordering your favorite meals!</p>
+      <div className="bg-zinc-900 rounded-2xl p-8 shadow-sm border border-zinc-800 text-center">
+        <Package size={48} className="mx-auto text-zinc-600 mb-4" />
+        <h2 className="font-bold text-xl mb-2 text-white">Recent Orders</h2>
+        <p className="text-zinc-400">No orders yet. Start ordering your favorite meals!</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <div className="bg-zinc-900 rounded-2xl shadow-sm border border-zinc-800 p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="font-bold text-xl text-gray-900">Recent Orders</h2>
-        <span className="text-sm text-gray-400">{orders.length} orders</span>
+        <h2 className="font-bold text-xl text-white">Recent Orders</h2>
+        <span className="text-sm text-zinc-400">{orders.length} orders</span>
       </div>
 
       <div className="space-y-1">
         {visibleOrders.map((order) => (
           <div
             key={order.id}
-            className="flex items-center justify-between p-4 rounded-xl hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-between p-4 rounded-xl hover:bg-zinc-800 transition-colors"
           >
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
-                <Package size={20} className="text-orange-500" />
+              <div className="w-10 h-10 rounded-xl bg-orange-900/30 flex items-center justify-center">
+                <Package size={20} className="text-orange-400" />
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900">
+                <h4 className="font-semibold text-white">
                   {order.items.map((i) => i.title).join(", ")}
                 </h4>
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-zinc-400">
                   #{order.id} &bull; {formatDate(order.createdAt)}
                 </p>
               </div>
             </div>
 
             <div className="text-right">
-              <p className="font-semibold text-gray-900">Rs.{order.total}</p>
+              <p className="font-semibold text-white">Rs.{order.total}</p>
               <span
                 className={`inline-block text-xs px-2.5 py-1 rounded-full font-medium mt-1 ${getStatusStyle(order.status)}`}
               >
@@ -92,22 +92,22 @@ export default function RecentOrders({ orders }: { orders: Order[] }) {
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100">
-          <p className="text-sm text-gray-400">
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-zinc-800">
+          <p className="text-sm text-zinc-400">
             Page {page} of {totalPages}
           </p>
           <div className="flex gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Previous
             </button>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Next
             </button>

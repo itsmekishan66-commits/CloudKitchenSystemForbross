@@ -68,7 +68,7 @@ function StarRating({ rating }: { rating: number }) {
   }
   const remaining = 5 - full - (hasHalf ? 1 : 0);
   for (let i = 0; i < remaining; i++) {
-    stars.push(<FaStar key={`empty-${i}`} className="text-gray-200 w-3.5 h-3.5" />);
+    stars.push(<FaStar key={`empty-${i}`} className="text-gray-600 w-3.5 h-3.5" />);
   }
   return <div className="flex items-center gap-0.5">{stars}</div>;
 }
@@ -149,17 +149,17 @@ function MenuContent() {
     return (
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse" />
-          <div className="h-4 w-32 bg-gray-100 rounded mt-2 animate-pulse" />
+          <div className="h-8 w-48 bg-gray-700 rounded-lg animate-pulse" />
+          <div className="h-4 w-32 bg-gray-600 rounded mt-2 animate-pulse" />
         </div>
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-sm">
-              <div className="h-52 bg-gray-100 animate-pulse" />
+            <div key={i} className="bg-gray-800 rounded-2xl overflow-hidden shadow-sm">
+              <div className="h-52 bg-gray-700 animate-pulse" />
               <div className="p-5 space-y-3">
-                <div className="h-5 w-3/4 bg-gray-200 rounded animate-pulse" />
-                <div className="h-4 w-full bg-gray-100 rounded animate-pulse" />
-                <div className="h-4 w-1/2 bg-gray-100 rounded animate-pulse" />
+                <div className="h-5 w-3/4 bg-gray-600 rounded animate-pulse" />
+                <div className="h-4 w-full bg-gray-700 rounded animate-pulse" />
+                <div className="h-4 w-1/2 bg-gray-600 rounded animate-pulse" />
               </div>
             </div>
           ))}
@@ -172,7 +172,7 @@ function MenuContent() {
     <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl md:text-3xl font-bold text-white">
             {activeCategory === "all" ? "All Items" : `${activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)}`}
           </h1>
           <p className="text-sm text-gray-400 mt-1">
@@ -181,7 +181,7 @@ function MenuContent() {
           </p>
         </div>
         {resultCount > 0 && (
-          <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400 bg-white/60 px-4 py-2 rounded-lg border border-gray-100">
+          <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400 bg-gray-800/60 px-4 py-2 rounded-lg border border-gray-700">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
@@ -192,7 +192,7 @@ function MenuContent() {
 
       {resultCount === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">No items found</h3>
+          <h3 className="text-xl font-semibold text-gray-300 mb-2">No items found</h3>
           <p className="text-gray-400 text-sm max-w-xs">
             {searchQuery
               ? `We couldn't find anything matching "${searchQuery}"${activeCategory !== "all" ? ` in this category` : ""}.`
@@ -203,7 +203,7 @@ function MenuContent() {
               window.history.pushState(null, "", "/menu");
               window.dispatchEvent(new PopStateEvent("popstate"));
             }}
-            className="mt-6 text-sm text-orange-600 hover:text-orange-700 font-medium underline underline-offset-4 transition-colors"
+            className="mt-6 text-sm text-orange-400 hover:text-orange-300 font-medium underline underline-offset-4 transition-colors"
           >
             Clear all filters
           </button>
@@ -213,7 +213,7 @@ function MenuContent() {
           {filtered.map((food) => (
             <div
               key={food.id}
-              className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-gray-100/50"
+              className="group bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-gray-700"
             >
               <div className="relative h-52 overflow-hidden">
                 <Image
@@ -222,7 +222,7 @@ function MenuContent() {
                   fill
                   className="object-cover group-hover:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent" />
                 {food.badge && (
                   <span className={`absolute top-3 left-3 ${getBadgeColor(food.badge)} text-white text-[10px] font-semibold px-2.5 py-1 rounded-full shadow-lg`}>
                     {food.badge}
@@ -281,20 +281,20 @@ function MenuContent() {
                     </svg>
                   </div>
                 )}
-                <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-2.5 py-1 shadow-sm">
+                <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-gray-900/90 backdrop-blur-sm rounded-full px-2.5 py-1 shadow-sm">
                   <StarRating rating={food.rating} />
-                  <span className="text-[11px] font-semibold text-gray-700 ml-0.5">{food.rating}</span>
+                  <span className="text-[11px] font-semibold text-gray-300 ml-0.5">{food.rating}</span>
                 </div>
               </div>
               <div className="p-5">
                 <div className="flex items-start justify-between gap-3 mb-2">
-                  <h3 className="font-bold text-lg leading-tight text-gray-900">
+                  <h3 className="font-bold text-lg leading-tight text-white">
                     {food.name}
                   </h3>
-                  <span className="text-lg font-bold text-orange-700 whitespace-nowrap tabular-nums">
+                  <span className="text-lg font-bold text-orange-400 whitespace-nowrap tabular-nums">
                     {food.discountedPrice < food.price ? (
                       <>
-                        <span className="text-sm line-through text-gray-400 mr-1">Rs. {food.price.toFixed(2)}</span>
+                        <span className="text-sm line-through text-gray-500 mr-1">Rs. {food.price.toFixed(2)}</span>
                         Rs. {food.discountedPrice.toFixed(2)}
                       </>
                     ) : (
@@ -306,7 +306,7 @@ function MenuContent() {
                   {food.description}
                 </p>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-300">
+                  <span className="text-xs text-gray-500">
                     {food.reviews} reviews
                   </span>
                   <button
@@ -321,6 +321,7 @@ function MenuContent() {
                           image: food.image,
                           price: food.discountedPrice,
                           originalPrice: food.discountPercent > 0 ? food.price : undefined,
+                          discountPercent: food.discountPercent > 0 ? food.discountPercent : undefined,
                           quantity: 1,
                         });
                         toast.success(`Added ${food.name} to cart`);
@@ -340,9 +341,26 @@ function MenuContent() {
 
       {/* Add-ons modal */}
       {addonModalFood && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="text-xl font-bold mb-1">{addonModalFood.name}</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="w-full max-w-md rounded-2xl bg-gray-800 p-6 shadow-xl border border-gray-700">
+            <div className="flex items-center gap-2 mb-1">
+              <h2 className="text-xl font-bold text-white">{addonModalFood.name}</h2>
+              {addonModalFood.discountPercent > 0 && (
+                <span className="inline-flex items-center rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-semibold text-green-400">
+                  -{addonModalFood.discountPercent}%
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 mb-4">
+              {addonModalFood.discountPercent > 0 ? (
+                <>
+                  <span className="text-sm text-gray-500 line-through">Rs. {addonModalFood.price.toFixed(2)}</span>
+                  <span className="text-sm font-semibold text-orange-400">Rs. {addonModalFood.discountedPrice.toFixed(2)}</span>
+                </>
+              ) : (
+                <span className="text-sm text-gray-400">Rs. {addonModalFood.price.toFixed(2)}</span>
+              )}
+            </div>
             <p className="text-sm text-gray-400 mb-4">Customize your order</p>
 
             <div className="space-y-3">
@@ -351,11 +369,11 @@ function MenuContent() {
                 return (
                   <label
                     key={idx}
-                    className={`flex items-center justify-between rounded-xl border p-4 cursor-pointer transition-colors ${isSelected ? "border-orange-400 bg-orange-50" : "border-gray-200 hover:border-gray-300"}`}
+                    className={`flex items-center justify-between rounded-xl border p-4 cursor-pointer transition-colors ${isSelected ? "border-orange-400 bg-gray-700" : "border-gray-600 hover:border-gray-500"}`}
                   >
                     <div>
-                      <p className="font-medium text-sm">{addon.name}</p>
-                      <p className="text-xs text-gray-400">+ Rs. {addon.price.toFixed(2)}</p>
+                      <p className="font-medium text-sm text-white">{addon.name}</p>
+                      <p className="text-xs text-gray-400">+ Rs. {Number(addon.price).toFixed(2)}</p>
                     </div>
                     <input
                       type="checkbox"
@@ -377,19 +395,20 @@ function MenuContent() {
             <div className="mt-6 flex gap-3 justify-end">
               <button
                 onClick={() => setAddonModalFood(null)}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                className="rounded-lg border border-gray-600 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
               >
                 Cancel
               </button>
               <button
                 onClick={() => {
-                  const addonTotal = selectedAddons.reduce((sum, a) => sum + a.price, 0);
+                  const addonTotal = selectedAddons.reduce((sum, a) => sum + Number(a.price), 0);
                   addToCart({
                     id: String(addonModalFood.id),
                     title: addonModalFood.name,
                     image: addonModalFood.image,
                     price: addonModalFood.discountedPrice + addonTotal,
                     originalPrice: addonModalFood.discountPercent > 0 ? addonModalFood.price + addonTotal : undefined,
+                    discountPercent: addonModalFood.discountPercent > 0 ? addonModalFood.discountPercent : undefined,
                     quantity: 1,
                     addons: selectedAddons,
                   });
@@ -411,27 +430,31 @@ function MenuContent() {
 
 export default function MenuPage() {
   return (
-    <Suspense fallback={
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse" />
-          <div className="h-4 w-32 bg-gray-100 rounded mt-2 animate-pulse" />
-        </div>
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-sm">
-              <div className="h-52 bg-gray-100 animate-pulse" />
-              <div className="p-5 space-y-3">
-                <div className="h-5 w-3/4 bg-gray-200 rounded animate-pulse" />
-                <div className="h-4 w-full bg-gray-100 rounded animate-pulse" />
-                <div className="h-4 w-1/2 bg-gray-100 rounded animate-pulse" />
+    <main className="bg-black min-h-screen">
+      <Suspense fallback={
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-6">
+            <div className="h-8 w-48 bg-gray-700 rounded-lg animate-pulse" />
+            <div className="h-4 w-32 bg-gray-600 rounded mt-2 animate-pulse" />
+          </div>
+          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-gray-800 rounded-2xl overflow-hidden shadow-sm">
+                <div className="h-52 bg-gray-700 animate-pulse" />
+                <div className="p-5 space-y-3">
+                  <div className="h-5 w-3/4 bg-gray-600 rounded animate-pulse" />
+                  <div className="h-4 w-full bg-gray-700 rounded animate-pulse" />
+                  <div className="h-4 w-1/2 bg-gray-600 rounded animate-pulse" />
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
-    }>
-      <MenuContent />
-    </Suspense>
+      }>
+        <div className="py-12 px-6">
+          <MenuContent />
+        </div>
+      </Suspense>
+    </main>
   );
 }

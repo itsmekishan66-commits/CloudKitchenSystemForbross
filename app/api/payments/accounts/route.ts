@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { getPaymentAccounts, createPaymentAccount, getAccountBalances } from "@/db/services/payments";
+// import { getPaymentAccounts, createPaymentAccount, getAccountBalances } from "@/db/services/payments";
+import { createPaymentAccount, getAccountBalances } from "@/db/services/payments";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
 

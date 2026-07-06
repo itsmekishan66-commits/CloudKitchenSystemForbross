@@ -20,7 +20,8 @@ import {
 import { createMenuItem, updateMenuItem, deleteMenuItem } from "@/db/services/menu-items";
 import { createInventoryItem, updateInventoryItem, deleteInventoryItem } from "@/db/services/inventory";
 import { createActivityLog } from "@/db/services/activity-logs";
-import { getDues, createDue, updateDue } from "@/db/services/payments";
+import { createDue, updateDue } from "@/db/services/payments";
+// import { getDues} from "@/db/services/payments";
 import { v4 as uuidv4 } from "uuid";
 import { eq } from "drizzle-orm";
 import { dues, type NewSupplier, type NewSupplierProduct, type NewSupplierSettlement } from "@/db/schemas";
@@ -329,7 +330,7 @@ export async function PATCH(request: Request) {
     }
 
     if (type === "settlement") {
-      const updates: Record<string, any> = {};
+      const updates: Record<string, string | null> = {};
       if (body.amount) updates.amount = body.amount.toString();
       if (body.paymentMethod !== undefined) updates.paymentMethod = cleanText(body.paymentMethod) || null;
       if (body.transactionId !== undefined) updates.transactionId = cleanText(body.transactionId) || null;
@@ -339,7 +340,8 @@ export async function PATCH(request: Request) {
       await updateSupplierSettlement(Number(id), updates);
 
       // Find supplierId to resync dues
-      const existingSettlements = await getSupplierSettlements(0); // we need a dedicated getter
+      // const existingSettlements = await getSupplierSettlements(0); 
+      await getSupplierSettlements(0); // we need a dedicated getter
       // Instead, get supplierId from the request
       if (body.supplierId) {
         await syncSupplierDue(Number(body.supplierId));

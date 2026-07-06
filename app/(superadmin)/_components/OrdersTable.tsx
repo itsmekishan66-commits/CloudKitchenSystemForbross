@@ -67,7 +67,8 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setLocalOrders(orders);
+    const t = setTimeout(() => setLocalOrders(orders), 0);
+    return () => clearTimeout(t);
   }, [orders]);
 
   const getStatusBadge = (status: string) => {
@@ -558,7 +559,9 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm mb-2 outline-none focus:border-orange-400"
                   onChange={(e) => {
                     const q = e.target.value.toLowerCase();
-                    const filtered = menuItems.filter((m) =>
+
+                    // const filtered = menuItems.filter((m) =>
+                    menuItems.filter((m) =>
                       m.title.toLowerCase().includes(q)
                     );
                   }}

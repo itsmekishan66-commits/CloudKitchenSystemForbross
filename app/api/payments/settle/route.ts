@@ -26,7 +26,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "At least one payment method or mark as due is required" }, { status: 400 });
     }
 
-    const today = new Date().toISOString().slice(0, 10);
+    // const today = new Date().toISOString().slice(0, 10);
+    new Date().toISOString().slice(0, 10);
 
     if (Number(cashAmount) > 0) {
       const txData: NewTransaction = {

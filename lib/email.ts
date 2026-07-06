@@ -51,13 +51,18 @@ export async function sendOtpEmail(name: string, email: string, otp: string) {
     to: email,
     subject: `Your ${await getSiteName()} verification code`,
     text: [
-      `Hi ${name},`,
+      `Hey beautiful/handsome ${name} 👋`,
       "",
-      `Your verification code is: ${otp}`,
+      "Ready to roll? Here's your access code:",
       "",
-      "This code expires in 10 minutes.",
+      `OTP: ${otp}`,
       "",
-      "If you did not create an account, please ignore this email.",
+      "Use it within the next 10 minutes.",
+      "",
+      "Didn't ask for this? Just ignore this message — nothing will happen.",
+      "",
+      "Welcome aboard!",
+      "Cloud Kitchen Team"
     ].join("\n"),
   });
 }

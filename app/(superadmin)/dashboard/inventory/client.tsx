@@ -15,6 +15,16 @@ interface InventoryItem {
   kitchenId: number | null;
 }
 
+interface SupplierStockItem {
+  productId: number;
+  productName: string;
+  supplierName: string;
+  purchaseUnit: string | null;
+  quantity: string;
+  minStockLevel: string;
+  unitsPerPack: string;
+}
+
 interface InventoryForm {
   name: string;
   category: string;
@@ -41,7 +51,7 @@ export default function InventoryClient() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"inventory" | "supplier-stock" | "inventory-stock">("inventory");
-  const [supplierStock, setSupplierStock] = useState<any[]>([]);
+  const [supplierStock, setSupplierStock] = useState<SupplierStockItem[]>([]);
   const [stockLoading, setStockLoading] = useState(false);
 
   //to download the file
@@ -338,7 +348,7 @@ export default function InventoryClient() {
   );
 }
 
-function SupplierStockView({ data, loading }: { data: any[]; loading: boolean }) {
+function SupplierStockView({ data, loading }: { data: SupplierStockItem[]; loading: boolean }) {
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { and, eq, sql } from "drizzle-orm";
+// import { and, eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { hashPassword } from "@/lib/auth";

@@ -160,8 +160,9 @@ export default function SuppliersClient() {
   }
 
   useEffect(() => {
-    void loadSuppliers();
-    void loadCategories();
+    const t1 = setTimeout(() => { void loadSuppliers(); }, 0);
+    const t2 = setTimeout(() => { void loadCategories(); }, 0);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
   // ---- Supplier CRUD ----
@@ -315,7 +316,7 @@ export default function SuppliersClient() {
           body: JSON.stringify({ id: editingSettlement.id, type: "settlement", supplierId: selectedSupplier!.id, amount: settlementForm.amount, settlementType: settlementForm.type, paymentMethod: settlementForm.paymentMethod, transactionId: settlementForm.transactionId, notes: settlementForm.notes }),
         });
       } else {
-        const body: any = { supplierId: selectedSupplier!.id, requestType: "settlement", type: settlementForm.type, amount: settlementForm.amount, paymentMethod: settlementForm.paymentMethod, transactionId: settlementForm.transactionId, notes: settlementForm.notes };
+        const body: Record<string, string | number> = { supplierId: selectedSupplier!.id, requestType: "settlement", type: settlementForm.type, amount: settlementForm.amount, paymentMethod: settlementForm.paymentMethod, transactionId: settlementForm.transactionId, notes: settlementForm.notes };
         if (settlementForm.type === "purchase" && Number(settlementForm.paidNow) > 0) {
           body.paidNow = settlementForm.paidNow;
         }

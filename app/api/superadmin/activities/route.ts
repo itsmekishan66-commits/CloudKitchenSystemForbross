@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
-import { getActivityLogs, createActivityLog } from "@/db/services/activity-logs";
+// import { getActivityLogs, createActivityLog } from "@/db/services/activity-logs";
+import { getActivityLogs } from "@/db/services/activity-logs";
 
 export const dynamic = "force-dynamic";
 

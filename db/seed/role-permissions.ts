@@ -2,7 +2,8 @@ import "../../envConfig";
 
 import { db } from "@/db";
 import { roles, permissions, rolePermissions } from "@/db/schemas";
-import { eq, inArray } from "drizzle-orm";
+// import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 const rolePermissionMap: Record<string, string[]> = {
   "super-admin": [

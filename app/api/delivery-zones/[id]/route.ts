@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { updateZone, toggleZoneStatus, deleteZone, getZoneById, } from "@/db/services/delivery-zones";
+// import { updateZone, toggleZoneStatus, deleteZone, getZoneById, } from "@/db/services/delivery-zones";
+import { updateZone, toggleZoneStatus, deleteZone,} from "@/db/services/delivery-zones";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
 

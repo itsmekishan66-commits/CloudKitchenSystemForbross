@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CreditCard, IndianRupee, Calendar, Banknote } from "lucide-react";
 
 type Order = {
   id: number;
@@ -23,9 +22,9 @@ export default function PaymentsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const totalSpent = payments.reduce((sum, p) => sum + Number(p.total), 0);
-  const codCount = payments.filter((p) => p.paymentMethod === "COD").length;
-  const onlineCount = payments.filter((p) => p.paymentMethod === "ONLINE").length;
+  // const totalSpent = payments.reduce((sum, p) => sum + Number(p.total), 0);
+  // const codCount = payments.filter((p) => p.paymentMethod === "COD").length;
+  // const onlineCount = payments.filter((p) => p.paymentMethod === "ONLINE").length;
 
   if (loading) {
     return (

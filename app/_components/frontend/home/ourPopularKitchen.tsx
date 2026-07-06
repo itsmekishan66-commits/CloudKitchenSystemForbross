@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { ImGift } from "react-icons/im";
+// import { ImGift } from "react-icons/im";
 // import { ChevronLeft, ChevronRight } from "lucide-react";
 // import Link from "next/link";
 
@@ -16,7 +16,7 @@ export default function PopularKitchens() {
         if (!data.error && data.siteName) setSiteName(data.siteName);
       })
       .catch(() => { });
-  }, []);
+  },[]);
 
   const kitchens = [
     {
@@ -68,7 +68,7 @@ export default function PopularKitchens() {
     }
   };
 
-  const current = kitchens[currentIndex];
+  // const current = kitchens[currentIndex];
 
   // this is the function that will be called when the user clicks the button
   return (

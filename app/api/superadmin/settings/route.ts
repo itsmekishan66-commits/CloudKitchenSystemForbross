@@ -13,7 +13,7 @@ export async function GET() {
     const user = await apiRequirePermissions(PERMISSIONS.VIEW_SETTINGS);
     if (user instanceof NextResponse) return user;
 
-    let site = await getSiteSettings();
+    const site = await getSiteSettings();
 
     return NextResponse.json({
       appName: site?.siteName ?? process.env.APP_NAME ?? "Cloud Kitchen",

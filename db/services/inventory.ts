@@ -1,4 +1,5 @@
-import { asc, desc, eq } from "drizzle-orm";
+// import { asc, desc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { inventoryItems, type NewInventoryItem } from "@/db/schemas";

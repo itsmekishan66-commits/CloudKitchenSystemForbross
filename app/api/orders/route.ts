@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import {createOrder,getOrdersWithDetails,updateOrderStatus,} from "@/db/services/orders";
+import { createOrder, getOrdersWithDetails, updateOrderStatus, } from "@/db/services/orders";
 import { getActivePromotionByCode, incrementPromotionUsage } from "@/db/services/promotions";
 import { createUser } from "@/db/services/users";
 import { db } from "@/db";
@@ -119,7 +119,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let deliverySavings = 0;
+  const deliverySavings = 0;
   let zone: DeliveryZone | null = null;
   if (zoneId) {
     const { getZoneById } = await import("@/db/services/delivery-zones");
@@ -131,7 +131,8 @@ export async function POST(request: Request) {
       );
     }
     const expectedCharge = Number(zone.deliveryCharge);
-    deliverySavings = Math.max(0, expectedCharge - deliveryCharge);
+    // deliverySavings = Math.max(0, expectedCharge - deliveryCharge);
+    Math.max(0, expectedCharge - deliveryCharge);
     // Calculate items subtotal (excl delivery) for min order check
     const itemsSubtotal = items.reduce((s, item) => s + item.price * item.quantity, 0);
     const effectiveCharge =
@@ -164,7 +165,8 @@ export async function POST(request: Request) {
       userId = guestId;
     }
 
-    const itemSavings = items.reduce((sum, item) => {
+    // const itemSavings = items.reduce((sum, item) => {
+    items.reduce((sum, item) => {
       if (!item.originalPrice) return sum;
       const addonTotal = (item.addons || []).reduce((s, a) => s + a.price, 0);
       const discountedItemPrice = item.price - addonTotal;

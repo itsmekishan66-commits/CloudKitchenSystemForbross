@@ -1,4 +1,4 @@
-import type { User } from "@/db/schemas";
+// import type { User } from "@/db/schemas";
 export type { User, NewUser } from "@/db/schemas";
 export type { Order, NewOrder, OrderItem, NewOrderItem } from "@/db/schemas";
 export type { MenuItem, NewMenuItem } from "@/db/schemas";

@@ -169,7 +169,7 @@ function MenuContent() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-9xl mx-auto">
       <div className="flex items-center justify-between mb-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white">
@@ -451,7 +451,7 @@ export default function MenuPage() {
           </div>
         </div>
       }>
-        <div className="py-12 px-6">
+        <div className="py-2 px-1">
           <MenuContent />
         </div>
       </Suspense>

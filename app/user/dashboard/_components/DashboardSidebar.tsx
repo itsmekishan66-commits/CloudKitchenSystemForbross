@@ -35,11 +35,14 @@ export default function DashboardSidebar() {
   const sidebarContent = (
     <div className="flex gap-4 flex-col h-full w-full">
       <div className="p-6 border-b border-zinc-800">
-        <Link href="/user/dashboard">
+       <div className={`${mobileOpen ? "mt-8! xl:mt-0!" : "block"}`}>
+         <Link href="/user/dashboard" >
           <h2 className="text-2xl font-bold bg-linear-to-r from-orange-400 to-orange-500 bg-clip-text text-transparent">
-            {siteName}
+            {/* {mobileOpen ? siteName : siteName.slice(0, 1)} */}
+            {siteName }
           </h2>
         </Link>
+       </div>
         <p className="text-xs text-zinc-400 mt-1">User Dashboard</p>
       </div>
 
@@ -61,7 +64,8 @@ export default function DashboardSidebar() {
                   }`}
               >
                 <Icon size={20} />
-                <span>{menu.name}</span>
+                <span >{menu.name}</span>
+                {/* <span className={mobileOpen ? `inline-block` : `md:hidden lg:inline-block`}>{menu.name}</span> */}
               </div>
             </Link>
           );
@@ -78,7 +82,7 @@ export default function DashboardSidebar() {
           className="flex items-center gap-3 w-full p-3 rounded-xl text-zinc-400 hover:bg-red-900/30 hover:text-red-400 transition-all duration-200"
         >
           <LogOut size={20} />
-          <span>Logout</span>
+          <span >Logout</span>
         </button>
       </div>
     </div>
@@ -88,9 +92,9 @@ export default function DashboardSidebar() {
     <>
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
-        className="md:hidden fixed top-4 left-4 z-50 bg-zinc-800 p-2.5 rounded-xl shadow-lg"
+        className={`md:hidden fixed top-4 left-4 z-50 bg-zinc-800 p-2.5 rounded-xl shadow-lg`}
       >
-        {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+        {mobileOpen ? <X size={22} className="text-orange-500" /> : <Menu size={22} className="text-orange-500" />}
       </button>
 
       {mobileOpen && (
@@ -101,7 +105,7 @@ export default function DashboardSidebar() {
       )}
 
       <aside
-        className={`fixed md:sticky top-0 left-0 z-40 h-screen w-74 bg-zinc-900 border-r border-zinc-800 shadow-lg transform transition-transform duration-300 ${mobileOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed md:sticky top-0 left-0 z-40 h-screen ${mobileOpen ? "w-74" : "w-74 md:w-auto xl:w-74"} bg-zinc-900 border-r border-zinc-800 shadow-lg transform transition-transform duration-300 ${mobileOpen ? "translate-x-0" : "-translate-x-full"
           } md:translate-x-0`}
       >
         {sidebarContent}

@@ -2,23 +2,23 @@
 
 import { useEffect, useState } from "react";
 
-type Order = {
-  id: number;
-  total: string;
-  paymentMethod: string;
-  status: string;
-  createdAt: string;
-};
+// type Order = {
+//   id: number;
+//   total: string;
+//   paymentMethod: string;
+//   status: string;
+//   createdAt: string;
+// };
 
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState<Order[]>([]);
+  // const [payments, setPayments] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/user/orders")
       .then((res) => res.json())
-      .then((data) => setPayments(data.orders ?? []))
-      .catch(() => setPayments([]))
+      // .then((data) => setPayments(data.orders ?? []))
+      // .catch(() => setPayments([]))
       .finally(() => setLoading(false));
   }, []);
 

@@ -16,7 +16,7 @@ const iconMap: Record<string, React.ReactNode> = {
 };
 
 export default async function AboutPage() {
-  const { siteName, aboutContent } = await getSiteSettings();
+  const { aboutContent } = await getSiteSettings();
 
   const a = aboutContent as Record<string, unknown>;
   const heroBadge = (a.heroBadge as string) || "Nepal's Favorite Cloud Kitchen";

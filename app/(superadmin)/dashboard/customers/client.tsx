@@ -45,7 +45,6 @@ export default function CustomersClient() {
   const router = useRouter();
   
   //to download the file
-  const [open, setOpen] = useState(false);
    const handleDownload = (type: string) => {
     if (type) {
       window.open(`/api/exports/${type}?source=users`, "_blank");
@@ -191,7 +190,7 @@ export default function CustomersClient() {
         <h1 className="text-2xl font-bold">Customers & Users <span className="text-base font-normal text-gray-400 ml-2">({users.length} {filter === "" ? "total" : filter})</span></h1>
         <div className="flex items-center justify-end gap-4">
           {can("DOWNLOAD_USERS") && (
-          <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+          <button className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
             <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
               <option className="text-black" value="">Export</option>
               <option className="text-black" value="pdf">PDF</option>

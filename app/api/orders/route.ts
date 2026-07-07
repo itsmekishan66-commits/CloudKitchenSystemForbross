@@ -119,7 +119,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const deliverySavings = 0;
+  // const deliverySavings = 0;
   let zone: DeliveryZone | null = null;
   if (zoneId) {
     const { getZoneById } = await import("@/db/services/delivery-zones");

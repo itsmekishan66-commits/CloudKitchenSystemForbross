@@ -204,7 +204,7 @@ export default function PaymentPage() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
 
-  const [open, setOpen] = useState(false);
+  // const [open, setOpen] = useState(false);
   const handleDownload = (type: string) => {
     if (type) {
       window.open(`/api/exports/${type}?source=payment`, "_blank");
@@ -258,9 +258,9 @@ export default function PaymentPage() {
   const PER_PAGE = 10;
 
   const [showForm, setShowForm] = useState(false);
-  const [showSupplierForm, setShowSupplierForm] = useState(false);
+  // const [showSupplierForm, setShowSupplierForm] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const filterStatus = useMemo(() => "all",[]);
   const [txPage, setTxPage] = useState(1);
   const [receivablePage, setReceivablePage] = useState(1);
   const [duesPage, setDuesPage] = useState(1);
@@ -354,7 +354,7 @@ export default function PaymentPage() {
       setTransactions((prev) => [newTx, ...prev]);
       setForm({ type: "cash_received", amount: "", person: "", method: "cash", txId: "", notes: "" });
       setShowForm(false);
-      setShowSupplierForm(false);
+      // setShowSupplierForm(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to add transaction";
       setMessage(msg);
@@ -362,37 +362,37 @@ export default function PaymentPage() {
     }
   }
 
-  async function settleDue(id: string, amount: number) {
-    let updated: Due | undefined;
-    const next = dues.map((d) => {
-      if (d.id !== id) return d;
-      const newPaid = Math.min(d.paid + amount, d.totalDue);
-      const newRemaining = d.totalDue - newPaid;
-      const newStatus = newRemaining === 0 ? "paid" : newPaid > 0 ? "partial" : "pending";
-      updated = { ...d, paid: newPaid, remaining: newRemaining, status: newStatus };
-      return updated;
-    });
+  // async function settleDue(id: string, amount: number) {
+  //   let updated: Due | undefined;
+  //   const next = dues.map((d) => {
+  //     if (d.id !== id) return d;
+  //     const newPaid = Math.min(d.paid + amount, d.totalDue);
+  //     const newRemaining = d.totalDue - newPaid;
+  //     const newStatus = newRemaining === 0 ? "paid" : newPaid > 0 ? "partial" : "pending";
+  //     updated = { ...d, paid: newPaid, remaining: newRemaining, status: newStatus };
+  //     return updated;
+  //   });
 
-    if (!updated) return;
+  //   if (!updated) return;
 
-    try {
-      const res = await fetch("/api/payments", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          _kind: "settle_due",
-          id,
-          paid: updated.paid,
-          remaining: updated.remaining,
-          status: updated.status,
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to settle due");
-      setDues(next);
-    } catch (err) {
-      console.error("Failed to settle due", err);
-    }
-  }
+  //   try {
+  //     const res = await fetch("/api/payments", {
+  //       method: "PATCH",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({
+  //         _kind: "settle_due",
+  //         id,
+  //         paid: updated.paid,
+  //         remaining: updated.remaining,
+  //         status: updated.status,
+  //       }),
+  //     });
+  //     if (!res.ok) throw new Error("Failed to settle due");
+  //     setDues(next);
+  //   } catch (err) {
+  //     console.error("Failed to settle due", err);
+  //   }
+  // }
 
   const emptyAccountForm = { accountName: "", holderName: "", method: "esewa", accountNumber: "", phoneNumber: "", bankName: "", branch: "", openingBalance: "", qrCode: "", notes: "" };
 
@@ -568,7 +568,7 @@ export default function PaymentPage() {
             {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
           </div>
           {can("DOWNLOAD_PAYMENTS") && (
-            <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+            <button className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
               <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
                 <option className="text-black" value="">Export</option>
                 <option className="text-black" value="pdf">PDF</option>

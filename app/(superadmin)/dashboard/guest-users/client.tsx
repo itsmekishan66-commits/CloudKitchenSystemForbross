@@ -22,7 +22,6 @@ export default function GuestUsersClient() {
   const [search, setSearch] = useState("");
 
   //to download the file
-  const [open, setOpen] = useState(false);
    const handleDownload = (type: string) => {
     if (type) {
       window.open(`/api/exports/${type}?source=guest-users`, "_blank");
@@ -74,7 +73,7 @@ export default function GuestUsersClient() {
         </div>
         <div className="flex items-center justify-end gap-4">
           {can("DOWNLOAD_GUEST_USERS") && (
-          <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+          <button className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
             <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
               <option className="text-black" value="">Export</option>
               <option className="text-black" value="pdf">PDF</option>

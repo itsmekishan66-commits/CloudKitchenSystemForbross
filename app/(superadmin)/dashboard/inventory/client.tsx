@@ -49,7 +49,6 @@ export default function InventoryClient() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"inventory" | "supplier-stock" | "inventory-stock">("inventory");
   const [supplierStock, setSupplierStock] = useState<SupplierStockItem[]>([]);
   const [stockLoading, setStockLoading] = useState(false);
@@ -201,7 +200,7 @@ export default function InventoryClient() {
         <h1 className="text-2xl font-bold">Inventory</h1>
         <div className="flex items-center justify-end gap-4">
           {can("DOWNLOAD_INVENTORY") && (
-          <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+          <button className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
             <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
               <option value="">Export</option>
               <option className="text-black" value="pdf">PDF</option>

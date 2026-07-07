@@ -32,10 +32,10 @@ const DashboardPage = async () => {
   const userPermissions = await getUserPermissions(user.id);
   const useDbPermissions = userPermissions.length > 0;
   const allowedModules = Object.entries(modulePermissions)
-    .filter(([_, perm]) =>
+    .filter((permission) =>
       useDbPermissions
-        ? userPermissions.includes(perm)
-        : hasPermission(user.role as Role, perm as Permission),
+        ? userPermissions.includes(permission[1])
+        : hasPermission(user.role as Role, permission[1] as Permission),
     )
     .map(([href]) => href);
 

@@ -439,7 +439,7 @@ export default function SuppliersClient() {
                 <tbody>
                   {products.map((p) => {
                     const unitsPerPack = p.unitsPerPack ?? 1;
-                    const costPerPiece = Number(p.costPrice) / unitsPerPack;
+                    // const costPerPiece = Number(p.costPrice) / unitsPerPack;
                     const packLabel = p.productType === "direct_sellable"
                       ? `${p.purchaseUnit || "Carton"} × ${unitsPerPack} ${p.sellUnit || "Piece"}(s)`
                       : `${p.purchaseUnit || "Carton"} × ${unitsPerPack}`;

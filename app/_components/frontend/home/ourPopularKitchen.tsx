@@ -1,72 +1,72 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState, useCallback, useRef } from "react";
+// import { useState, useCallback, useRef } from "react";
 // import { ImGift } from "react-icons/im";
 // import { ChevronLeft, ChevronRight } from "lucide-react";
 // import Link from "next/link";
 
 export default function PopularKitchens() {
-  const [siteName, setSiteName] = useState("Cloud Kitchen");
+  // const [siteName, setSiteName] = useState("Cloud Kitchen");
 
-  useEffect(() => {
-    fetch("/api/site-settings")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.error && data.siteName) setSiteName(data.siteName);
-      })
-      .catch(() => { });
-  },[]);
+  // useEffect(() => {
+  //   fetch("/api/site-settings")
+  //     .then((res) => res.json())
+  //     .then((data) => {
+  //       if (!data.error && data.siteName) setSiteName(data.siteName);
+  //     })
+  //     .catch(() => { });
+  // },[]);
 
-  const kitchens = [
-    {
-      name: "Urban Slice",
-      category: "ARTISAN PIZZA",
-      image:
-        "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800",
-    },
-    {
-      name: "Green Root",
-      category: "HEALTHY BOWLS",
-      image:
-        "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800",
-    },
-    {
-      name: "Taco Theory",
-      category: "MEXICAN STREET FOOD",
-      image:
-        "https://images.unsplash.com/photo-1552332386-f8dd00dc2f85?w=800",
-    },
-    {
-      name: "Silk Road",
-      category: "PAN-ASIAN FUSION",
-      image:
-        "https://images.unsplash.com/photo-1557872943-16a5ac26437e?w=800",
-    },
-  ];
+  // const kitchens = [
+  //   {
+  //     name: "Urban Slice",
+  //     category: "ARTISAN PIZZA",
+  //     image:
+  //       "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800",
+  //   },
+  //   {
+  //     name: "Green Root",
+  //     category: "HEALTHY BOWLS",
+  //     image:
+  //       "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800",
+  //   },
+  //   {
+  //     name: "Taco Theory",
+  //     category: "MEXICAN STREET FOOD",
+  //     image:
+  //       "https://images.unsplash.com/photo-1552332386-f8dd00dc2f85?w=800",
+  //   },
+  //   {
+  //     name: "Silk Road",
+  //     category: "PAN-ASIAN FUSION",
+  //     image:
+  //       "https://images.unsplash.com/photo-1557872943-16a5ac26437e?w=800",
+  //   },
+  // ];
 
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const touchX = useRef(0);
+  // const [currentIndex, setCurrentIndex] = useState(0);
+  // const touchX = useRef(0);
 
-  const goNext = useCallback(() => {
-    setCurrentIndex((prev) => (prev + 1) % kitchens.length);
-  }, [kitchens.length]);
+  // const goNext = useCallback(() => {
+  //   setCurrentIndex((prev) => (prev + 1) % kitchens.length);
+  // }, [kitchens.length]);
 
-  const goPrev = useCallback(() => {
-    setCurrentIndex((prev) => (prev - 1 + kitchens.length) % kitchens.length);
-  }, [kitchens.length]);
+  // const goPrev = useCallback(() => {
+  //   setCurrentIndex((prev) => (prev - 1 + kitchens.length) % kitchens.length);
+  // }, [kitchens.length]);
 
   // const handleTouchStart = (e: React.TouchEvent) => {
   //   touchX.current = e.touches[0].clientX;
   // };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const diff = touchX.current - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 50) {
-      if (diff > 0) goNext();
-      else goPrev();
-    }
-  };
+  // const handleTouchEnd = (e: React.TouchEvent) => {
+  //   const diff = touchX.current - e.changedTouches[0].clientX;
+  //   if (Math.abs(diff) > 50) {
+  //     if (diff > 0) goNext();
+  //     else goPrev();
+  //   }
+  // };
 
   // const current = kitchens[currentIndex];
 

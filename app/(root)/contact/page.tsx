@@ -8,8 +8,8 @@ import { getSiteSettings } from "@/lib/get-site-settings";
 import ContactForm from "./ContactForm";
 
 export default async function ContactPage() {
-  const { siteName, contactEmail, contactPhone, location, contactContent } =
-    await getSiteSettings();
+  // const { siteName, contactEmail, contactPhone, location, contactContent } = await getSiteSettings();
+  const { contactEmail, contactPhone, location, contactContent } = await getSiteSettings();
 
   const c = (contactContent as Record<string, unknown>) || {};
   const heroHeading = (c.heroHeading as string) || "We'd Love To";

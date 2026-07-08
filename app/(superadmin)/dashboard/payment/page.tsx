@@ -50,6 +50,7 @@ interface Transaction {
 interface Due {
   id: string;
   personName: string;
+  orderId?: number | null;
   role: "customer" | "supplier" | "staff";
   totalDue: number;
   paid: number;
@@ -668,7 +669,7 @@ export default function PaymentPage() {
                 <p className="text-xs text-gray-400">{accounts.length} accounts</p>
               </div>
             </div>
-            <a href="/dashboard/payment/accounts" className="text-xs font-medium text-orange-600 hover:text-orange-700">
+            <a href="/dashboard/payment/accounts" className="text-xs font-medium text-orange-600">
               Manage →
             </a>
           </div>
@@ -877,7 +878,7 @@ export default function PaymentPage() {
                   <div key={d.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors group">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium truncate">{d.personName}</span>
+                        <span className="text-sm font-medium truncate">{d.orderId ? `${d.personName} (Order #${d.orderId})` : d.personName}</span>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${sc.color} ${sc.bg}`}>{sc.label}</span>
                       </div>
                       <div className="flex items-center gap-2 mt-1">
@@ -1041,7 +1042,7 @@ export default function PaymentPage() {
                           <div className="w-8 h-8 rounded-full bg-linear-to-br from-emerald-100 to-emerald-200 flex items-center justify-center text-xs font-bold text-emerald-700">
                             {d.personName.charAt(0)}
                           </div>
-                          <span className="text-sm font-medium">{d.personName}</span>
+                          <span className="text-sm font-medium">{d.orderId ? `${d.personName} (Order #${d.orderId})` : d.personName}</span>
                         </div>
                       </td>
                       <td className="px-5 py-4 text-sm font-semibold">Rs {d.totalDue.toLocaleString()}</td>
@@ -1125,7 +1126,7 @@ export default function PaymentPage() {
                           <div className="w-8 h-8 rounded-full bg-linear-to-br from-amber-100 to-amber-200 flex items-center justify-center text-xs font-bold text-amber-700">
                             {d.personName.charAt(0)}
                           </div>
-                          <span className="text-sm font-medium">{d.personName}</span>
+                          <span className="text-sm font-medium">{d.orderId ? `${d.personName} (Order #${d.orderId})` : d.personName}</span>
                         </div>
                       </td>
                       <td className="px-5 py-4 text-sm font-semibold">Rs {d.totalDue.toLocaleString()}</td>
@@ -1255,16 +1256,16 @@ export default function PaymentPage() {
                       </td>
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => toggleAccountStatus(account)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors" title={account.status === "active" ? "Deactivate" : "Activate"}>
+                          <button onClick={() => toggleAccountStatus(account)} className="p-1.5 rounded-lg transition-colors" title={account.status === "active" ? "Deactivate" : "Activate"}>
                             <Power size={14} className={account.status === "active" ? "text-green-600" : "text-gray-400"} />
                           </button>
                           {can("UPDATE_PAYMENTS") && (
-                            <button onClick={() => openEditAccount(account)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors" title="Edit">
+                             <button onClick={() => openEditAccount(account)} className="p-1.5 rounded-lg transition-colors" title="Edit">
                               <Edit size={14} className="text-gray-500" />
                             </button>
                           )}
                           {can("DELETE_PAYMENTS") && (
-                            <button onClick={() => setConfirmDeleteAccount(account)} className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                             <button onClick={() => setConfirmDeleteAccount(account)} className="p-1.5 rounded-lg transition-colors" title="Delete">
                               <Trash2 size={14} className="text-red-400" />
                             </button>
                           )}
@@ -1341,7 +1342,7 @@ export default function PaymentPage() {
                 {accountForm.qrCode ? (
                   <div className="relative inline-block">
                     <img src={accountForm.qrCode} alt="QR Code" className="w-32 h-32 object-contain rounded-xl border border-gray-200" />
-                    <button type="button" onClick={() => setAccountForm({ ...accountForm, qrCode: "" })} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"><X size={12} /></button>
+                    <button type="button" onClick={() => setAccountForm({ ...accountForm, qrCode: "" })} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center"><X size={12} /></button>
                   </div>
                 ) : (
                   <label className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-orange-400 transition-colors">
@@ -1372,7 +1373,7 @@ export default function PaymentPage() {
             <p className="text-sm text-gray-600 mb-6">Are you sure you want to delete <strong>{confirmDeleteAccount.accountName}</strong>?</p>
             <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
               <button onClick={() => setConfirmDeleteAccount(null)} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
-              <button onClick={handleDeleteAccount} className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white hover:bg-red-600">Delete</button>
+              <button onClick={handleDeleteAccount} className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white">Delete</button>
             </div>
           </div>
         </div>

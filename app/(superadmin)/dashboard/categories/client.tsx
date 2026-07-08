@@ -179,8 +179,8 @@ export default function CategoriesClient() {
                     </span>
                   </td>
                   <td className="flex p-4 gap-4">
-                    {can("UPDATE_CATEGORIES") && <button onClick={() => openEdit(cat)} className="mr-2 rounded text-blue-500 text-sm hover:bg-blue-600"><Edit size={22} /></button>}
-                    {can("DELETE_CATEGORIES") && <button onClick={() => handleDelete(cat.id)} className="rounded text-red-500 text-sm hover:bg-red-600"><Trash2 size={22} /></button>}
+                    {can("UPDATE_CATEGORIES") && <button onClick={() => openEdit(cat)} className="mr-2 rounded text-blue-500 text-sm"><Edit size={22} /></button>}
+                    {can("DELETE_CATEGORIES") && <button onClick={() => handleDelete(cat.id)} className="rounded text-red-500 text-sm"><Trash2 size={22} /></button>}
                   </td>
                 </tr>
               ))

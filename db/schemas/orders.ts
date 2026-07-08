@@ -1,4 +1,4 @@
-import { boolean, decimal, int, json, mysqlEnum, mysqlTable, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { boolean, decimal, int, json, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 import { menuItems } from "./menu-items";
 import { users } from "./users";
 
@@ -17,6 +17,7 @@ export const orders = mysqlTable("orders", {
   discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).notNull().default("0"),
   dueAmount: decimal("due_amount", { precision: 10, scale: 2 }).notNull().default("0"),
   paymentSettled: boolean("payment_settled").default(false),
+  notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
 });

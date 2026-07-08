@@ -279,8 +279,8 @@ export default function InventoryClient() {
                       <td className="p-4 text-gray-500">{item.minStockLevel} {item.unit}</td>
                       <td className="p-4">Rs.{item.pricePerUnit}</td>
                       <td className="flex p-4 gap-4">
-                        {can("UPDATE_INVENTORY") && <button onClick={() => openEdit(item)} className="rounded text-blue-500 text-sm hover:bg-blue-600"><Edit size={22} /></button>}
-                        {can("DELETE_INVENTORY") && <button onClick={() => handleDelete(item.id)} className="rounded text-red-500 text-sm hover:bg-red-600"><Trash2 size={22} /></button>}
+                        {can("UPDATE_INVENTORY") && <button onClick={() => openEdit(item)} className="rounded text-blue-500 text-sm"><Edit size={22} /></button>}
+                        {can("DELETE_INVENTORY") && <button onClick={() => handleDelete(item.id)} className="rounded text-red-500 text-sm"><Trash2 size={22} /></button>}
                       </td>
                     </tr>
                   );

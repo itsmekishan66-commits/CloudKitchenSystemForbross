@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useRouter } from "next/navigation";
+import { useConfirm } from "@/app/_components/ConfirmPopup";
 
 interface OrderItem {
   id: number;
@@ -34,6 +35,7 @@ interface Order {
   landmarkName?: string;
   status: string;
   paymentSettled?: number | boolean | null;
+  notes?: string | null;
   previousDues?: number;
   userCreditBalance?: number;
   createdAt: Date | string;
@@ -53,6 +55,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
   const router = useRouter();
+  const confirm = useConfirm();
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error">("success");
   const [localOrders, setLocalOrders] = useState(orders);
@@ -254,13 +257,25 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                 )}
               </div>
               <div className="flex items-center gap-3 flex-wrap">
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(order.status)}`}>
-                  {order.status}
-                </span>
-                {can("UPDATE_ORDERS") ? (
+                {can("UPDATE_ORDERS") && order.status !== "Delivered" && order.status !== "Cancelled" ? (
                   <select
                     value={order.status}
-                    onChange={(event) => updateStatus(order.id, event.target.value)}
+                    onChange={async (event) => {
+                      const newStatus = event.target.value;
+                      if ((newStatus === "Delivered" || newStatus === "Cancelled") && order.status !== newStatus) {
+                        const ok = await confirm({
+                          title: `Mark as ${newStatus}?`,
+                          message: `This action cannot be undone. Are you sure you want to mark this order as "${newStatus}"?`,
+                          confirmText: `Yes, ${newStatus}`,
+                          variant: "warning",
+                        });
+                        if (!ok) {
+                          (event.target as HTMLSelectElement).value = order.status;
+                          return;
+                        }
+                      }
+                      updateStatus(order.id, newStatus);
+                    }}
                     className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-300"
                   >
                     <option value="Pending">Pending</option>
@@ -278,7 +293,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   Number(order.dueAmount ?? 0) > 0 ? (
                     <button
                       onClick={() => router.push(`/dashboard/payment/settle/${order.id}`)}
-                      className="text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg px-3 py-1.5 transition-colors cursor-pointer"
+                      className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 transition-colors cursor-pointer"
                     >
                       Due Rs {Number(order.dueAmount ?? 0).toFixed(2)}
                     </button>
@@ -289,7 +304,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   ) : (
                     <button
                       onClick={() => router.push(`/dashboard/payment/settle/${order.id}`)}
-                      className="text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg px-3 py-1.5 transition-colors"
+                      className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5 transition-colors"
                     >
                       Not Settled
                     </button>
@@ -311,6 +326,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   {order.landmarkName && <p><span className="text-gray-400">Landmark:</span> {order.landmarkName}</p>}
                   {order.userEmail && <p><span className="text-gray-400">Email:</span> {order.userEmail}</p>}
                   <p><span className="text-gray-400">Payment:</span> {order.paymentMethod}</p>
+                  {order.notes && <p><span className="text-gray-400">Note:</span> {order.notes}</p>}
                   {!order.isGuest && order.userId && Number(order.userCreditBalance || 0) > 0 && (
                     <p><span className="text-gray-400">Credit:</span> Rs {Number(order.userCreditBalance).toFixed(2)}</p>
                   )}
@@ -323,7 +339,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   {order.status !== "Delivered" && order.status !== "Cancelled" && can("UPDATE_ORDERS") && (
                     <button
                       onClick={() => openAddItem(order)}
-                      className="text-xs font-medium text-orange-600 hover:text-orange-700"
+                      className="text-xs font-medium text-orange-600"
                     >
                       + Add Item
                     </button>
@@ -400,7 +416,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                             <td className="py-1.5 text-right">
                               <button
                                 onClick={() => setConfirmDelete({ itemId: item.id, orderId: order.id, title: item.title })}
-                                className="text-red-400 hover:text-red-600 text-xs"
+                                className="text-red-400 text-xs"
                               >
                                 ✕
                               </button>
@@ -478,7 +494,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   deleteItem(confirmDelete.itemId, confirmDelete.orderId);
                   setConfirmDelete(null);
                 }}
-                className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white hover:bg-red-600"
+                className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white"
               >
                 Remove
               </button>

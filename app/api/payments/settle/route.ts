@@ -77,9 +77,12 @@ export async function POST(request: Request) {
     const remainingDue = Math.max(0, Number(payload.dueAmount) || 0);
 
     if (markAsDue && remainingDue > 0) {
+      const [orderRecord] = await db.select().from(orders).where(eq(orders.id, Number(orderId))).limit(1);
+      const customerName = duePersonName || orderRecord?.customerName || `Order #${orderId}`;
       const dueData: NewDue = {
         id: crypto.randomUUID(),
-        personName: duePersonName || `Order #${orderId} Customer`,
+        personName: customerName,
+        orderId: Number(orderId),
         role: dueRole || "customer",
         totalDue: String(remainingDue),
         paid: "0",
@@ -93,7 +96,7 @@ export async function POST(request: Request) {
 
       const allDues = await getDues();
       const orderDue = allDues.find(
-        (d) => d.personName === `Order #${orderId}` && d.role === "customer" && Number(d.remaining) > 0
+        (d) => d.orderId === Number(orderId) || (d.personName === `Order #${orderId}` && d.role === "customer") && Number(d.remaining) > 0
       );
       if (orderDue) {
         const paidNow = totalReceived + discountAmount;

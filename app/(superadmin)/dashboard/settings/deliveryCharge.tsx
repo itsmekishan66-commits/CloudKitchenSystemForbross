@@ -257,7 +257,7 @@ export default function DeliveryZonesClient() {
                                                         )}
                                                         {can("DELETE_SETTINGS") && (
                                                             <button onClick={() => handleDelete(zone)}
-                                                                className="rounded-md bg-red-500 px-4 py-1.5 text-sm text-white hover:bg-red-600"
+                                                                className="rounded-md bg-red-500 px-4 py-1.5 text-sm text-white"
                                                             >Delete
                                                             </button>
                                                         )}
@@ -392,7 +392,7 @@ export default function DeliveryZonesClient() {
                             </button>
                             <button
                                 onClick={confirmDelete}
-                                className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-600"
+                                className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-medium text-white"
                             >
                                 Delete
                             </button>

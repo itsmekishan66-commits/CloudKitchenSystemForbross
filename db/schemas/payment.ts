@@ -1,4 +1,4 @@
-import { mysqlTable, varchar, decimal, timestamp, mysqlEnum, text } from "drizzle-orm/mysql-core";
+import { int, mysqlTable, varchar, decimal, timestamp, mysqlEnum, text } from "drizzle-orm/mysql-core";
 
 export const transactions = mysqlTable("transactions", {
     id: varchar("id", { length: 36 }).primaryKey(),
@@ -19,6 +19,7 @@ export const transactions = mysqlTable("transactions", {
 export const dues = mysqlTable("dues", {
     id: varchar("id", { length: 36 }).primaryKey(),
     personName: varchar("person_name", { length: 255 }).notNull(),
+    orderId: int("order_id"),
     role: mysqlEnum("role", ["customer", "supplier", "staff"]).notNull(),
     totalDue: decimal("total_due", { precision: 10, scale: 2 }).notNull().default("0"),
     paid: decimal("paid", { precision: 10, scale: 2 }).notNull().default("0"),

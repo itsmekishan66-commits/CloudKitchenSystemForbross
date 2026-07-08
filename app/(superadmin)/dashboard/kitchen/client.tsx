@@ -212,8 +212,8 @@ if (loading) {
                     </span>
                   </td>
                   <td className="flex p-4 gap-4">
-                    {can("UPDATE_KITCHENS") && <button onClick={() => openEdit(kitchen)} className="rounded text-blue-500 text-sm hover:bg-blue-600"><Edit size={22} /></button>}
-                    {can("DELETE_KITCHENS") && <button onClick={() => handleDelete(kitchen.id)} className="rounded text-red-500 text-sm hover:bg-red-600"><Trash2 size={22} /></button>}
+                    {can("UPDATE_KITCHENS") && <button onClick={() => openEdit(kitchen)} className="rounded text-blue-500 text-sm"><Edit size={22} /></button>}
+                    {can("DELETE_KITCHENS") && <button onClick={() => handleDelete(kitchen.id)} className="rounded text-red-500 text-sm"><Trash2 size={22} /></button>}
                   </td>
                 </tr>
               ))

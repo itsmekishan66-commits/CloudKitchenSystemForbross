@@ -305,12 +305,12 @@ export default function PromotionsClient() {
                   </td>
                   <td className="flex p-4 gap-4">
                     {can("UPDATE_PROMOTIONS") && (
-                      <button onClick={() => openEdit(promo)} className="rounded text-blue-500 text-sm hover:bg-blue-600">
+                      <button onClick={() => openEdit(promo)} className="rounded text-blue-500 text-sm">
                         <Edit size={22} />
                       </button>
                     )}
                     {can("DELETE_PROMOTIONS") && (
-                      <button onClick={() => handleDelete(promo.id)} className="rounded text-red-500 text-sm hover:bg-red-600">
+                      <button onClick={() => handleDelete(promo.id)} className="rounded text-red-500 text-sm">
                         <Trash2 size={22} />
                       </button>
                     )}

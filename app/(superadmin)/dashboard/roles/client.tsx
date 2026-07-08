@@ -305,7 +305,7 @@ export default function RolesClient() {
                           setEditUser(user);
                           setEditSelectedPermissions([]);
                         }}
-                        className="rounded text-blue-500 text-sm hover:bg-blue-600"
+                        className="rounded text-blue-500 text-sm"
                       >
                         <Edit size={22} />
                       </button>
@@ -313,7 +313,7 @@ export default function RolesClient() {
                       {can("DELETE_ROLES") && (
                       <button
                         onClick={() => setDeleteTarget(user)}
-                        className="rounded text-red-500 text-sm hover:bg-red-600"
+                        className="rounded text-red-500 text-sm"
                       >
                         <Trash2 size={22} />
                       </button>
@@ -561,7 +561,7 @@ export default function RolesClient() {
                   setEditSelectedPermissions([]);
                   toast.success("Permissions updated");
                 }}
-                className="rounded-lg bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+                className="rounded-lg bg-blue-500 px-4 py-2 text-white"
               >
                 Save Permissions
               </button>
@@ -620,7 +620,7 @@ export default function RolesClient() {
                   loadUsers();
                   toast.success("User deleted");
                 }}
-                className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white hover:bg-red-600"
+                className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white"
               >
                 Delete
               </button>

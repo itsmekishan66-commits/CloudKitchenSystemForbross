@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createOrder, getOrdersWithDetails, updateOrderStatus, } from "@/db/services/orders";
+import { createOrder, getOrdersWithDetails, updateOrderStatus, getOrderById } from "@/db/services/orders";
 import { getActivePromotionByCode, incrementPromotionUsage } from "@/db/services/promotions";
 import { createUser } from "@/db/services/users";
 import { db } from "@/db";
@@ -283,6 +283,18 @@ export async function PATCH(request: Request) {
     if (!Number.isInteger(id) || !status || !statuses.includes(status)) {
       return NextResponse.json(
         { error: "A valid order id and status are required" },
+        { status: 400 },
+      );
+    }
+
+    const existing = await getOrderById(id);
+    if (!existing) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    if (existing.status === "Delivered" || existing.status === "Cancelled") {
+      return NextResponse.json(
+        { error: `Cannot change status of a ${existing.status.toLowerCase()} order` },
         { status: 400 },
       );
     }

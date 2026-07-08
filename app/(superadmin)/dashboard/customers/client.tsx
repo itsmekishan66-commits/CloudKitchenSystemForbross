@@ -267,7 +267,7 @@ export default function CustomersClient() {
                       {can("UPDATE_USERS") && (
                       <button
                         onClick={() => openEdit(user)}
-                        className="rounded text-blue-500 text-sm hover:bg-blue-600"
+                        className="rounded text-blue-500 text-sm"
                       >
                         <Edit size={22} />
                       </button>
@@ -275,7 +275,7 @@ export default function CustomersClient() {
                       {can("DELETE_USERS") && (
                       <button
                         onClick={() => setDeleteTarget(user)}
-                        className="rounded text-red-500 text-sm hover:bg-red-600"
+                        className="rounded text-red-500 text-sm"
                       >
                         <Trash2 size={22} />
                       </button>
@@ -413,7 +413,7 @@ export default function CustomersClient() {
               <button
                 onClick={handleDeleteConfirm}
                 disabled={submitting}
-                className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white shadow hover:bg-red-600 disabled:opacity-50 transition-colors"
+                className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white shadow disabled:opacity-50 transition-colors"
               >
                 {submitting ? "Deleting..." : "Delete"}
               </button>

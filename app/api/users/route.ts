@@ -64,6 +64,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const roleFilter = searchParams.get("role");
     const isGuest = searchParams.get("isGuest");
+    const emailFilter = searchParams.get("email");
 
     const query = db
       .select({
@@ -91,6 +92,9 @@ export async function GET(request: Request) {
       filtered = filtered.filter((u) => u.isGuest === true);
     } else if (isGuest === "false") {
       filtered = filtered.filter((u) => u.isGuest === false || u.isGuest === null);
+    }
+    if (emailFilter) {
+      filtered = filtered.filter((u) => u.email?.toLowerCase() === emailFilter.toLowerCase());
     }
     return NextResponse.json({ users: filtered });
   } catch (error) {

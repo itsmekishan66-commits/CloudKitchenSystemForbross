@@ -547,9 +547,9 @@ export default function MenuClient() {
                     </span>
                   </td>
                   <td className="flex p-4 gap-4">
-                    {can("UPDATE_MENUS") && <button onClick={() => openEdit(item)} className="rounded text-blue-500 text-sm hover:bg-blue-600"><Edit size={22} /></button>}
-                    {can("DELETE_MENUS") && <button onClick={() => handleDelete(item.id)} className="rounded text-red-500 text-sm hover:bg-red-600"><Trash2 size={22} /></button>}
-                    {can("VIEW_RECIPES") && <button onClick={() => openRecipeList(item.id, item.title)} className="mr-2 rounded bg-green-600 px-3 py-1 text-white text-sm hover:bg-green-700">Recipes</button>}
+                    {can("UPDATE_MENUS") && <button onClick={() => openEdit(item)} className="rounded text-blue-500 text-sm"><Edit size={22} /></button>}
+                    {can("DELETE_MENUS") && <button onClick={() => handleDelete(item.id)} className="rounded text-red-500 text-sm"><Trash2 size={22} /></button>}
+                    {can("VIEW_RECIPES") && <button onClick={() => openRecipeList(item.id, item.title)} className="mr-2 rounded bg-green-600 px-3 py-1 text-white text-sm">Recipes</button>}
                   </td>
                 </tr>
               ))
@@ -668,7 +668,7 @@ export default function MenuClient() {
                     Image URL
                   </label>
                   <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
-                    className="text-sm text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50"
+                    className="text-sm text-orange-600 font-medium disabled:opacity-50"
                   >
                     {uploading ? "Uploading..." : "Upload Image"}
                   </button>
@@ -755,7 +755,7 @@ export default function MenuClient() {
                   </label>
                   <button type="button"
                     onClick={() => setForm({ ...form, addons: [...form.addons, { name: "", price: "" }] })}
-                    className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+                    className="text-sm text-orange-600 font-medium"
                   >
                     + Add Add-on
                   </button>
@@ -963,14 +963,14 @@ export default function MenuClient() {
                                   </button>
                                   {can("UPDATE_RECIPES") && (
                                     <button onClick={() => { openRecipeEdit(recipe); void loadInventoryOptions(); }}
-                                      className="rounded-lg bg-blue-500 px-3 py-1.5 text-white text-sm hover:bg-blue-600"
+                                      className="rounded-lg bg-blue-500 px-3 py-1.5 text-white text-sm"
                                     >
                                       Edit
                                     </button>
                                   )}
                                   {can("DELETE_RECIPES") && (
                                     <button onClick={() => handleRecipeDelete(recipe.id)}
-                                      className="rounded-lg bg-red-500 px-3 py-1.5 text-white text-sm hover:bg-red-600"
+                                      className="rounded-lg bg-red-500 px-3 py-1.5 text-white text-sm"
                                     >
                                       Delete
                                     </button>
@@ -1135,7 +1135,7 @@ export default function MenuClient() {
                               };
                               setRecipeForm({ ...recipeForm, ingredients: updated });
                             }}
-                            className="flex-[2] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-green-500"
+                            className="flex-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-green-500"
                           >
                             <option value="">-- Select --</option>
                             {inventoryOptions.map((opt) => (

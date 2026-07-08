@@ -37,6 +37,7 @@ export async function getOrdersWithDetails() {
       discountAmount: orders.discountAmount,
       dueAmount: orders.dueAmount,
       paymentSettled: orders.paymentSettled,
+      notes: orders.notes,
       createdAt: orders.createdAt,
       updatedAt: orders.updatedAt,
       userEmail: users.email,

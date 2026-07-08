@@ -21,20 +21,16 @@ export default function OffersPopup() {
   const [botOpen, setBotOpen] = useState(false);
   const [typedText, setTypedText] = useState("");
   const botMessage = "We welcome you to our Cloud Kitchen! Order your favourite food in a blink 🍔";
+  const botMessage1 = "For any queries, please contact us at +977 9800000000 or email us at hello@example.com";
+  const fullMessage = botMessage + "\n\n" + botMessage1;
   const typingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // if (!botOpen) {
-    //   setTypedText("");
-    //   return;
-    // }
-
     let i = 0;
-    // setTypedText("");
 
     function typeChar() {
-      if (i < botMessage.length) {
-        setTypedText(botMessage.slice(0, i + 1));
+      if (i < fullMessage.length) {
+        setTypedText(fullMessage.slice(0, i + 1));
         i++;
         typingRef.current = setTimeout(typeChar, 30);
       }
@@ -45,7 +41,7 @@ export default function OffersPopup() {
     return () => {
       if (typingRef.current) clearTimeout(typingRef.current);
     };
-  }, [botOpen]);
+  }, [botOpen, fullMessage]);
 
   useEffect(() => {
     const alreadyShown = sessionStorage.getItem("offers_popup_shown");
@@ -120,9 +116,9 @@ export default function OffersPopup() {
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500">
                 <Bot size={16} className="text-white" />
               </div>
-              <div className="rounded-2xl rounded-tl-sm bg-gray-100 px-4 py-3 text-sm text-gray-800 leading-relaxed">
+              <div className="rounded-2xl rounded-tl-sm bg-gray-100 px-4 py-3 text-sm text-gray-800 leading-relaxed whitespace-pre-line">
                 {typedText}
-                {typedText.length < botMessage.length && (
+                {typedText.length < fullMessage.length && (
                   <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-gray-500 align-middle" />
                 )}
               </div>

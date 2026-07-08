@@ -165,7 +165,7 @@ export default function MessagesClient() {
                 {can("DELETE_MESSAGES") && (
                   <button
                     onClick={() => handleDelete(msg.id)}
-                    className="rounded text-red-500 text-sm hover:bg-red-600 ml-4"
+                    className="rounded text-red-500 text-sm ml-4"
                   >
                     <Trash2 size={22} />
                   </button>

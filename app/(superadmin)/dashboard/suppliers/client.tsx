@@ -464,8 +464,8 @@ export default function SuppliersClient() {
                       <td className="p-3 font-semibold">{p.productType === "direct_sellable" ? `Rs.${p.sellingPrice}` : "-"}</td>
                       <td className="p-3">{Number(p.quantity) > 0 ? `${p.quantity} ${p.purchaseUnit || "packs"}` : "0"}</td>
                       <td className="flex p-3 gap-4">
-                        {can("UPDATE_SUPPLIERS") && <button onClick={() => openEditProduct(p)} className="rounded text-blue-500 text-sm hover:bg-blue-600"><Edit size={22} /></button>}
-                        {can("DELETE_SUPPLIERS") && <button onClick={() => handleDeleteProduct(p.id)} className="rounded text-red-500 text-sm hover:bg-red-600"><Trash2 size={22} /></button>}
+                        {can("UPDATE_SUPPLIERS") && <button onClick={() => openEditProduct(p)} className="rounded text-blue-500 text-sm"><Edit size={22} /></button>}
+                        {can("DELETE_SUPPLIERS") && <button onClick={() => handleDeleteProduct(p.id)} className="rounded text-red-500 text-sm"><Trash2 size={22} /></button>}
                       </td>
                     </tr>
                     );
@@ -554,10 +554,10 @@ export default function SuppliersClient() {
                         <td className="p-3">
                           <div className="flex gap-4">
                             {can("UPDATE_SUPPLIERS") && (
-                              <button onClick={() => { setEditingSettlement(s); setSettlementForm({ amount: s.amount, paidNow: "", type: s.type, paymentMethod: s.paymentMethod || "", transactionId: s.transactionId || "", notes: s.notes || "" }); setShowSettlementModal(true); }} className="rounded text-blue-500 text-sm hover:bg-blue-600"><Edit size={22} /></button>
+                              <button onClick={() => { setEditingSettlement(s); setSettlementForm({ amount: s.amount, paidNow: "", type: s.type, paymentMethod: s.paymentMethod || "", transactionId: s.transactionId || "", notes: s.notes || "" }); setShowSettlementModal(true); }} className="rounded text-blue-500 text-sm"><Edit size={22} /></button>
                             )}
                             {can("DELETE_SUPPLIERS") && (
-                              <button onClick={() => handleDeleteSettlement(s.id)} className="rounded text-red-500 text-sm hover:bg-red-600"><Trash2 size={22} /></button>
+                              <button onClick={() => handleDeleteSettlement(s.id)} className="rounded text-red-500 text-sm"><Trash2 size={22} /></button>
                             )}
                           </div>
                         </td>
@@ -886,12 +886,12 @@ export default function SuppliersClient() {
                     {s.status}
                   </span>
                   {can("UPDATE_SUPPLIERS") && (
-                    <button onClick={(e) => { e.stopPropagation(); openEditSupplier(s); }} className="rounded text-blue-500 text-sm hover:bg-blue-600">
+                    <button onClick={(e) => { e.stopPropagation(); openEditSupplier(s); }} className="rounded text-blue-500 text-sm">
                       <Edit size={22} />
                     </button>
                   )}
                   {can("DELETE_SUPPLIERS") && (
-                    <button onClick={(e) => { e.stopPropagation(); handleDeleteSupplier(s.id); }} className="rounded text-red-500 text-sm hover:bg-red-600">
+                    <button onClick={(e) => { e.stopPropagation(); handleDeleteSupplier(s.id); }} className="rounded text-red-500 text-sm">
                       <Trash2 size={22} />
                     </button>
                   )}

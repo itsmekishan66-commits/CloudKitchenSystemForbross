@@ -1,5 +1,5 @@
 "use client";
-// import { CircleArrowDown } from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
@@ -493,10 +493,10 @@ export default function MenuClient() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Menu Items</h1>
-        <div className="flex items-center justify-end gap-4">
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold">Menu Items</h1>
+        <div className="flex items-center justify-end gap-2 sm:gap-4 flex-wrap">
           {/* <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
             <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
               <option className="text-black" value="">Export</option>
@@ -505,9 +505,9 @@ export default function MenuClient() {
               <option className="text-black" value="excel">Excel</option>
             </select>
           </button> */}
-          {can("CREATE_MENUS") && <button onClick={openCreate} className="rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600">+ Add Item</button>}
+          {can("CREATE_MENUS") && <button onClick={openCreate} className="rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-orange-600">+ Add Item</button>}
 
-          {can("VIEW_RECIPES") && <button onClick={() => { setEditingRecipeId(null); setRecipeForm(emptyRecipeForm); setRecipeView("form"); setShowRecipeModal(true); void loadInventoryOptions(); }} className="rounded-xl bg-green-600 px-5 py-3 text-white font-semibold hover:bg-green-700">+ Add menu recipe</button>}
+          {can("VIEW_RECIPES") && <button onClick={() => { setEditingRecipeId(null); setRecipeForm(emptyRecipeForm); setRecipeView("form"); setShowRecipeModal(true); void loadInventoryOptions(); }} className="rounded-xl bg-green-600 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-green-700">+ Add menu recipe</button>}
         </div>
       </div>
 
@@ -521,7 +521,7 @@ export default function MenuClient() {
         />
       </div>
 
-      <div className="rounded-xl bg-white shadow overflow-hidden">
+      <div className="rounded-xl bg-white shadow overflow-x-auto no-scrollbar">
         <table className="w-full">
           <thead className="bg-gray-100">
             <tr>
@@ -546,10 +546,10 @@ export default function MenuClient() {
                       {item.isAvailable ? "Available" : "Unavailable"}
                     </span>
                   </td>
-                  <td className="p-4">
-                    {can("UPDATE_MENUS") && <button onClick={() => openEdit(item)} className="mr-2 rounded bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600">Edit</button>}
+                  <td className="flex p-4 gap-4">
+                    {can("UPDATE_MENUS") && <button onClick={() => openEdit(item)} className="rounded text-blue-500 text-sm hover:bg-blue-600"><Edit size={22} /></button>}
+                    {can("DELETE_MENUS") && <button onClick={() => handleDelete(item.id)} className="rounded text-red-500 text-sm hover:bg-red-600"><Trash2 size={22} /></button>}
                     {can("VIEW_RECIPES") && <button onClick={() => openRecipeList(item.id, item.title)} className="mr-2 rounded bg-green-600 px-3 py-1 text-white text-sm hover:bg-green-700">Recipes</button>}
-                    {can("DELETE_MENUS") && <button onClick={() => handleDelete(item.id)} className="rounded bg-red-500 px-3 py-1 text-white text-sm hover:bg-red-600">Delete</button>}
                   </td>
                 </tr>
               ))
@@ -563,8 +563,8 @@ export default function MenuClient() {
           <div className="w-full max-w-3xl rounded-3xl bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
 
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-white border-b px-8 py-6 rounded-t-3xl">
-              <h2 className="text-2xl font-bold text-slate-800">
+            <div className="sticky top-0 z-10 bg-white border-b px-4 sm:px-8 py-4 sm:py-6 rounded-t-3xl">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-800">
                 {editing ? "Edit Menu Item" : "Add Menu Item"}
               </h2>
 
@@ -574,7 +574,7 @@ export default function MenuClient() {
             </div>
 
             {/* Body */}
-            <div className="p-8 space-y-6">
+            <div className="p-4 sm:p-8 space-y-6">
 
               {/* Title */}
               <div>
@@ -833,7 +833,7 @@ export default function MenuClient() {
             </div>
 
             {/* Footer */}
-            <div className="border-t bg-white px-8 py-5 flex justify-end gap-3 rounded-b-3xl">
+            <div className="border-t bg-white px-4 sm:px-8 py-4 sm:py-5 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 rounded-b-3xl">
 
               <button onClick={() => setShowModal(false)}
                 className="rounded-xl border border-slate-300 px-5 py-2.5 font-medium hover:bg-slate-50 "
@@ -861,10 +861,10 @@ export default function MenuClient() {
             {recipeView === "list" && (
               <>
                 {/* Header */}
-                <div className="sticky top-0 z-10 bg-white border-b px-8 py-6 rounded-t-3xl">
-                  <div className="flex items-center justify-between">
+                <div className="sticky top-0 z-10 bg-white border-b px-4 sm:px-8 py-4 sm:py-6 rounded-t-3xl">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div>
-                      <h2 className="text-2xl font-bold text-slate-800">
+                      <h2 className="text-xl sm:text-2xl font-bold text-slate-800">
                         {recipeListMenuItemTitle
                           ? `Recipes for ${recipeListMenuItemTitle}`
                           : "Add Menu Recipe"}
@@ -875,7 +875,7 @@ export default function MenuClient() {
                     </div>
                     {recipeListMenuItemId && (
                       <button onClick={() => { openRecipeCreate(); void loadInventoryOptions(); }}
-                        className="rounded-xl bg-green-600 px-5 py-2.5 text-white font-semibold hover:bg-green-700"
+                        className="rounded-xl bg-green-600 px-5 py-2.5 text-white font-semibold hover:bg-green-700 whitespace-nowrap"
                       >
                         + Add Recipe
                       </button>
@@ -885,7 +885,7 @@ export default function MenuClient() {
 
                 {/* Body - menu item selector when no menu item selected */}
                 {!recipeListMenuItemId && (
-                  <div className="p-8">
+                  <div className="p-4 sm:p-8">
                     <label className="mb-2 block text-sm font-semibold text-slate-700">Select Menu Item</label>
                     <select
                       value={recipeListMenuItemId ?? ""}
@@ -911,7 +911,7 @@ export default function MenuClient() {
 
                 {/* Recipe list */}
                 {recipeListMenuItemId && (
-                  <div className="p-8">
+                  <div className="p-4 sm:p-8">
                     {recipeMessage && (
                       <div className="mb-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-700">{recipeMessage}</div>
                     )}
@@ -986,7 +986,7 @@ export default function MenuClient() {
                 )}
 
                 {/* Footer */}
-                <div className="border-t bg-white px-8 py-5 flex justify-end gap-3 rounded-b-3xl">
+                <div className="border-t bg-white px-4 sm:px-8 py-4 sm:py-5 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 rounded-b-3xl">
                   <button onClick={() => { setShowRecipeModal(false); setRecipeMessage(""); }}
                     className="rounded-xl border border-slate-300 px-5 py-2.5 font-medium hover:bg-slate-50"
                   >
@@ -999,8 +999,8 @@ export default function MenuClient() {
             {recipeView === "form" && (
               <>
                 {/* Header */}
-                <div className="sticky top-0 z-10 bg-white border-b px-8 py-6 rounded-t-3xl">
-                  <h2 className="text-2xl font-bold text-slate-800">
+                <div className="sticky top-0 z-10 bg-white border-b px-4 sm:px-8 py-4 sm:py-6 rounded-t-3xl">
+                  <h2 className="text-xl sm:text-2xl font-bold text-slate-800">
                     {editingRecipeId ? "Edit Recipe" : "Add Recipe"}
                   </h2>
                   <p className="text-sm text-slate-500 mt-1">
@@ -1009,7 +1009,7 @@ export default function MenuClient() {
                 </div>
 
                 {/* Body */}
-                <div className="p-8 space-y-6">
+                <div className="p-4 sm:p-8 space-y-6">
 
                   {recipeMessage && (
                     <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{recipeMessage}</div>
@@ -1212,7 +1212,7 @@ export default function MenuClient() {
                 </div>
 
                 {/* Footer */}
-                <div className="border-t bg-white px-8 py-5 flex justify-end gap-3 rounded-b-3xl">
+                <div className="border-t bg-white px-4 sm:px-8 py-4 sm:py-5 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 rounded-b-3xl">
                   <button onClick={() => { setRecipeView("list"); setRecipeMessage(""); }}
                     className="rounded-xl border border-slate-300 px-5 py-2.5 font-medium hover:bg-slate-50"
                   >
@@ -1230,20 +1230,20 @@ export default function MenuClient() {
             {recipeView === "detail" && viewingRecipe && (
               <>
                 {/* Header */}
-                <div className="sticky top-0 z-10 bg-white border-b px-8 py-6 rounded-t-3xl">
-                  <div className="flex items-center justify-between">
+                <div className="sticky top-0 z-10 bg-white border-b px-4 sm:px-8 py-4 sm:py-6 rounded-t-3xl">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div>
-                      <h2 className="text-2xl font-bold text-slate-800">{viewingRecipe.title}</h2>
+                      <h2 className="text-xl sm:text-2xl font-bold text-slate-800">{viewingRecipe.title}</h2>
                       <p className="text-sm text-slate-500 mt-1">Recipe details and ingredients</p>
                     </div>
-                    <span className={`rounded-full px-3 py-1 text-sm ${viewingRecipe.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                    <span className={`rounded-full px-3 py-1 text-sm whitespace-nowrap ${viewingRecipe.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                       {viewingRecipe.isActive ? "Active" : "Inactive"}
                     </span>
                   </div>
                 </div>
 
                 {/* Body */}
-                <div className="p-8 space-y-6">
+                <div className="p-4 sm:p-8 space-y-6">
                   {/* Image */}
                   {viewingRecipe.image && (
                     <div>
@@ -1317,7 +1317,7 @@ export default function MenuClient() {
                 </div>
 
                 {/* Footer */}
-                <div className="border-t bg-white px-8 py-5 flex justify-end gap-3 rounded-b-3xl">
+                <div className="border-t bg-white px-4 sm:px-8 py-4 sm:py-5 flex justify-end gap-3 rounded-b-3xl">
                   <button onClick={() => { setRecipeView("list"); setViewingRecipe(null); }}
                     className="rounded-xl border border-slate-300 px-5 py-2.5 font-medium hover:bg-slate-50"
                   >

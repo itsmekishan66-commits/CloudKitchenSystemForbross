@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
-import { Truck, Plus, ArrowLeft, Package, ShoppingBag, DollarSign, FileText } from "lucide-react";
+import { Truck, Plus, ArrowLeft, Package, ShoppingBag, DollarSign, FileText, Edit, Trash2 } from "lucide-react";
 
 interface Supplier {
   id: number;
@@ -373,13 +373,13 @@ export default function SuppliersClient() {
   // ---- Detail View ----
   if (selectedSupplier) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <button onClick={() => setSelectedSupplier(null)} className="flex items-center gap-2 text-gray-600 hover:text-orange-500 mb-4">
           <ArrowLeft size={18} /> Back to Suppliers
         </button>
 
-        <div className="rounded-xl bg-white shadow p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="rounded-xl bg-white shadow p-4 sm:p-6 mb-6 overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
             <div>
               <h2 className="text-2xl font-bold">{selectedSupplier.name}</h2>
               <p className="text-gray-500 text-sm mt-1">
@@ -398,11 +398,11 @@ export default function SuppliersClient() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          <button onClick={() => setDetailTab("products")} className={`px-4 py-2 rounded-lg font-medium ${detailTab === "products" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button onClick={() => setDetailTab("products")} className={`px-2 py-1 md:px-4 md:py-2 rounded-lg font-medium ${detailTab === "products" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
             <Package size={16} className="inline mr-1" /> Products ({products.length})
           </button>
-          <button onClick={() => setDetailTab("settlements")} className={`px-4 py-2 rounded-lg font-medium ${detailTab === "settlements" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
+          <button onClick={() => setDetailTab("settlements")} className={`px-2 py-1 md:px-4 md:py-2 rounded-lg font-medium ${detailTab === "settlements" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
             <DollarSign size={16} className="inline mr-1" /> Settlements & Dues
           </button>
         </div>
@@ -415,7 +415,7 @@ export default function SuppliersClient() {
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="font-bold text-lg">Products / Inventory</h3>
               {can("CREATE_SUPPLIERS") && (
-                <button onClick={openCreateProduct} className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-white text-sm font-semibold hover:bg-orange-600">
+                <button onClick={openCreateProduct} className="flex items-center gap-0 md:gap-2 rounded-lg bg-orange-500 px-2 py-2 md:px-4 md:py-2 text-white text-sm font-semibold hover:bg-orange-600">
                   <Plus size={16} /> Add Product
                 </button>
               )}
@@ -423,7 +423,8 @@ export default function SuppliersClient() {
             {products.length === 0 ? (
               <p className="p-6 text-center text-gray-400">No products added yet</p>
             ) : (
-              <table className="w-full">
+              <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full min-w-175">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="p-3 text-left text-sm font-medium text-gray-600">Name</th>
@@ -462,15 +463,16 @@ export default function SuppliersClient() {
                       <td className="p-3">{p.productType === "direct_sellable" ? `${p.margin}%` : "-"}</td>
                       <td className="p-3 font-semibold">{p.productType === "direct_sellable" ? `Rs.${p.sellingPrice}` : "-"}</td>
                       <td className="p-3">{Number(p.quantity) > 0 ? `${p.quantity} ${p.purchaseUnit || "packs"}` : "0"}</td>
-                      <td className="p-3">
-                        {can("UPDATE_SUPPLIERS") && <button onClick={() => openEditProduct(p)} className="mr-2 rounded bg-blue-500 px-2 py-1 text-white text-xs hover:bg-blue-600">Edit</button>}
-                        {can("DELETE_SUPPLIERS") && <button onClick={() => handleDeleteProduct(p.id)} className="rounded bg-red-500 px-2 py-1 text-white text-xs hover:bg-red-600">Delete</button>}
+                      <td className="flex p-3 gap-4">
+                        {can("UPDATE_SUPPLIERS") && <button onClick={() => openEditProduct(p)} className="rounded text-blue-500 text-sm hover:bg-blue-600"><Edit size={22} /></button>}
+                        {can("DELETE_SUPPLIERS") && <button onClick={() => handleDeleteProduct(p.id)} className="rounded text-red-500 text-sm hover:bg-red-600"><Trash2 size={22} /></button>}
                       </td>
                     </tr>
                     );
                   })}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         )}
@@ -479,7 +481,7 @@ export default function SuppliersClient() {
         {detailTab === "settlements" && (
           <div>
             {/* Summary Cards */}
-            <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
               <div className="rounded-xl bg-white shadow p-4 border-l-4 border-blue-500">
                 <p className="text-sm text-gray-500">Credit Purchases</p>
                 <p className="text-2xl font-bold text-blue-600">Rs.{settlementSummary.totalPurchases.toFixed(2)}</p>
@@ -523,7 +525,8 @@ export default function SuppliersClient() {
               {settlements.length === 0 ? (
                 <p className="p-6 text-center text-gray-400">No settlement records yet</p>
               ) : (
-                <table className="w-full">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-175">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="p-3 text-left text-sm font-medium text-gray-600">Date</th>
@@ -549,12 +552,12 @@ export default function SuppliersClient() {
                         <td className="p-3 text-sm text-gray-500">{s.transactionId || "-"}</td>
                         <td className="p-3 text-sm text-gray-500 max-w-38 truncate">{s.notes || "-"}</td>
                         <td className="p-3">
-                          <div className="flex gap-1">
+                          <div className="flex gap-4">
                             {can("UPDATE_SUPPLIERS") && (
-                              <button onClick={() => { setEditingSettlement(s); setSettlementForm({ amount: s.amount, paidNow: "", type: s.type, paymentMethod: s.paymentMethod || "", transactionId: s.transactionId || "", notes: s.notes || "" }); setShowSettlementModal(true); }} className="rounded bg-blue-500 px-2 py-1 text-white text-xs hover:bg-blue-600">Edit</button>
+                              <button onClick={() => { setEditingSettlement(s); setSettlementForm({ amount: s.amount, paidNow: "", type: s.type, paymentMethod: s.paymentMethod || "", transactionId: s.transactionId || "", notes: s.notes || "" }); setShowSettlementModal(true); }} className="rounded text-blue-500 text-sm hover:bg-blue-600"><Edit size={22} /></button>
                             )}
                             {can("DELETE_SUPPLIERS") && (
-                              <button onClick={() => handleDeleteSettlement(s.id)} className="rounded bg-red-500 px-2 py-1 text-white text-xs hover:bg-red-600">Delete</button>
+                              <button onClick={() => handleDeleteSettlement(s.id)} className="rounded text-red-500 text-sm hover:bg-red-600"><Trash2 size={22} /></button>
                             )}
                           </div>
                         </td>
@@ -562,6 +565,7 @@ export default function SuppliersClient() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           </div>
@@ -569,9 +573,9 @@ export default function SuppliersClient() {
 
         {/* Product Modal */}
         {showProductModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-              <h2 className="mb-4 text-xl font-bold">{editingProduct ? "Edit Product" : "Add Product"}</h2>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-[95vw] sm:max-w-lg rounded-2xl bg-white p-4 sm:p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+              <h2 className="mb-4 text-lg sm:text-xl font-bold">{editingProduct ? "Edit Product" : "Add Product"}</h2>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Product Name *</label>
@@ -597,7 +601,7 @@ export default function SuppliersClient() {
                 {!editingProduct && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Product Type</label>
-                    <div className="flex gap-4">
+                    <div className="flex flex-col sm:flex-row gap-3">
                       <label className="flex items-center gap-2 cursor-pointer rounded-lg border p-3 flex-1 hover:border-orange-400 has-checked:border-orange-500 has-checked:bg-orange-50">
                         <input type="radio" name="productType" checked={productForm.productType === "direct_sellable"} onChange={() => setProductForm({ ...productForm, productType: "direct_sellable" })} className="accent-orange-500" />
                         <div>
@@ -619,7 +623,7 @@ export default function SuppliersClient() {
                 {/* Pack / Purchase Info */}
                 <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
                   <p className="text-sm font-semibold text-orange-700 mb-3">Pack / Purchase Info</p>
-                  <div className={`grid ${productForm.productType === "direct_sellable" ? "grid-cols-3" : "grid-cols-2"} gap-3`}>
+                  <div className={`grid grid-cols-1 sm:${productForm.productType === "direct_sellable" ? "grid-cols-3" : "grid-cols-2"} gap-3`}>
                     <div>
                       <label className="block text-xs font-medium text-gray-600">Purchase Unit *</label>
                       <select value={productForm.purchaseUnit} onChange={(e) => {
@@ -710,7 +714,7 @@ export default function SuppliersClient() {
                   </div>
 
                   {productForm.productType === "direct_sellable" && (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Margin (%) *</label>
                         <input type="number" step="0.1" value={productForm.margin} onChange={(e) => {
@@ -745,7 +749,7 @@ export default function SuppliersClient() {
                   </div>
                 </div>
               </div>
-              <div className="mt-6 flex justify-end gap-3">
+              <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
                 <button onClick={() => setShowProductModal(false)} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">Cancel</button>
                 <button onClick={handleSaveProduct} disabled={saving} className="rounded-lg bg-orange-500 px-4 py-2 text-white hover:bg-orange-600 disabled:opacity-50">
                   {saving ? "Saving..." : "Save"}
@@ -757,8 +761,8 @@ export default function SuppliersClient() {
 
         {/* Settlement Modal */}
         {showSettlementModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-[95vw] sm:max-w-md rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
               <h2 className="mb-4 text-xl font-bold">{editingSettlement ? "Edit Settlement Record" : "Add Settlement Record"}</h2>
               <div className="space-y-4">
                 <div>
@@ -822,7 +826,7 @@ export default function SuppliersClient() {
                   <textarea value={settlementForm.notes} onChange={(e) => setSettlementForm({ ...settlementForm, notes: e.target.value })} className="mt-1 w-full rounded-lg border p-3" rows={3} />
                 </div>
               </div>
-              <div className="mt-6 flex justify-end gap-3">
+              <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
                 <button onClick={() => setShowSettlementModal(false)} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">Cancel</button>
                 <button onClick={handleSaveSettlement} disabled={saving} className="rounded-lg bg-orange-500 px-4 py-2 text-white hover:bg-orange-600 disabled:opacity-50">
                   {saving ? "Saving..." : "Save"}
@@ -837,11 +841,11 @@ export default function SuppliersClient() {
 
   // ---- List View ----
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Suppliers & Dealers</h1>
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold">Suppliers & Dealers</h1>
         {can("CREATE_SUPPLIERS") && (
-          <button onClick={openCreateSupplier} className="flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600">
+          <button onClick={openCreateSupplier} className="flex items-center gap-2 rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-orange-600 shrink-0">
             <Plus size={18} /> Add Supplier
           </button>
         )}
@@ -882,13 +886,13 @@ export default function SuppliersClient() {
                     {s.status}
                   </span>
                   {can("UPDATE_SUPPLIERS") && (
-                    <button onClick={(e) => { e.stopPropagation(); openEditSupplier(s); }} className="rounded bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600">
-                      Edit
+                    <button onClick={(e) => { e.stopPropagation(); openEditSupplier(s); }} className="rounded text-blue-500 text-sm hover:bg-blue-600">
+                      <Edit size={22} />
                     </button>
                   )}
                   {can("DELETE_SUPPLIERS") && (
-                    <button onClick={(e) => { e.stopPropagation(); handleDeleteSupplier(s.id); }} className="rounded bg-red-500 px-3 py-1 text-white text-sm hover:bg-red-600">
-                      Delete
+                    <button onClick={(e) => { e.stopPropagation(); handleDeleteSupplier(s.id); }} className="rounded text-red-500 text-sm hover:bg-red-600">
+                      <Trash2 size={22} />
                     </button>
                   )}
                 </div>
@@ -904,15 +908,15 @@ export default function SuppliersClient() {
 
       {/* Supplier Form Modal */}
       {showSupplierModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-            <h2 className="mb-4 text-xl font-bold">{editingSupplier ? "Edit Supplier" : "Add Supplier"}</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-[95vw] sm:max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <h2 className="mb-4 text-lg sm:text-xl font-bold">{editingSupplier ? "Edit Supplier" : "Add Supplier"}</h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Supplier Name *</label>
                 <input type="text" value={supplierForm.name} onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Contact Person</label>
                   <input type="text" value={supplierForm.contactPerson} onChange={(e) => setSupplierForm({ ...supplierForm, contactPerson: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
@@ -922,7 +926,7 @@ export default function SuppliersClient() {
                   <input type="text" value={supplierForm.phone} onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Email</label>
                   <input type="email" value={supplierForm.email} onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
@@ -936,7 +940,7 @@ export default function SuppliersClient() {
                 <label className="block text-sm font-medium text-gray-700">Address</label>
                 <input type="text" value={supplierForm.address} onChange={(e) => setSupplierForm({ ...supplierForm, address: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Payment Terms</label>
                   <input type="text" value={supplierForm.paymentTerms} onChange={(e) => setSupplierForm({ ...supplierForm, paymentTerms: e.target.value })} className="mt-1 w-full rounded-lg border p-3" placeholder="e.g. Net 30" />
@@ -954,7 +958,7 @@ export default function SuppliersClient() {
                 <textarea value={supplierForm.notes} onChange={(e) => setSupplierForm({ ...supplierForm, notes: e.target.value })} className="mt-1 w-full rounded-lg border p-3" rows={3} />
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
               <button onClick={() => setShowSupplierModal(false)} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">Cancel</button>
               <button onClick={handleSaveSupplier} disabled={saving} className="rounded-lg bg-orange-500 px-4 py-2 text-white hover:bg-orange-600 disabled:opacity-50">
                 {saving ? "Saving..." : "Save"}

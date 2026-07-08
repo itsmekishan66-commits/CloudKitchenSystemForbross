@@ -216,7 +216,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
         </p>
       ) : null}
 
-      <div className="space-y-4">
+      <div className="space-y-4 overflow-x-auto">
         {localOrders.map((order) => (
           <div
             key={order.id}
@@ -460,13 +460,13 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
 
       {/* Delete Confirmation */}
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-[90vw] sm:max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="text-lg font-bold mb-2">Remove Item</h2>
             <p className="text-sm text-gray-600 mb-6">
               Are you sure you want to remove <strong>{confirmDelete.title}</strong> from this order?
             </p>
-            <div className="flex gap-3 justify-end">
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
               <button
                 onClick={() => setConfirmDelete(null)}
                 className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
@@ -489,17 +489,17 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
 
       {/* Settlement Popup */}
       {settleOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-[90vw] sm:max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xl">✓</div>
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xl shrink-0">✓</div>
               <div>
                 <h2 className="text-lg font-bold">Order Delivered!</h2>
                 <p className="text-sm text-gray-500">Order #{settleOrder.id} — Rs.{settleOrder.total}</p>
               </div>
             </div>
             <p className="text-sm text-gray-600 mb-6">Settle the payment for this delivery now?</p>
-            <div className="flex gap-3 justify-end">
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
               <button
                 onClick={async () => {
                   setSettleOrder(null);
@@ -546,8 +546,8 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
 
       {/* Add Item Modal */}
       {addItemOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-[95vw] sm:max-w-md rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] sm:max-h-[80vh] overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">Add Item to Order #{addItemOrder.id}</h2>
             <div className="space-y-4">
               <div>
@@ -662,7 +662,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                 />
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
               <button
                 onClick={() => setAddItemOrder(null)}
                 className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"

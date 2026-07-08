@@ -63,7 +63,7 @@ export async function GET() {
       })
       .from(orders)
       .orderBy(sql`${orders.createdAt} desc`)
-      .limit(10);
+      .limit(20);
 
     return NextResponse.json({
       totalOrders: Number(orderStats?.totalOrders ?? 0),

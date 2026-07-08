@@ -23,6 +23,8 @@ import {
   MessageSquare,
   Truck,
   LogOut,
+  Menu,
+  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -138,6 +140,7 @@ export default function Sidebar({ role, userPermissions }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [siteName, setSiteName] = useState("Cloud Kitchen");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/site-settings")
@@ -171,67 +174,87 @@ export default function Sidebar({ role, userPermissions }: SidebarProps) {
   });
 
   return (
-    <aside
-      className="fixed left-0 top-0 h-screen w-72 bg-white border-r border-gray-200 flex flex-col shadow-sm">
-      {/* Logo */}
-      <div className="p-6 border-b border-gray-100">
-        <h1 className="text-2xl font-bold text-orange-400">
-          {siteName}
-        </h1>
+    <>
+      {/* Mobile hamburger toggle */}
+      <button
+        onClick={() => setSidebarOpen(prev => !prev)}
+        className="fixed top-4 left-4 z-50 rounded-xl bg-orange-500 p-2.5 text-white shadow-lg lg:hidden"
+        aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+      >
+        {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+      </button>
 
-        <p className="text-sm text-gray-500 mt-1">
-          {role.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")} Dashboard
-        </p>
-      </div>
+      {/* Backdrop overlay (mobile only) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
+      <aside
+        className={`
+          fixed left-0 top-0 z-40 h-screen w-72 bg-white border-r border-gray-200 flex flex-col shadow-sm
+          transition-transform duration-300 ease-in-out
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          lg:translate-x-0
+        `}>
+        {/* Logo + Close */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <div>
+            <h1 className={`text-2xl font-bold text-orange-400 ${sidebarOpen ? "mt-10" : "mt-0"}`}>
+              {siteName}
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {role.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")} Dashboard
+            </p>
+          </div>
+        </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
-        {filteredMenuItems.map((item) => {
-          const Icon = item.icon;
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
+          {filteredMenuItems.map((item) => {
+            const Icon = item.icon;
 
-          const isActive =
-            item.href === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname === item.href ||
-              pathname.startsWith(`${item.href}/`);
+            const isActive =
+              item.href === "/dashboard"
+                ? pathname === "/dashboard"
+                : pathname === item.href ||
+                pathname.startsWith(`${item.href}/`);
 
-          return (
-            <Link
-              key={item.title}
-              href={item.href}
-              className={`
-                flex items-center gap-3
-                px-4 py-3
-                rounded-xl
-                text-sm font-medium
-                transition-all duration-200
-                ${isActive
-                  ? "bg-orange-300 text-black shadow-md"
-                  : "text-gray-700 hover:bg-red-50 hover:text-orange-400"
-                }
-              `}
-            >
-              <Icon
-                size={20}
-                className={isActive ? "text-white" : ""}
-              />
+            return (
+              <Link
+                key={item.title}
+                href={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+                  ${isActive
+                    ? "bg-orange-300 text-black shadow-md"
+                    : "text-gray-700 hover:bg-red-50 hover:text-orange-400"
+                  }
+                `}
+              >
+                <Icon
+                  size={20}
+                  className={isActive ? "text-white" : ""}
+                />
 
-              <span>{item.title}</span>
-            </Link>
-          );
-        })}
-      </nav>
+                <span>{item.title}</span>
+              </Link>
+            );
+          })}
+        </nav>
 
-      {/* Logout */}
-      <div className="p-4 border-t border-gray-200">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all font-medium">
-          <LogOut size={20} />
-          <span>Logout</span>
-        </button>
-      </div>
-    </aside>
+        {/* Logout */}
+        <div className="p-4 border-t border-gray-200">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all font-medium">
+            <LogOut size={20} />
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

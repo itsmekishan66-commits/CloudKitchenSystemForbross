@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
+import{ Edit,Trash2} from "lucide-react";
 
 interface Category {
   id: number;
@@ -133,10 +134,10 @@ export default function CategoriesClient() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl justify-around font-bold">Categories</h1>
-        <div className="flex items-center justify-end gap-4 mb-6">
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold">Categories</h1>
+        <div className="flex items-center flex-wrap gap-3">
           {/* <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
             <select  value={downloadType} onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
               <option className="text-black" value="">Export</option>
@@ -145,7 +146,7 @@ export default function CategoriesClient() {
               <option className="text-black" value="excel">Excel</option>  
             </select>
           </button> */}
-          {can("CREATE_CATEGORIES") && <button onClick={openCreate} className="rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600">+ Add Category</button>}
+          {can("CREATE_CATEGORIES") && <button onClick={openCreate} className="rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-orange-600">+ Add Category</button>}
         </div>
       </div>
 
@@ -154,7 +155,7 @@ export default function CategoriesClient() {
         <div className="mb-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-700">{message}</div>
       )}
 
-      <div className="rounded-xl bg-white shadow overflow-hidden">
+      <div className="rounded-xl bg-white shadow overflow-x-auto no-scrollbar">
         <table className="w-full">
           <thead className="bg-gray-100">
             <tr>
@@ -177,9 +178,9 @@ export default function CategoriesClient() {
                       {cat.isActive ? "Active" : "Inactive"}
                     </span>
                   </td>
-                  <td className="p-4">
-                    {can("UPDATE_CATEGORIES") && <button onClick={() => openEdit(cat)} className="mr-2 rounded bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600">Edit</button>}
-                    {can("DELETE_CATEGORIES") && <button onClick={() => handleDelete(cat.id)} className="rounded bg-red-500 px-3 py-1 text-white text-sm hover:bg-red-600">Delete</button>}
+                  <td className="flex p-4 gap-4">
+                    {can("UPDATE_CATEGORIES") && <button onClick={() => openEdit(cat)} className="mr-2 rounded text-blue-500 text-sm hover:bg-blue-600"><Edit size={22} /></button>}
+                    {can("DELETE_CATEGORIES") && <button onClick={() => handleDelete(cat.id)} className="rounded text-red-500 text-sm hover:bg-red-600"><Trash2 size={22} /></button>}
                   </td>
                 </tr>
               ))
@@ -189,8 +190,8 @@ export default function CategoriesClient() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-[95vw] sm:max-w-lg rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="mb-4 text-xl font-bold">{editing ? "Edit Category" : "Add Category"}</h2>
             <div className="space-y-4">
               <div>
@@ -210,7 +211,7 @@ export default function CategoriesClient() {
                 <label htmlFor="isActive" className="text-sm text-gray-700">Active</label>
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
               <button onClick={() => setShowModal(false)} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">Cancel</button>
               <button onClick={handleSave} disabled={saving} className="rounded-lg bg-orange-500 px-4 py-2 text-white hover:bg-orange-600 disabled:opacity-50">
                 {saving ? "Saving..." : "Save"}

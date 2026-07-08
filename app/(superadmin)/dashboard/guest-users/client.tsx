@@ -63,17 +63,17 @@ export default function GuestUsersClient() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Guest Users</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Guest Users</h1>
           <p className="text-gray-500 text-sm mt-1">
             Users who placed orders without creating an account
           </p>
         </div>
-        <div className="flex items-center justify-end gap-4">
+        <div className="flex items-center flex-wrap gap-3 overflow-x-auto">
           {can("DOWNLOAD_GUEST_USERS") && (
-          <button className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+          <button className=" flex gap-2 rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
             <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
               <option className="text-black" value="">Export</option>
               <option className="text-black" value="pdf">PDF</option>
@@ -98,14 +98,14 @@ export default function GuestUsersClient() {
         />
       </div>
 
-      <div className="rounded-xl bg-white shadow overflow-hidden">
+      <div className="rounded-xl bg-white shadow overflow-x-auto no-scrollbar">
         <table className="w-full">
           <thead className="bg-gray-100">
             <tr>
               <th className="p-4 text-left">Name</th>
               <th className="p-4 text-left">Phone</th>
               <th className="p-4 text-left">Address</th>
-              <th className="p-4 text-left">Placed On</th>
+              <th className="p-4 text-left whitespace-nowrap">Placed On</th>
             </tr>
           </thead>
           <tbody>

@@ -541,24 +541,24 @@ export default function PaymentPage() {
   }
 
   return (
-    <div className="min-h-screen p-6 space-y-6">
+    <div className="min-h-screen p-4 sm:p-6 space-y-6">
       {message ? (
         <p className={`rounded-xl p-3 text-sm ${messageType === "error" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
           {message}
         </p>
       ) : null}
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Payments</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Payments</h1>
           <p className="text-sm text-gray-500 mt-0.5">Manage transactions, dues & financial overview</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center flex-wrap gap-3">
           <div className="relative">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
             <input
               placeholder="Search anything..."
-              className="bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 w-56 transition-all"
+              className="bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 w-full sm:w-56 transition-all"
               value={globalSearch}
               onChange={(e) => { setGlobalSearch(e.target.value); setTxPage(1); setReceivablePage(1); setDuesPage(1); }}
             />
@@ -568,7 +568,7 @@ export default function PaymentPage() {
             {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
           </div>
           {can("DOWNLOAD_PAYMENTS") && (
-            <button className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+            <button className=" flex gap-2 rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
               <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
                 <option className="text-black" value="">Export</option>
                 <option className="text-black" value="pdf">PDF</option>
@@ -581,7 +581,7 @@ export default function PaymentPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-full sm:w-fit flex-wrap">
         <button
           onClick={() => setActiveTab("overview")}
           className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "overview" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
@@ -672,7 +672,7 @@ export default function PaymentPage() {
               Manage →
             </a>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto no-scrollbar">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-50">
@@ -921,7 +921,7 @@ export default function PaymentPage() {
                 </div>
               </div>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto no-scrollbar">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-50">
@@ -1014,7 +1014,7 @@ export default function PaymentPage() {
               Rs {analytics.customerDues.toLocaleString()}
             </span>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto no-scrollbar">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-50">
@@ -1098,7 +1098,7 @@ export default function PaymentPage() {
               Rs {analytics.supplierDueRemaining.toLocaleString()}
             </span>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto no-scrollbar">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-50">
@@ -1173,8 +1173,8 @@ export default function PaymentPage() {
             <p className="text-sm text-gray-500">Manage online payment accounts and track balances</p>
           </div>
           {can("CREATE_PAYMENTS") && (
-            <button onClick={openAddAccount} className="flex items-center gap-2 bg-orange-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-orange-600 transition-colors">
-              <Plus size={16} /> Add Account
+            <button onClick={openAddAccount} className="flex items-center whitespace-nowrap gap-1 bg-orange-500 text-white px-2 md:px-5 py-2.5 rounded-xl text-[12px] md:text-sm font-semibold hover:bg-orange-600 transition-colors">
+                <Plus size={16} /> Add Account
             </button>
           )}
         </div>
@@ -1208,7 +1208,7 @@ export default function PaymentPage() {
 
         {/* Accounts Table */}
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto no-scrollbar">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-50">
@@ -1285,8 +1285,8 @@ export default function PaymentPage() {
 
       {/* Add/Edit Account Modal */}
       {showAccountForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-[95vw] sm:max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">{editingAccount ? "Edit Account" : "Add Payment Account"}</h2>
             <div className="space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
@@ -1356,7 +1356,7 @@ export default function PaymentPage() {
                 <textarea placeholder="Optional notes" rows={2} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.notes} onChange={(e) => setAccountForm({ ...accountForm, notes: e.target.value })} />
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
               <button onClick={() => { setShowAccountForm(false); setEditingAccount(null); }} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
               <button onClick={handleSaveAccount} disabled={savingAccount} className="rounded-lg bg-orange-500 px-5 py-2 text-sm text-white font-semibold hover:bg-orange-600 disabled:opacity-50">{savingAccount ? "Saving..." : editingAccount ? "Update" : "Create"}</button>
             </div>
@@ -1366,11 +1366,11 @@ export default function PaymentPage() {
 
       {/* Delete Account Confirmation */}
       {confirmDeleteAccount && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-[90vw] sm:max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="text-lg font-bold mb-2">Delete Account</h2>
             <p className="text-sm text-gray-600 mb-6">Are you sure you want to delete <strong>{confirmDeleteAccount.accountName}</strong>?</p>
-            <div className="flex gap-3 justify-end">
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
               <button onClick={() => setConfirmDeleteAccount(null)} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
               <button onClick={handleDeleteAccount} className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white hover:bg-red-600">Delete</button>
             </div>

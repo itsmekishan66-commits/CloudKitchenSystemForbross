@@ -1,5 +1,5 @@
 "use client";
-import { CircleArrowDown } from "lucide-react";
+import { CircleArrowDown, Edit, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
@@ -185,13 +185,13 @@ export default function CustomersClient() {
 
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Customers & Users <span className="text-base font-normal text-gray-400 ml-2">({users.length} {filter === "" ? "total" : filter})</span></h1>
-        <div className="flex items-center justify-end gap-4">
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold">Customers & Users <span className="text-sm sm:text-base font-normal text-gray-400 ml-2">({users.length} {filter === "" ? "total" : filter})</span></h1>
+        <div className="flex items-center flex-wrap gap-3">
           {can("DOWNLOAD_USERS") && (
-          <button className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
-            <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+          <button className="flex gap-2 rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+            <select onChange={(e) => handleDownload(e.target.value)} className="text-sm bg-transparent cursor-pointer">
               <option className="text-black" value="">Export</option>
               <option className="text-black" value="pdf">PDF</option>
               <option className="text-black" value="csv">CSV</option>
@@ -202,7 +202,7 @@ export default function CustomersClient() {
           {can("CREATE_USERS") && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="rounded-lg bg-orange-500 px-5 py-3 text-md font-medium text-white shadow hover:bg-orange-600 transition-colors">
+            className="rounded-lg bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-md font-medium text-white shadow hover:bg-orange-600 transition-colors">
             + Add User
           </button>
           )}
@@ -235,7 +235,7 @@ export default function CustomersClient() {
         />
       </div>
 
-      <div className="rounded-xl bg-white shadow overflow-hidden">
+      <div className="rounded-xl bg-white shadow overflow-x-auto no-scrollbar">
         <table className="w-full">
           <thead className="bg-gray-100">
             <tr>
@@ -263,21 +263,21 @@ export default function CustomersClient() {
                   </td>
                   <td className="p-4 text-gray-500">{new Date(user.createdAt).toLocaleDateString()}</td>
                   <td className="p-4">
-                    <div className="flex gap-2">
+                    <div className="flex gap-4">
                       {can("UPDATE_USERS") && (
                       <button
                         onClick={() => openEdit(user)}
-                        className="rounded-lg border border-gray-200 px-3 py-1 text-sm bg-blue-600 text-white"
+                        className="rounded text-blue-500 text-sm hover:bg-blue-600"
                       >
-                        Edit
+                        <Edit size={22} />
                       </button>
                       )}
                       {can("DELETE_USERS") && (
                       <button
                         onClick={() => setDeleteTarget(user)}
-                        className="rounded-lg border border-red-200 px-3 py-1 text-sm text-white bg-red-600"
+                        className="rounded text-red-500 text-sm hover:bg-red-600"
                       >
-                        Delete
+                        <Trash2 size={22} />
                       </button>
                       )}
                       {can("VIEW_USERS") && user.role==="customer" && (
@@ -299,8 +299,8 @@ export default function CustomersClient() {
 
       {/* Add User Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-[95vw] sm:max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold">Add User</h2>
               <button onClick={() => { setShowAddModal(false); setError(""); }} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
@@ -345,8 +345,8 @@ export default function CustomersClient() {
 
       {/* Edit User Modal */}
       {editUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-[95vw] sm:max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold">Edit User</h2>
               <button onClick={() => { setEditUser(null); setError(""); setForm(emptyForm); }} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
@@ -397,13 +397,13 @@ export default function CustomersClient() {
 
       {/* Delete Confirmation */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-[90vw] sm:max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="text-lg font-bold mb-2">Delete User</h2>
             <p className="text-sm text-gray-600 mb-6">
               Are you sure you want to delete <strong>{deleteTarget.name}</strong> ({deleteTarget.email})? The user will be hidden from the system but their data will be preserved.
             </p>
-            <div className="flex gap-3 justify-end">
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
               <button
                 onClick={() => setDeleteTarget(null)}
                 className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"

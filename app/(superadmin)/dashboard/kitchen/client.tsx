@@ -1,5 +1,5 @@
 "use client";
-// import { CircleArrowDown } from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
@@ -156,10 +156,10 @@ if (loading) {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Kitchens</h1>
-        <div className="flex items-center justify-end gap-4">
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold">Kitchens</h1>
+        <div className="flex items-center flex-wrap gap-3">
           {/* <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
             <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
               <option className="text-black" value="">Export</option>
@@ -168,7 +168,7 @@ if (loading) {
               <option className="text-black" value="excel">Excel</option>
             </select>
           </button> */}
-          {can("CREATE_KITCHENS") && <button onClick={openCreate} className="rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600">+ Add Kitchen</button>}
+          {can("CREATE_KITCHENS") && <button onClick={openCreate} className="rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-orange-600">+ Add Kitchen</button>}
         </div>
       </div>
 
@@ -186,7 +186,7 @@ if (loading) {
         />
       </div>
 
-      <div className="rounded-xl bg-white shadow overflow-hidden">
+      <div className="rounded-xl bg-white shadow overflow-x-auto  no-scrollbar">
         <table className="w-full">
           <thead className="bg-gray-100">
             <tr>
@@ -197,23 +197,23 @@ if (loading) {
               <th className="p-4 text-left">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody >
             {filteredKitchens.length === 0 ? (
               <tr><td colSpan={5} className="p-8 text-center text-gray-400">No kitchens found</td></tr>
             ) : (
               filteredKitchens.map((kitchen) => (
                 <tr key={kitchen.id} className="border-t">
-                  <td className="p-4 font-medium">{kitchen.name}</td>
-                  <td className="p-4 text-gray-500">{kitchen.location ?? "-"}</td>
-                  <td className="p-4 text-gray-500">{kitchen.managerName ?? "-"}</td>
-                  <td className="p-4">
+                  <td className="p-2 md:p-4 font-medium">{kitchen.name}</td>
+                  <td className="p-2 md:p-4 text-gray-500">{kitchen.slug}</td>
+                  <td className="p-3 md:p-4 text-gray-500">{kitchen.managerName ?? "-"}</td>
+                  <td className="p-2 md:p-4">
                     <span className={`rounded-full px-3 py-1 text-sm ${kitchen.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                       {kitchen.isActive ? "Active" : "Inactive"}
                     </span>
                   </td>
-                  <td className="p-4">
-                    {can("UPDATE_KITCHENS") && <button onClick={() => openEdit(kitchen)} className="mr-2 rounded bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600">Edit</button>}
-                    {can("DELETE_KITCHENS") && <button onClick={() => handleDelete(kitchen.id)} className="rounded bg-red-500 px-3 py-1 text-white text-sm hover:bg-red-600">Delete</button>}
+                  <td className="flex p-4 gap-4">
+                    {can("UPDATE_KITCHENS") && <button onClick={() => openEdit(kitchen)} className="rounded text-blue-500 text-sm hover:bg-blue-600"><Edit size={22} /></button>}
+                    {can("DELETE_KITCHENS") && <button onClick={() => handleDelete(kitchen.id)} className="rounded text-red-500 text-sm hover:bg-red-600"><Trash2 size={22} /></button>}
                   </td>
                 </tr>
               ))
@@ -223,8 +223,8 @@ if (loading) {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-[95vw] sm:max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h2 className="mb-4 text-xl font-bold">{editing ? "Edit Kitchen" : "Add Kitchen"}</h2>
             <div className="space-y-4">
               <div>
@@ -256,7 +256,7 @@ if (loading) {
                 <label htmlFor="isActive" className="text-sm text-gray-700">Active</label>
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
               <button onClick={() => setShowModal(false)} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">Cancel</button>
               <button onClick={handleSave} disabled={saving} className="rounded-lg bg-orange-500 px-4 py-2 text-white hover:bg-orange-600 disabled:opacity-50">
                 {saving ? "Saving..." : "Save"}

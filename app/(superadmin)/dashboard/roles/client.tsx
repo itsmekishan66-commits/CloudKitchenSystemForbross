@@ -1,5 +1,5 @@
 "use client";
-// import { CircleArrowDown } from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createRoleWithPermissionsAction , deleteUserAction, getRolePermissionsAction, updateRolePermissionsAction} from "@/app/(superadmin)/_action/roles";
 //static code for RBAc gareko bela ko ho
@@ -199,16 +199,16 @@ export default function RolesClient() {
   }
 
   return (
-    <div className="p-6">
-      <h1 className="mb-6 text-2xl font-bold">Roles & Permissions</h1>
+    <div className="p-4 sm:p-6">
+      <h1 className="mb-6 text-xl sm:text-2xl font-bold">Roles & Permissions</h1>
 
-      <div className="mb-4 flex items-center justify-between gap-4">
+      <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <input type="text" placeholder="Search by name or email..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full rounded-lg border border-gray-300 px-6 py-4 text-sm outline-none focus:border-orange-500"
+          className="w-full rounded-lg border border-gray-300 px-4 sm:px-6 py-3 sm:py-4 text-sm outline-none focus:border-orange-500"
         />
-        <div className="flex items-center justify-end gap-4">
+        <div className="flex items-center flex-wrap gap-3 shrink-0">
           {/* <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
             <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
               <option className="text-black" value="pdf">PDF</option>
@@ -217,7 +217,7 @@ export default function RolesClient() {
             </select>
           </button> */}
           {can("CREATE_ROLES") && (
-          <button onClick={openCreate} className="rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600 cursor-pointer whitespace-nowrap">+ Add Roles</button>
+          <button onClick={openCreate} className="rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-orange-600 cursor-pointer whitespace-nowrap">+ Add Roles</button>
           )}
         </div>
       </div>
@@ -226,7 +226,7 @@ export default function RolesClient() {
         <div className="mb-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-700">{message}</div>
       )}
 
-      <div className="rounded-xl bg-white shadow overflow-hidden">
+      <div className="rounded-xl bg-white shadow overflow-x-auto no-scrollbar">
         <table className="w-full">
           <thead className="bg-gray-200">
             <tr>
@@ -258,7 +258,7 @@ export default function RolesClient() {
                   <td className="p-4 font-medium">{user.name}</td>
                   <td className="p-4 text-gray-500">{user.email}</td>
                   <td className="p-4">
-                    <span className={`rounded-full px-3 py-1 text-sm ${roleColors[user.role] ?? "bg-gray-200"}`}>
+                    <span className={`w-full rounded-full px-2 py-2 md:px-5 md:py-3 whitespace-nowrap  text-[12px] md:text-sm ${roleColors[user.role] ?? "bg-gray-200"}`}>
                       {user.role}
                     </span>
                   </td>
@@ -298,24 +298,24 @@ export default function RolesClient() {
                     )}
                   </td>
                   <td className="p-4">
-                    <div className="flex gap-2">
+                    <div className="flex gap-4">
                       {can("UPDATE_ROLES") && (
                       <button
                         onClick={() => {
                           setEditUser(user);
                           setEditSelectedPermissions([]);
                         }}
-                        className="rounded-lg bg-blue-500 px-3 py-1 text-xs text-white hover:bg-blue-600"
+                        className="rounded text-blue-500 text-sm hover:bg-blue-600"
                       >
-                        Edit
+                        <Edit size={22} />
                       </button>
                       )}
                       {can("DELETE_ROLES") && (
                       <button
                         onClick={() => setDeleteTarget(user)}
-                        className="rounded-lg bg-red-500 px-3 py-1 text-xs text-white hover:bg-red-600"
+                        className="rounded text-red-500 text-sm hover:bg-red-600"
                       >
-                        Delete
+                        <Trash2 size={22} />
                       </button>
                       )}
                     </div>
@@ -331,8 +331,8 @@ export default function RolesClient() {
 
       {/* modal: create a new role with permissions and assign it to a new user */}
       {showCreateRole && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-auto pt-2">
-          <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-auto pt-2 px-4">
+          <div className="w-full max-w-[95vw] sm:max-w-3xl rounded-2xl bg-white p-4 sm:p-6 shadow-xl my-4">
             {/* Header */}
             <div className="flex items-center justify-between border-b pb-4">
               <h2 className="text-xl font-bold">Create New Role</h2>
@@ -472,7 +472,7 @@ export default function RolesClient() {
             </div>
 
             {/* Footer */}
-            <div className="mt-6 flex justify-end gap-3 border-t pt-4">
+            <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 border-t pt-4">
               <button onClick={closeCreate} className="rounded-lg border px-4 py-2">
                 Cancel
               </button>
@@ -488,8 +488,8 @@ export default function RolesClient() {
 
       {/* modal: edit permissions for the role assigned to the selected user */}
       {editUser && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-auto pt-2">
-          <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-auto pt-2 px-4">
+          <div className="w-full max-w-[95vw] sm:max-w-3xl rounded-2xl bg-white p-4 sm:p-6 shadow-xl my-4">
             <div className="flex items-center justify-between border-b pb-4">
               <h2 className="text-xl font-bold">Edit Permissions — {editUser.name}</h2>
               <button onClick={() => setEditUser(null)} className="rounded-md p-2 hover:bg-gray-200">✕</button>
@@ -551,7 +551,7 @@ export default function RolesClient() {
                 </div>
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3 border-t pt-4">
+            <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 border-t pt-4">
               <button onClick={() => { setEditUser(null); setEditSelectedPermissions([]); }} className="rounded-lg border px-4 py-2">Cancel</button>
               <button
                 onClick={async () => {
@@ -571,8 +571,8 @@ export default function RolesClient() {
       )}
 
       {confirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-[90vw] sm:max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="text-lg font-bold mb-2">Confirm Role Change</h2>
             <p className="text-sm text-gray-600 mb-1">
               Are you sure you want to change <strong>{confirm.user.name}</strong>&apos;s role?
@@ -582,7 +582,7 @@ export default function RolesClient() {
               &nbsp;&rarr;&nbsp;
               <span className="inline-block rounded bg-orange-200 px-2 py-0.5 text-xs font-medium">{confirm.role}</span>
             </p>
-            <div className="flex gap-3 justify-end">
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
               <button
                 onClick={() => setConfirm(null)}
                 className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
@@ -605,13 +605,13 @@ export default function RolesClient() {
 
       {/* modal: confirm delete user */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-[90vw] sm:max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="text-lg font-bold mb-2">Delete User</h2>
             <p className="text-sm text-gray-600 mb-6">
               Are you sure you want to delete <strong>{deleteTarget.name}</strong>?
             </p>
-            <div className="flex gap-3 justify-end">
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
               <button onClick={() => setDeleteTarget(null)} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
               <button
                 onClick={async () => {

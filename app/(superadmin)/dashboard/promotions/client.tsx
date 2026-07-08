@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { Edit, Trash2 } from "lucide-react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 
@@ -233,12 +234,12 @@ export default function PromotionsClient() {
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Promotions</h1>
-        <div className="flex items-center justify-end gap-4">
+    <div className="p-4 sm:p-6">
+      <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">Promotions</h1>
+        <div className="flex items-center flex-wrap gap-3">
           {can("CREATE_PROMOTIONS") && (
-            <button onClick={openCreate} className="rounded-xl bg-orange-500 px-5 py-3 font-semibold text-white hover:bg-orange-600">
+            <button onClick={openCreate} className="rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-3 font-semibold text-white hover:bg-orange-600">
               + Add Promotion and Offers
             </button>
           )}
@@ -260,7 +261,7 @@ export default function PromotionsClient() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-xl bg-white shadow">
+      <div className="overflow-x-auto no-scrollbar rounded-xl bg-white shadow">
         <table className="w-full">
           <thead className="bg-gray-100">
             <tr>
@@ -302,15 +303,15 @@ export default function PromotionsClient() {
                       {promo.isActive ? "Active" : "Inactive"}
                     </span>
                   </td>
-                  <td className="p-4">
+                  <td className="flex p-4 gap-4">
                     {can("UPDATE_PROMOTIONS") && (
-                      <button onClick={() => openEdit(promo)} className="mr-2 rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600">
-                        Edit
+                      <button onClick={() => openEdit(promo)} className="rounded text-blue-500 text-sm hover:bg-blue-600">
+                        <Edit size={22} />
                       </button>
                     )}
                     {can("DELETE_PROMOTIONS") && (
-                      <button onClick={() => handleDelete(promo.id)} className="rounded bg-red-500 px-3 py-1 text-sm text-white hover:bg-red-600">
-                        Delete
+                      <button onClick={() => handleDelete(promo.id)} className="rounded text-red-500 text-sm hover:bg-red-600">
+                        <Trash2 size={22} />
                       </button>
                     )}
                   </td>
@@ -322,8 +323,8 @@ export default function PromotionsClient() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-[95vw] sm:max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="mb-4 text-xl font-bold">{editing ? (modalMode === "offer" ? "Edit Offer" : "Edit Promotion") : modalMode === "offer" ? "Add Offer" : "Add Promotion"}</h2>
             <div className="space-y-4">
               <div>
@@ -382,7 +383,7 @@ export default function PromotionsClient() {
                 </label>
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
               <button onClick={() => setShowModal(false)} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">
                 Cancel
               </button>

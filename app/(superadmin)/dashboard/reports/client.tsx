@@ -140,10 +140,10 @@ export default function ReportsClient() {
   const statusData = [...data.statusBreakdown].sort((a, b) => b.count - a.count).map(d => ({ label: d.status, value: d.count, color: d.color }));
 
   return (
-    <motion.div variants={container} initial="hidden" animate="show" className="min-h-screen bg-linear-to-br from-orange-50 via-white to-red-50 p-6">
+    <motion.div variants={container} initial="hidden" animate="show" className="min-h-screen bg-linear-to-br from-orange-50 via-white to-red-50 p-3 sm:p-6">
       <motion.div variants={item} className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Reports & Analytics</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Reports & Analytics</h1>
           <p className="text-gray-500 text-sm mt-1">Comprehensive overview of your entire business</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -228,7 +228,7 @@ export default function ReportsClient() {
           </div>
           <span className="text-xs text-gray-400 bg-white/80 px-3 py-2 rounded-xl border border-gray-200">{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span>
           <div className="relative">
-            <button onClick={() => setExportOpen(!exportOpen)} className="flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-white font-semibold hover:bg-orange-600 transition-all text-sm"><Download size={16} />Export</button>
+            <button onClick={() => setExportOpen(!exportOpen)} className="flex items-center gap-2 rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-2.5 text-white font-semibold hover:bg-orange-600 transition-all text-sm"><Download size={16} />Export</button>
             {exportOpen && (
               <div className="absolute right-0 mt-2 w-32 rounded-xl bg-white shadow-xl border border-gray-100 overflow-hidden z-10">
                 {["pdf", "csv", "excel"].map((f) => (
@@ -240,7 +240,7 @@ export default function ReportsClient() {
         </div>
       </motion.div>
 
-      <motion.div variants={item} className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 mb-8">
+      <motion.div variants={item} className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 lg:gap-5 mb-8">
         {kpiCards.map((c) => { const Icon = c.icon; const ch = c.change ? parseFloat(c.change) : null; return (
           <div key={c.title} className="rounded-2xl border border-white/40 bg-white/90 p-5 shadow-lg backdrop-blur-xl hover:shadow-xl transition-all">
             <div className="flex items-start justify-between mb-3">

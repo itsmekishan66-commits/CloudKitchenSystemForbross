@@ -26,6 +26,7 @@ export async function createRoleWithPermissionsAction(
     // assign permissions to role
     await assignPermissionsForRole(roleId, permissionsIds);
 
+    
     // create user with this role
     const passwordHash = userData.userPassword ? await hashPassword(userData.userPassword) : null;
     await createUser({

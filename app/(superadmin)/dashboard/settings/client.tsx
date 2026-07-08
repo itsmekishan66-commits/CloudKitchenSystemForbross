@@ -227,14 +227,14 @@ export default function SettingsClient() {
     <>
       <div className="min-h-screen bg-gray-50 p-4 md:p-8">
 
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold">System Settings</h1>
-            <p className="mt-2 text-gray-500">
+            <h1 className="text-2xl sm:text-3xl font-bold">System Settings</h1>
+            <p className="mt-2 text-gray-500 text-sm sm:text-base">
               Manage admin, restaurant and website settings
             </p>
           </div>
-          <div className="flex items-center justify-end gap-4">
+          <div className="flex items-center flex-wrap gap-3">
             {/* <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
               <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
                 <option className="text-black" value="">Export</option>

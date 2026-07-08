@@ -146,16 +146,16 @@ export default function DeliveryZonesClient() {
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-            <div className="mb-8 flex items-center justify-between">
+            <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-3xl font-bold">Delivery Zones</h1>
-                    <p className="mt-2 text-gray-500">
+                    <h1 className="text-2xl sm:text-3xl font-bold">Delivery Zones</h1>
+                    <p className="mt-2 text-gray-500 text-sm sm:text-base">
                         Manage delivery areas and their charges
                     </p>
                 </div>
                 {can("CREATE_SETTINGS") && (
                     <button onClick={openCreateModal}
-                        className="flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"
+                        className="flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600 shrink-0"
                     >
                         + Add Zone
                     </button>
@@ -168,61 +168,108 @@ export default function DeliveryZonesClient() {
                         No delivery zones configured yet.{can("CREATE_SETTINGS") ? " Click \"Add Zone\" to create one." : ""}
                     </p>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b text-left text-gray-500">
-                                    <th className="pb-3 font-medium">Landmark Name</th>
-                                    <th className="pb-3 font-medium">Delivery Charge</th>
-                                    <th className="pb-3 font-medium">Min. Order (Free Delivery)</th>
-                                    <th className="pb-3 font-medium">Status</th>
-                                    {(can("UPDATE_SETTINGS") || can("DELETE_SETTINGS")) && (
-                                        <th className="pb-3 font-medium text-right">Actions</th>
+                    <>
+                        {/* Mobile: card layout */}
+                        <div className="space-y-3 md:hidden">
+                            {zones.map((zone) => (
+                                <div key={zone.id} className="rounded-xl border border-gray-100 bg-white p-4">
+                                    <div className="mb-3 flex items-start justify-between">
+                                        <div>
+                                            <h3 className="font-semibold text-gray-900">{zone.landmarkName}</h3>
+                                            <p className="mt-0.5 text-sm text-gray-500">
+                                                Rs. {Number(zone.deliveryCharge).toFixed(2)}
+                                            </p>
+                                        </div>
+                                        <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${zone.isActive
+                                            ? "bg-green-100 text-green-700"
+                                            : "bg-red-100 text-red-700"
+                                            }`}
+                                        >
+                                            {zone.isActive ? "Active" : "Inactive"}
+                                        </span>
+                                    </div>
+                                    {zone.minOrderAmount && (
+                                        <p className="mb-3 text-xs text-gray-400">
+                                            Free delivery on orders above Rs. {Number(zone.minOrderAmount).toFixed(2)}
+                                        </p>
                                     )}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {zones.map((zone) => (
-                                    <tr key={zone.id} className="border-b last:border-0">
-                                        <td className="py-4 font-medium">{zone.landmarkName}</td>
-                                        <td className="py-4">Rs. {Number(zone.deliveryCharge).toFixed(2)}</td>
-                                        <td className="py-4">
-                                            {zone.minOrderAmount
-                                                ? `Rs. ${Number(zone.minOrderAmount).toFixed(2)}`
-                                                : "—"}
-                                        </td>
-                                        <td className="py-4">
-                                            <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${zone.isActive
-                                                ? "bg-green-100 text-green-700"
-                                                : "bg-red-100 text-red-700"
-                                                }`}
-                                            >
-                                                {zone.isActive ? "Active" : "Inactive"}
-                                            </span>
-                                        </td>
+                                    {(can("UPDATE_SETTINGS") || can("DELETE_SETTINGS")) && (
+                                        <div className="flex gap-2 border-t border-gray-100 pt-3">
+                                            {can("UPDATE_SETTINGS") && (
+                                                <button onClick={() => openEditModal(zone)}
+                                                    className="flex-1 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-100"
+                                                >Edit
+                                                </button>
+                                            )}
+                                            {can("DELETE_SETTINGS") && (
+                                                <button onClick={() => handleDelete(zone)}
+                                                    className="flex-1 rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white"
+                                                >Delete
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Desktop: table layout */}
+                        <div className="hidden md:block overflow-x-auto no-scrollbar">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b text-left text-gray-500">
+                                        <th className="pb-3 text-xs font-medium md:text-sm">Landmark Name</th>
+                                        <th className="pb-3 text-xs font-medium md:text-sm">Delivery Charge</th>
+                                        <th className="pb-3 text-xs font-medium md:text-sm">Min. Order (Free Delivery)</th>
+                                        <th className="pb-3 text-xs font-medium md:text-sm">Status</th>
                                         {(can("UPDATE_SETTINGS") || can("DELETE_SETTINGS")) && (
-                                            <td className="py-4 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    {can("UPDATE_SETTINGS") && (
-                                                        <button onClick={() => openEditModal(zone)}
-                                                            className="rounded-md px-4 py-1 text-white bg-blue-600"
-                                                            title="Edit">Edit
-                                                        </button>
-                                                    )}
-                                                    {can("DELETE_SETTINGS") && (
-                                                        <button onClick={() => handleDelete(zone)}
-                                                            className="rounded-md px-4 py-1 text-white bg-red-500"
-                                                            title="Delete">Delete
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
+                                            <th className="pb-3 text-right text-xs font-medium md:text-sm">Actions</th>
                                         )}
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    {zones.map((zone) => (
+                                        <tr key={zone.id} className="border-b last:border-0">
+                                            <td className="py-4 font-medium">{zone.landmarkName}</td>
+                                            <td className="py-4">Rs. {Number(zone.deliveryCharge).toFixed(2)}</td>
+                                            <td className="py-4">
+                                                {zone.minOrderAmount
+                                                    ? `Rs. ${Number(zone.minOrderAmount).toFixed(2)}`
+                                                    : "—"}
+                                            </td>
+                                            <td className="py-4">
+                                                <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${zone.isActive
+                                                    ? "bg-green-100 text-green-700"
+                                                    : "bg-red-100 text-red-700"
+                                                    }`}
+                                                >
+                                                    {zone.isActive ? "Active" : "Inactive"}
+                                                </span>
+                                            </td>
+                                            {(can("UPDATE_SETTINGS") || can("DELETE_SETTINGS")) && (
+                                                <td className="py-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {can("UPDATE_SETTINGS") && (
+                                                            <button onClick={() => openEditModal(zone)}
+                                                                className="rounded-md bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700"
+                                                            >Edit
+                                                            </button>
+                                                        )}
+                                                        {can("DELETE_SETTINGS") && (
+                                                            <button onClick={() => handleDelete(zone)}
+                                                                className="rounded-md bg-red-500 px-4 py-1.5 text-sm text-white hover:bg-red-600"
+                                                            >Delete
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
                 )}
             </div>
 
@@ -309,7 +356,7 @@ export default function DeliveryZonesClient() {
                             </div>
                         </div>
 
-                        <div className="mt-6 flex gap-3 justify-end">
+                        <div className="mt-6 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
                             <button
                                 onClick={() => setShowModal(false)}
                                 className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium hover:bg-gray-50"
@@ -336,7 +383,7 @@ export default function DeliveryZonesClient() {
                         <p className="text-gray-600 mb-6">
                             Are you sure you want to delete <strong>{deleteTarget.landmarkName}</strong>?
                         </p>
-                        <div className="flex gap-3 justify-end">
+                        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
                             <button
                                 onClick={() => setDeleteTarget(null)}
                                 className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium hover:bg-gray-50"

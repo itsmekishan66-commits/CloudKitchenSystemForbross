@@ -1,9 +1,7 @@
 "use client";
-// import { CircleArrowDown } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FiMail, FiPhone, FiMessageSquare  } from "react-icons/fi";
-// import { MdDelete } from "react-icons/md";
-// import { FiRefreshCw } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
@@ -83,15 +81,15 @@ export default function MessagesClient() {
   };
 
   return (
-    <div className="m-10">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Messages</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Messages</h1>
+          <p className="text-gray-500 mt-1 text-sm sm:text-base">
             Messages from the contact form and newsletter subscriptions
           </p>
         </div>
-        <div className="flex items-center justify-end gap-4">
+        <div className="flex items-center flex-wrap gap-3">
           {/* <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
             <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
               <option className="text-black" value="">Export</option>
@@ -167,9 +165,9 @@ export default function MessagesClient() {
                 {can("DELETE_MESSAGES") && (
                   <button
                     onClick={() => handleDelete(msg.id)}
-                    className="rounded bg-red-500 px-3 py-1 text-white text-sm hover:bg-red-600 ml-4"
-                  > Delete
-                    {/* <MdDelete size={20} /> */}
+                    className="rounded text-red-500 text-sm hover:bg-red-600 ml-4"
+                  >
+                    <Trash2 size={22} />
                   </button>
                 )}
               </div>

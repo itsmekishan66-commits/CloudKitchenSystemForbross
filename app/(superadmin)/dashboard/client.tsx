@@ -32,6 +32,8 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [siteName, setSiteName] = useState("Cloud Kitchen");
+  const [page, setPage] = useState(1);
+  const perPage = 20;
 
   const can = (module: string) => allowedModules.includes(module);
 
@@ -103,10 +105,10 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
 
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-orange-50 via-white to-red-50 p-6 no-scrollbar">
-      <div className="rounded-3xl bg-orange-300 p-8 text-black shadow-2xl">
-        <h1 className="text-4xl font-bold">{siteName} Command Center</h1>
-        <p className="mt-3 max-w-3xl text-black/90">
+    <div className="min-h-screen bg-linear-to-br from-orange-50 via-white to-red-50 p-3 sm:p-6 no-scrollbar">
+      <div className="rounded-2xl sm:rounded-3xl bg-orange-300 p-5 sm:p-8 text-black shadow-2xl">
+        <h1 className="text-2xl sm:text-4xl font-bold">{siteName} Command Center</h1>
+        <p className="mt-2 sm:mt-3 max-w-3xl text-black/90 text-sm sm:text-base">
           Monitor orders, kitchens, inventory, payments, customers, staff, and business performance from a single powerful dashboard.
         </p>
         <div className="mt-6 flex gap-3 flex-wrap">
@@ -115,19 +117,20 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
         </div>
       </div>
 
-      <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-4 md:mt-8 grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         {statCards.filter((s) => can(s.module)).map((stat) => {
           const Icon = stat.icon;
+
           return (
-            <div key={stat.title} className="rounded-3xl border border-white/20 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-500">{stat.title}</p>
-                  <h2 className="mt-2 text-3xl font-bold">{stat.value}</h2>
-                  <span className="mt-2 inline-block rounded-full bg-green-100 px-3 py-1 text-sm text-green-700">{stat.growth}</span>
+            <div key={stat.title} className="rounded-2xl sm:rounded-3xl border border-white/20 bg-white/80 p-4 sm:p-5 lg:p-6 shadow-xl backdrop-blur-xl">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs sm:text-sm text-gray-500"> {stat.title} </p>
+                  <h2 className="mt-1 text-xl sm:text-2xl lg:text-3xl font-bold"> {stat.value} </h2>
+                  <span className="mt-2 inline-flex rounded-full bg-green-100 px-2 py-1 text-[10px] sm:text-xs lg:text-sm text-green-700"> {stat.growth} </span>
                 </div>
-                <div className="rounded-2xl bg-orange-100 p-4">
-                  <Icon size={28} />
+                <div className="rounded-xl sm:rounded-2xl bg-orange-100 p-2 sm:p-3 lg:p-4 shrink-0">
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
                 </div>
               </div>
             </div>
@@ -135,22 +138,19 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
         })}
       </div>
 
-      <div className="mt-10">
-        <h2 className="mb-5 text-2xl font-bold">Quick Access</h2>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="mt-6 md:mt-10">
+        <h2 className="mb-4 sm:mb-5 text-xl sm:text-2xl font-bold"> Quick Access </h2>
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
           {modules.map((module) => {
             const Icon = module.icon;
             return (
-              <Link
-                key={module.name}
-                href={module.href}
-                className="cursor-pointer rounded-3xl border border-white/20 bg-white/80 p-6 shadow-lg transition-all hover:-translate-y-2 hover:shadow-2xl backdrop-blur-xl"
-              >
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-100">
-                  <Icon size={24} />
+              <Link key={module.name} href={module.href}
+                className="group rounded-2xl sm:rounded-3xl border border-white/20 bg-white/80 p-3 sm:p-5 lg:p-6 shadow-lg backdrop-blur-xl transition-all hover:-translate-y-1 sm:hover:-translate-y-2 hover:shadow-2xl">
+                <div className="mb-3 sm:mb-4 flex h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 items-center justify-center rounded-xl sm:rounded-2xl bg-orange-100 transition-colors group-hover:bg-orange-200">
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
-                <h3 className="text-lg font-semibold">{module.name}</h3>
-                <p className="mt-2 text-sm text-gray-500">Manage and monitor {module.name.toLowerCase()}</p>
+                <h3 className="text-sm sm:text-base lg:text-lg font-semibold leading-tight"> {module.name} </h3>
+                <p className="mt-1 sm:mt-2 text-[11px] sm:text-sm text-gray-500 leading-relaxed">  Manage and monitor {module.name.toLowerCase()} </p>
               </Link>
             );
           })}
@@ -158,12 +158,12 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
       </div>
 
       {can("/dashboard/orders") || can("/dashboard/menu") || can("/dashboard/customers") || can("/dashboard/kitchen") ? (
-        <div className="mt-10 grid gap-6 lg:grid-cols-3">
+        <div className="mt-8 sm:mt-10 grid gap-4 sm:gap-6 lg:grid-cols-3">
           {can("/dashboard/orders") ? (
-            <div className="lg:col-span-2 rounded-3xl border border-white/20 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
-              <h2 className="mb-5 text-xl font-bold">Recent Orders</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+            <div className="lg:col-span-2 rounded-3xl border border-white/20 bg-white/80 p-4 sm:p-5 lg:p-6 shadow-xl backdrop-blur-xl">
+              <h2 className="mb-4 sm:mb-5 text-lg sm:text-xl font-bold">Recent Orders</h2>
+              <div className="overflow-x-auto rounded-xl">
+                <table className="w-full text-[12px] md:text-xl">
                   <thead>
                     <tr className="border-b">
                       <th className="py-3 text-left">Order ID</th>
@@ -173,31 +173,65 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
                     </tr>
                   </thead>
                   <tbody>
-                    {(stats?.recentOrders ?? []).length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="py-8 text-center text-gray-400">No orders yet</td>
-                      </tr>
-                    ) : (
-                      stats?.recentOrders.map((order) => (
+                    {(() => {
+                      const orders = stats?.recentOrders ?? [];
+                      const start = (page - 1) * perPage;
+                      const visibleOrders = orders.slice(start, start + perPage);
+                      if (visibleOrders.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={4} className="py-8 text-center text-gray-400">No orders yet</td>
+                          </tr>
+                        );
+                      }
+                      return visibleOrders.map((order) => (
                         <tr key={order.id} className="border-b">
                           <td className="py-4">#{order.id}</td>
                           <td>{order.customerName}</td>
                           <td>
-                            <span className={`rounded-full px-3 py-1 text-sm ${statusColors[order.status] ?? "bg-gray-100 text-gray-700"}`}>
+                            <span className={`rounded-full px-3 py-1 text-[10px] md:text-xs ${statusColors[order.status] ?? "bg-gray-100 text-gray-700"}`}>
                               {order.status}
                             </span>
                           </td>
                           <td>Rs.{order.total}</td>
                         </tr>
-                      ))
-                    )}
+                      ));
+                    })()}
                   </tbody>
                 </table>
               </div>
+              {(() => {
+                const orders = stats?.recentOrders ?? [];
+                const totalPages = Math.ceil(orders.length / perPage);
+                if (totalPages <= 1) return null;
+                return (
+                  <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
+                    <p className="text-sm text-gray-500">
+                      Page {page} of {totalPages} ({orders.length} orders)
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page <= 1}
+                        className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={page >= totalPages}
+                        className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           ) : null}
 
-          <div className="rounded-3xl border border-white/20 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
+          <div className="rounded-3xl border border-white/20 bg-white/80 p-p-4 sm:p-5 lg:p-6 shadow-xl backdrop-blur-xl">
             <h2 className="mb-5 text-xl font-bold">Quick Stats</h2>
             <div className="space-y-5">
               {can("/dashboard/menu") ? (
@@ -231,7 +265,7 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
 
       <div className="mt-8 grid gap-6 md:grid-cols-3">
         {can("/dashboard/orders") ? (
-          <div className="rounded-3xl bg-red-50 p-6 shadow-lg">
+          <div className="rounded-3xl bg-red-50 p-4 sm:p-5 lg:p-6 shadow-lg">
             <h2 className="text-lg font-bold text-red-600">Pending Orders</h2>
             <p className="mt-4 text-4xl font-bold text-red-600">{stats?.pendingOrders ?? 0}</p>
             <p className="mt-2 text-gray-600">Orders awaiting processing</p>
@@ -239,7 +273,7 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
         ) : null}
 
         {can("/dashboard/payment") ? (
-          <div className="rounded-3xl bg-green-50 p-6 shadow-lg">
+          <div className="rounded-3xl bg-green-50 p-4 sm:p-5 lg:p-6 shadow-lg">
             <h2 className="text-lg font-bold text-green-600">Revenue</h2>
             <p className="mt-4 text-4xl font-bold text-green-600">Rs.{(stats?.revenue ?? 0).toLocaleString() ?? 0}</p>
             <p className="mt-2 text-gray-600">Total revenue from all orders</p>

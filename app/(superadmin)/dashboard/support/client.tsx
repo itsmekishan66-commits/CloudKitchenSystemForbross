@@ -94,10 +94,10 @@ export default function SupportClient() {
 
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Support Tickets</h1>
-        <div className="flex items-center justify-end gap-4">
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold">Support Tickets</h1>
+        <div className="flex items-center flex-wrap gap-3">
           {/* <button onClick={() => setOpen(true)} className=" flex gap-2 rounded-xl bg-orange-500 px-5 py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
             <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
               <option className="text-black" value="">Export</option>
@@ -123,7 +123,7 @@ export default function SupportClient() {
         />
       </div>
 
-      <div className="rounded-xl bg-white shadow overflow-hidden">
+      <div className="rounded-xl bg-white shadow overflow-x-auto no-scrollbar">
         <table className="w-full">
           <thead className="bg-gray-100">
             <tr>
@@ -131,7 +131,7 @@ export default function SupportClient() {
               <th className="p-4 text-left">Subject</th>
               <th className="p-4 text-left">Priority</th>
               <th className="p-4 text-left">Status</th>
-              <th className="p-4 text-left">Assigned To</th>
+              <th className="p-4 text-left whitespace-nowrap">Assigned To</th>
               <th className="p-4 text-left">Created</th>
             </tr>
           </thead>

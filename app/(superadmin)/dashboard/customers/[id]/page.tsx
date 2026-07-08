@@ -44,17 +44,17 @@ export default async function CustomerDetailPage({
   ]);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
         <Link
           href="/dashboard/customers"
-          className="rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-50"
+          className="rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-50 shrink-0"
         >
           <ArrowLeft size={18} />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold">{user.name}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">{user.name}</h1>
           <p className="text-sm text-gray-500">
             {user.role} {user.isGuest ? "(Guest)" : ""} &middot; Joined{" "}
             {new Date(user.createdAt).toLocaleDateString()}
@@ -63,7 +63,7 @@ export default async function CustomerDetailPage({
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         <div className="rounded-2xl bg-linear-to-br from-orange-400 to-orange-300 p-5 shadow-lg">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-black/80">Total Orders</p>
@@ -77,11 +77,6 @@ export default async function CustomerDetailPage({
             <Wallet size={20} className="text-black/60" />
           </div>
           <p className="text-2xl font-bold mt-2">Rs.{stats.totalSpent.toFixed(2)}</p>
-          {stats.totalDues > 0 && (
-            <p className="text-xs text-amber-800 font-medium mt-2 bg-amber-200/50 inline-block px-2 py-0.5 rounded-full">
-              Includes Rs.{stats.totalDues.toFixed(2)} dues pending
-            </p>
-          )}
         </div>
         <div className="rounded-2xl bg-linear-to-br from-orange-400 to-orange-300 p-5 shadow-lg">
           <div className="flex items-center justify-between">
@@ -104,12 +99,22 @@ export default async function CustomerDetailPage({
           </div>
           <p className="text-2xl font-bold mt-2">{stats.activeOrders}</p>
         </div>
+        <div className="rounded-2xl bg-linear-to-br from-orange-400 to-orange-300 p-5 shadow-lg">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-black/80">Total Dues</p>
+            <Wallet size={20} className="text-black/60" />
+          </div>
+          {stats.totalDues > 0 && (
+            <p className="text-md text-black font-bold mt-2 inline-block rounded-full">
+              Rs.{stats.totalDues.toFixed(2)} dues pending
+            </p>
+          )}        </div>
       </div>
 
       {/* Customer Info */}
       <div className="rounded-2xl bg-white border border-gray-100 p-5">
         <h3 className="font-semibold text-sm mb-3">Customer Information</h3>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
           <div>
             <span className="text-gray-400">Email:</span>
             <p className="font-medium">{user.email ?? "-"}</p>
@@ -127,8 +132,8 @@ export default async function CustomerDetailPage({
             <p className="font-medium capitalize">{user.role}</p>
           </div>
           <div>
-            <span className="text-gray-400">Credit Balance:</span>
-            <p className="font-medium">Rs.{Number(user.creditBalance ?? 0).toFixed(2)}</p>
+            {/* <span className="text-gray-400">Credit Balance:</span>
+            <p className="font-medium">Rs.{Number(user.creditBalance ?? 0).toFixed(2)}</p> */}
           </div>
         </div>
       </div>
@@ -148,13 +153,12 @@ export default async function CustomerDetailPage({
                 <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
                   <div className="flex items-center gap-3">
                     <span className="font-medium text-gray-900">#{order.id}</span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                      order.status === "Delivered" ? "bg-green-100 text-green-700" :
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${order.status === "Delivered" ? "bg-green-100 text-green-700" :
                       order.status === "Cancelled" ? "bg-red-100 text-red-700" :
-                      order.status === "Pending" ? "bg-yellow-100 text-yellow-700" :
-                      order.status === "Preparing" ? "bg-blue-100 text-blue-700" :
-                      "bg-purple-100 text-purple-700"
-                    }`}>
+                        order.status === "Pending" ? "bg-yellow-100 text-yellow-700" :
+                          order.status === "Preparing" ? "bg-blue-100 text-blue-700" :
+                            "bg-purple-100 text-purple-700"
+                      }`}>
                       {order.status}
                     </span>
                   </div>

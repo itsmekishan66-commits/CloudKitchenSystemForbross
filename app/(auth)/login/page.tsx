@@ -39,6 +39,15 @@ export default async function LoginPage() {
           <div className="w-full max-w-md mx-auto">
             <AuthForm mode="login" role="customer" />
 
+            <p className="flex justify-center mt-4 text-sm text-gray-300">
+              <Link
+                href="/forgot-password"
+                className="text-orange-400 hover:text-orange-300 underline"
+              >
+                Forgot Password?
+              </Link>
+            </p>
+
             <p className="flex justify-center items-center mt-6 text-sm text-gray-300">
               Don&apos;t have an account?
               <Link

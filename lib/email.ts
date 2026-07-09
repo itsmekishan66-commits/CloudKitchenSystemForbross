@@ -67,6 +67,39 @@ export async function sendOtpEmail(name: string, email: string, otp: string) {
   });
 }
 
+export async function sendPasswordResetEmail(
+  name: string,
+  email: string,
+  token: string,
+) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const resetLink = `${siteUrl}/reset-password?token=${token}`;
+  const from = process.env.MAIL_FROM ?? process.env.SMTP_USER;
+  const siteName = await getSiteName();
+
+  await getTransport().sendMail({
+    from,
+    to: email,
+    subject: `Reset your ${siteName} password`,
+    text: [
+      `Hey ${name},`,
+      "",
+      `We received a request to reset your ${siteName} password.`,
+      "",
+      "Click the link below to set a new password:",
+      "",
+      resetLink,
+      "",
+      "This link will expire in 1 hour.",
+      "",
+      "If you didn't request this, you can safely ignore this email.",
+      "",
+      "Thanks,",
+      `${siteName} Team`,
+    ].join("\n"),
+  });
+}
+
 export async function sendContactMessage(message: ContactMessage) {
   const to = process.env.CONTACT_TO_EMAIL ?? process.env.SMTP_USER;
 

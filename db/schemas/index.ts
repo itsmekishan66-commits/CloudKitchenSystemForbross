@@ -16,6 +16,7 @@ export * from "./payment";
 export * from "./suppliers";
 export * from "./delivery-zones";
 export * from "./pending-registrations";
+export * from "./password-reset-tokens";
 // this is the code for menu recipe - recipe schemas
 export * from "./recipes";
 export * from "./recipe-ingredients";

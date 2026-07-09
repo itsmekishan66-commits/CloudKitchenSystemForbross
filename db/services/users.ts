@@ -64,6 +64,10 @@ export async function createUser(user: NewUser) {
   return result[0].insertId;
 }
 
+export async function updateUserPassword(id: number, passwordHash: string) {
+  await db.update(users).set({ passwordHash }).where(eq(users.id, id));
+}
+
 export async function updateUser(
   id: number,
   user: Partial<Omit<NewUser, "id" | "passwordHash" | "roleId">>,

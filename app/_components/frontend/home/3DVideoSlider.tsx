@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-// import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const cards = [
@@ -51,13 +50,16 @@ const cards = [
 
 export default function Home() {
   const [active, setActive] = useState(2);
+  const [isMobile, setIsMobile] = useState(false);
 
-  {/* useEffect(() => {
-    const id = setInterval(() => {
-      setActive((i) => (i === cards.length - 1 ? 0 : i + 1));
-    }, 4000);
-    return () => clearInterval(id);
-  }, []); */}
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  const range = isMobile ? 1 : 2;
 
   const prev = () => {
     setActive((i) => (i === 0 ? cards.length - 1 : i - 1));
@@ -68,16 +70,16 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-black overflow-hidden flex items-center justify-center px-6">
-      <div className="relative w-full max-w-375">
+    <main className="min-h-screen bg-black overflow-hidden flex items-center justify-center px-4 sm:px-6 lg:px-8">
+      <div className="relative w-full max-w-350">
 
         {/* Cards */}
-        <div className="flex gap-8 items-center justify-center transition-all duration-500">
+        <div className="flex gap-3 sm:gap-6 lg:gap-8 items-center justify-center transition-all duration-500">
 
           {(() => {
             const len = cards.length;
             const indices = [];
-            for (let i = -2; i <= 2; i++) {
+            for (let i = -range; i <= range; i++) {
               const idx = ((active + i) % len + len) % len;
               indices.push(idx);
             }
@@ -89,64 +91,35 @@ export default function Home() {
             return (
               <div
                 key={cardIndex}
-                className={`
-                  relative
-                  rounded-[30px]
-                  overflow-hidden
-                  shrink-0
-                  transition-all
-                  duration-500
-                  cursor-pointer
-                  
-                  ${
-                    isActive
-                      ? "w-120 h-150 scale-100 shadow-[0_0_60px_rgba(255,255,255,0.15)] z-10"
-                      : "w-70 h-130 opacity-50 scale-90 blur-[2px]"
+                className={`relative rounded-2xl sm:rounded-[30px] overflow-hidden shrink-0 transition-all duration-500 cursor-pointer
+                  ${isActive
+                    ? "w-75 sm:w-72 md:w-96 lg:w-120 h-100 sm:h-96 md:h-110 lg:h-150 scale-100 shadow-[0_0_60px_rgba(255,255,255,0.15)] z-10"
+                    : "w-28 sm:w-56 md:w-56 lg:w-70 h-45 sm:h-72 md:h-90 lg:h-130 opacity-50 scale-90 blur-[2px]"
                   }
                 `}
                 onClick={() => setActive(cardIndex)}
               >
                 {/* Background video */}
-                <video
-                  src="/burger.mp4"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
+                <video src="/burger.mp4" autoPlay loop muted playsInline className="absolute inset-0 h-full w-full object-cover" />
 
                 {/* Dark overlay */}
                 <div className="absolute inset-0 bg-linear-to-t from-black via-black/50 to-transparent" />
 
                 {/* Content */}
-                <div className="absolute bottom-0 p-7 z-10">
-                  <h2
-                    className={`
-                    text-lime-300
-                    transition-all
-                    duration-500
-                    ${
-                      isActive
-                        ? "text-5xl font-medium"
-                        : "text-3xl"
+                <div className="absolute bottom-0 p-4 sm:p-5 lg:p-7 z-10">
+                  <h2 className={` text-lime-300 transition-all duration-500
+                    ${isActive
+                      ? "text-2xl sm:text-3xl lg:text-5xl font-medium"
+                      : "text-lg sm:text-xl lg:text-3xl"
                     }
                   `}
                   >
                     {card.title}
                   </h2>
 
-                  <p
-                    className={`
-                    text-white/85 mt-4 leading-relaxed
-                    ${
-                      isActive
-                        ? "opacity-100"
-                        : "opacity-70"
-                    }
-                  `}
-                  >
-                    {card.desc}
+                  <p className={`text-white/85 mt-2 sm:mt-3 lg:mt-4 leading-relaxed text-sm sm:text-base
+                    ${isActive ? "opacity-100" : "opacity-70"}
+                  `}> {card.desc}
                   </p>
                 </div>
               </div>
@@ -155,18 +128,16 @@ export default function Home() {
         </div>
 
         {/* Fixed arrows in the middle */}
-        <button
-          onClick={prev}
-          className="absolute left-0 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-black text-white flex items-center justify-center border border-white/20 z-20 hover:bg-white hover:text-black transition-all duration-300"
+        <button onClick={prev}
+          className="absolute left-0 sm:-left-4 lg:left-0 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-full bg-black text-white flex items-center justify-center border border-white/20 z-20 hover:bg-white hover:text-black transition-all duration-300"
         >
-          <ChevronLeft size={28} />
+          <ChevronLeft size={isMobile ? 20 : 22} />
         </button>
 
-        <button
-          onClick={next}
-          className="absolute right-0 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-black text-white flex items-center justify-center border border-white/20 z-20 hover:bg-white hover:text-black transition-all duration-300"
+        <button onClick={next}
+          className="absolute right-0 sm:-right-4 lg:right-0 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-full bg-black text-white flex items-center justify-center border border-white/20 z-20 hover:bg-white hover:text-black transition-all duration-300"
         >
-          <ChevronRight size={28} />
+          <ChevronRight size={isMobile ? 20 : 22} />
         </button>
       </div>
     </main>

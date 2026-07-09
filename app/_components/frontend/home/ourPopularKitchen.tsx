@@ -71,66 +71,66 @@ export default function PopularKitchens() {
   // const current = kitchens[currentIndex];
 
   // this is the function that will be called when the user clicks the button
-  return (
+  {/* popular kitchen */}
 
-    <div className="bg-black py-8 md:py-16">
+
+  return (
+    
+    <div className="bg-black py-4 md:py-16">
 
       <div className="max-w-7xl mx-auto ">
 
-        {/* popular kitchen */}
-
-
-        {/* App Download Banner */}
-        {/* <div className="mt-16">
-
-          <div className="relative overflow-hidden rounded-[30px] bg-linear-to-r from-[#8b0000] to-[#9f0000] shadow-xl">
-
-            <div className="grid lg:grid-cols-2 items-center">
-
-              <div className="p-10 md:p-16">
-
-                <h2 className="text-4xl md:text-5xl font-bold text-white">
-                  Get the {siteName} App
-                </h2>
-
-                <p className="mt-5 text-gray-200 text-lg max-w-xl">
-                  Order faster, track your delivery in real-time,
-                  and get exclusive app-only chef specials and rewards.
-                </p>
-
-                <div className="flex flex-wrap gap-4 mt-8">
-
-                  <button className="bg-black text-white px-6 py-3 rounded-xl font-semibold hover:scale-105 transition">
-                    Google Play
-                  </button>
-
-                  <button className="bg-black text-white px-6 py-3 rounded-xl font-semibold hover:scale-105 transition">
-                    App Store
-                  </button>
-
-                </div>
-
+      {/* App Download Banner */}
+      {/* <div className="mt-16">
+    
+        <div className="relative overflow-hidden rounded-[30px] bg-linear-to-r from-[#8b0000] to-[#9f0000] shadow-xl">
+    
+          <div className="grid lg:grid-cols-2 items-center">
+    
+            <div className="p-10 md:p-16">
+    
+              <h2 className="text-4xl md:text-5xl font-bold text-white">
+                Get the {siteName} App
+              </h2>
+    
+              <p className="mt-5 text-gray-200 text-lg max-w-xl">
+                Order faster, track your delivery in real-time,
+                and get exclusive app-only chef specials and rewards.
+              </p>
+    
+              <div className="flex flex-wrap gap-4 mt-8">
+    
+                <button className="bg-black text-white px-6 py-3 rounded-xl font-semibold hover:scale-105 transition">
+                  Google Play
+                </button>
+    
+                <button className="bg-black text-white px-6 py-3 rounded-xl font-semibold hover:scale-105 transition">
+                  App Store
+                </button>
+    
               </div>
-
-              <div className="hidden lg:flex justify-center items-center py-10">
-
-                <div className="w-42.5 h-80 bg-white rounded-[35px] border-4 border-gray-200 shadow-2xl relative">
-
-                  <div className="absolute top-5 left-5 text-red-300 text-4xl">
-                    🍴
-                  </div>
-
-                </div>
-
-              </div>
-
+    
             </div>
-
-            <div className="absolute -left-20 bottom-0 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
-
+    
+            <div className="hidden lg:flex justify-center items-center py-10">
+    
+              <div className="w-42.5 h-80 bg-white rounded-[35px] border-4 border-gray-200 shadow-2xl relative">
+    
+                <div className="absolute top-5 left-5 text-red-300 text-4xl">
+                  🍴
+                </div>
+    
+              </div>
+    
+            </div>
+    
           </div>
-
-        </div> */}
+    
+          <div className="absolute -left-20 bottom-0 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+    
+        </div>
+    
+      </div> */}
 
         <div className="relative bg-[url('/smoky-atmosphere-background.jpg')] bg-no-repeat bg-cover bg-bottom text-white mt-10  rounded-4xl border border-gray-500">
           <div className="relative z-10 w-full mx-auto p-22 max-h-4xl flex items-center">
@@ -141,14 +141,14 @@ export default function PopularKitchens() {
 
             <div className="relative z-20 mx-auto px-6">
               <div className="grid lg:grid-cols-2 items-center">
-                <div className="text-white space-y-6">
+                <div className="text-white space-y-3 md:space-y-6">
 
-                  <p className="text-gray-300 text-md">Ready to Order?</p>
-                  <h1 className="font-serif text-2xl md:text-4xl font-bold text-white/90 max-w-2xl">
+                  <p className="-ml-24 md:ml-0 text-gray-300 text-md">Ready to Order?</p>
+                  <h1 className="-ml-24 md:ml-0 font-serif text-[16px] md:text-4xl font-bold text-white/90 max-w-4xl">
                     Download the App & Order Your Favorites Instantly!
                   </h1>
 
-                  <button className="rounded-full bg-red-900 px-8 py-4 text-white font-semibold hover:bg-orange-700 transition">
+                  <button className="-ml-24 md:ml-0 rounded-full bg-red-900 px-4 md:px-8 py-2 md:py-4 text-white font-semibold hover:bg-orange-700 transition">
                     Download the App
                   </button>
                 </div>
@@ -156,21 +156,21 @@ export default function PopularKitchens() {
             </div>
             <img src="/dualMobile.png"
               alt="Food app"
-              className="md:h-96 lg:h-126 w-fit absolute top-1/2 -translate-y-1/2 right-20 z-40 drop-shadow-[0_30px_60px_rgba(0,0,0,0.7)]" />
+              className="h-50 md:h-96 lg:h-126 w-fit absolute md:top-1/2 -translate-y-1/2 top-60 right-2 md:right-20 z-40 drop-shadow-[0_30px_60px_rgba(0,0,0,0.7)]" />
 
             <img src="/chilli.png"
               alt=""
-              className="h-30 w-auto absolute top-2 rotate-12 right-6 z-50" />
+              className="h-25 md:h-30 w-auto absolute top-2 rotate-12 right-6 z-50" />
 
             <Image src="/corn.png"
               alt=""
               width={200}
               height={250}
-              className="absolute right-90 top-2/4 rotate-[-25deg] z-50" />
+              className="absolute scale-50 md:scale-100 -right-2 md:right-90 top-1/3 md:top-2/4 rotate-[-25deg] z-50" />
 
             <img src="/scooter.png"
-              alt=""
-              className="h-36 w-auto absolute right-5 bottom-0 z-50" />
+              alt="" 
+              className="md:block h-22 md:h-36 w-auto absolute right-45 md:right-5 bottom-0 z-50" />
           </div>
         </div>
 

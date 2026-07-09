@@ -14,6 +14,10 @@
     "db:seed-permissions": "tsx ./db/seed/permission.ts",
     "db:seed-users": "tsx ./db/seed/users.ts",
     "db:seed-role-permissions": "tsx ./db/seed/role-permissions.ts",
+    "db:seed-menu-items": "tsx ./db/seed/menu-items.ts",
+    "db:seed-update-cat-images": "tsx ./db/seed/update-cat-images.ts",
+    "db:seed-all": "npm run db:seed-permissions && npm run db:seed-role-permissions && npm run db:seed-users && npm run db:seed-menu-items",
+    "db:seed-all-tsx": "tsx ./db/seed/permission.ts && tsx ./db/seed/role-permissions.ts && tsx ./db/seed/users.ts && tsx ./db/seed/menu-items.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

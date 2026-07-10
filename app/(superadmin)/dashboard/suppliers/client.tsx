@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
+import Checkbox from "@/app/_components/Checkbox";
 import { Truck, Plus, ArrowLeft, Package, ShoppingBag, DollarSign, FileText, Edit, Trash2 } from "lucide-react";
 
 interface Supplier {
@@ -79,10 +80,10 @@ const emptyProductForm: {
   quantity: string; unit: string; minStockLevel: string;
   errors: Record<string, string>;
 } = {
-  name: "", category: "Other", productType: "direct_sellable",
-  purchaseUnit: "Carton", unitsPerPack: "10", sellUnit: "Piece",
-  costPrice: "0", margin: "0", sellingPrice: "0",
-  quantity: "0", unit: "pcs", minStockLevel: "0",
+  name: "", category: "", productType: "direct_sellable",
+  purchaseUnit: "", unitsPerPack: "", sellUnit: "",
+  costPrice: "", margin: "", sellingPrice: "0",
+  quantity: "", unit: "", minStockLevel: "",
   errors: {},
 };
 
@@ -102,6 +103,7 @@ export default function SuppliersClient() {
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [supplierForm, setSupplierForm] = useState(emptySupplierForm);
   const [saving, setSaving] = useState(false);
+  const [supplierErrors, setSupplierErrors] = useState<Record<string, string>>({});
 
   // Detail view
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
@@ -118,6 +120,8 @@ export default function SuppliersClient() {
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [editingSettlement, setEditingSettlement] = useState<SupplierSettlement | null>(null);
   const [settlementForm, setSettlementForm] = useState({ amount: "", paidNow: "", type: "purchase" as "payment" | "purchase", paymentMethod: "", transactionId: "", notes: "" });
+  const [settlementErrors, setSettlementErrors] = useState<Record<string, string>>({});
+  const [partialPayEnabled, setPartialPayEnabled] = useState(false);
 
   const filteredSuppliers = useMemo(() => {
     if (!search.trim()) return suppliers;
@@ -169,6 +173,8 @@ export default function SuppliersClient() {
   function openCreateSupplier() {
     setEditingSupplier(null);
     setSupplierForm(emptySupplierForm);
+    setSupplierErrors({});
+    setMessage("");
     setShowSupplierModal(true);
   }
 
@@ -185,11 +191,35 @@ export default function SuppliersClient() {
       status: s.status,
       notes: s.notes ?? "",
     });
+    setSupplierErrors({});
+    setMessage("");
     setShowSupplierModal(true);
   }
 
   async function handleSaveSupplier() {
-    if (!supplierForm.name) { setMessage("Name is required"); return; }
+    const newErrors: Record<string, string> = {};
+    if (!supplierForm.name.trim()) newErrors.name = "Supplier name is required.";
+    if (Object.keys(newErrors).length > 0) { setSupplierErrors(newErrors); return; }
+
+    if (editingSupplier) {
+      const noChange =
+        supplierForm.name === editingSupplier.name &&
+        supplierForm.contactPerson === (editingSupplier.contactPerson ?? "") &&
+        supplierForm.email === (editingSupplier.email ?? "") &&
+        supplierForm.phone === (editingSupplier.phone ?? "") &&
+        supplierForm.address === (editingSupplier.address ?? "") &&
+        supplierForm.vatNumber === (editingSupplier.vatNumber ?? "") &&
+        supplierForm.paymentTerms === (editingSupplier.paymentTerms ?? "") &&
+        supplierForm.status === editingSupplier.status &&
+        supplierForm.notes === (editingSupplier.notes ?? "");
+      if (noChange) {
+        setMessage("Nothing to update.");
+        return;
+      }
+    }
+
+    setSupplierErrors({});
+    setMessage("");
     setSaving(true);
     try {
       if (editingSupplier) {
@@ -228,36 +258,42 @@ export default function SuppliersClient() {
   // ---- Product CRUD ----
   function openCreateProduct() {
     setEditingProduct(null);
-    setProductForm(emptyProductForm);
+    setProductForm({ ...emptyProductForm, errors: {} });
+    setMessage("");
     setShowProductModal(true);
   }
 
   function openEditProduct(p: SupplierProduct) {
     setEditingProduct(p);
     setProductForm({
-      name: p.name, category: p.category ?? "Other", productType: p.productType,
-      purchaseUnit: p.purchaseUnit ?? "Carton", unitsPerPack: (p.unitsPerPack ?? 1).toString(), sellUnit: p.sellUnit ?? "Piece",
-      costPrice: p.costPrice ?? "0", margin: p.margin ?? "0", sellingPrice: p.sellingPrice ?? "0",
-      quantity: p.quantity ?? "0", unit: p.unit ?? "pcs", minStockLevel: p.minStockLevel ?? "0",
+      name: p.name, category: p.category ?? "", productType: p.productType,
+      purchaseUnit: p.purchaseUnit ?? "", unitsPerPack: (p.unitsPerPack ?? 1).toString(), sellUnit: p.sellUnit ?? "",
+      costPrice: p.costPrice ?? "", margin: p.margin ?? "", sellingPrice: p.sellingPrice ?? "0",
+      quantity: p.quantity ?? "", unit: p.unit ?? "", minStockLevel: p.minStockLevel ?? "",
       errors: {},
     });
+    setMessage("");
     setShowProductModal(true);
   }
 
   function validateProductForm() {
     const e: Record<string, string> = {};
-    if (!productForm.name.trim()) e.name = "This field is required";
-    if (!productForm.purchaseUnit.trim()) e.purchaseUnit = "This field is required";
+    if (!productForm.name.trim()) e.name = "Product name is required.";
+    if (!productForm.category.trim()) e.category = "Category is required.";
+    if (!productForm.purchaseUnit.trim()) e.purchaseUnit = "Purchase unit is required.";
     if (!["Kg","Gram","Litre","ml","Pcs"].includes(productForm.purchaseUnit) && (!productForm.unitsPerPack || Number(productForm.unitsPerPack) < 1)) {
-      e.unitsPerPack = "Must be at least 1";
+      e.unitsPerPack = "Units per pack is required (at least 1).";
     }
-    if (productForm.productType === "direct_sellable" && !productForm.sellUnit.trim()) e.sellUnit = "This field is required";
-    if (!productForm.costPrice || Number(productForm.costPrice) <= 0) e.costPrice = "Enter a valid cost price";
-    if (productForm.productType === "direct_sellable" && (!productForm.margin || Number(productForm.margin) < 0)) {
-      e.margin = "Enter a valid margin";
+    if (productForm.productType === "direct_sellable" && !productForm.sellUnit.trim()) e.sellUnit = "Sell unit is required.";
+    if (!productForm.costPrice.toString().trim() || Number(productForm.costPrice) <= 0) e.costPrice = "Cost price is required.";
+    if (productForm.productType === "direct_sellable" && productForm.margin.toString().trim() === "") {
+      e.margin = "Margin is required.";
     }
-    if (!productForm.quantity || Number(productForm.quantity) < 0) {
-      e.quantity = "Enter a valid quantity";
+    if (!productForm.quantity.toString().trim()) {
+      e.quantity = "Quantity is required.";
+    }
+    if (!productForm.minStockLevel.toString().trim()) {
+      e.minStockLevel = "Min stock level is required.";
     }
     return e;
   }
@@ -268,6 +304,26 @@ export default function SuppliersClient() {
       setProductForm({ ...productForm, errors });
       return;
     }
+
+    if (editingProduct) {
+      const noChange =
+        productForm.name === editingProduct.name &&
+        productForm.category === (editingProduct.category ?? "") &&
+        productForm.purchaseUnit === (editingProduct.purchaseUnit ?? "") &&
+        productForm.unitsPerPack === (editingProduct.unitsPerPack ?? 1).toString() &&
+        productForm.sellUnit === (editingProduct.sellUnit ?? "") &&
+        productForm.costPrice === (editingProduct.costPrice ?? "") &&
+        productForm.margin === (editingProduct.margin ?? "") &&
+        productForm.quantity === (editingProduct.quantity ?? "") &&
+        productForm.minStockLevel === (editingProduct.minStockLevel ?? "");
+      if (noChange) {
+        setMessage("Nothing to update.");
+        return;
+      }
+    }
+
+    setProductForm({ ...productForm, errors: {} });
+    setMessage("");
     setSaving(true);
     try {
       if (editingProduct) {
@@ -304,9 +360,27 @@ export default function SuppliersClient() {
 
   // ---- Settlement CRUD ----
   async function handleSaveSettlement() {
-    if (!settlementForm.amount || Number(settlementForm.amount) <= 0) {
-      setMessage("Valid amount is required"); return;
+    const newErrors: Record<string, string> = {};
+    if (!settlementForm.amount.toString().trim() || Number(settlementForm.amount) <= 0) newErrors.amount = "Amount is required.";
+    if (partialPayEnabled && (!settlementForm.paidNow.toString().trim() || Number(settlementForm.paidNow) <= 0)) newErrors.paidNow = "Partial amount is required.";
+    if ((editingSettlement || settlementForm.type === "payment" || partialPayEnabled) && !settlementForm.paymentMethod.trim()) newErrors.paymentMethod = "Payment method is required.";
+    if (Object.keys(newErrors).length > 0) { setSettlementErrors(newErrors); return; }
+
+    if (editingSettlement) {
+      const noChange =
+        settlementForm.amount === editingSettlement.amount &&
+        settlementForm.type === editingSettlement.type &&
+        settlementForm.paymentMethod === (editingSettlement.paymentMethod ?? "") &&
+        settlementForm.transactionId === (editingSettlement.transactionId ?? "") &&
+        settlementForm.notes === (editingSettlement.notes ?? "");
+      if (noChange) {
+        setMessage("Nothing to update.");
+        return;
+      }
     }
+
+    setSettlementErrors({});
+    setMessage("");
     setSaving(true);
     try {
       if (editingSettlement) {
@@ -517,7 +591,7 @@ export default function SuppliersClient() {
               <div className="flex items-center justify-between p-4 border-b">
                 <h3 className="font-bold text-lg">Settlement History</h3>
                 {can("CREATE_SUPPLIERS") && (
-                  <button onClick={() => setShowSettlementModal(true)} className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-white text-sm font-semibold hover:bg-orange-600">
+                  <button onClick={() => { setSettlementErrors({}); setMessage(""); setPartialPayEnabled(false); setShowSettlementModal(true); }} className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-white text-sm font-semibold hover:bg-orange-600">
                     <Plus size={16} /> Add Record
                   </button>
                 )}
@@ -554,7 +628,7 @@ export default function SuppliersClient() {
                         <td className="p-3">
                           <div className="flex gap-4">
                             {can("UPDATE_SUPPLIERS") && (
-                              <button onClick={() => { setEditingSettlement(s); setSettlementForm({ amount: s.amount, paidNow: "", type: s.type, paymentMethod: s.paymentMethod || "", transactionId: s.transactionId || "", notes: s.notes || "" }); setShowSettlementModal(true); }} className="rounded text-blue-500 text-sm"><Edit size={22} /></button>
+                              <button onClick={() => { setEditingSettlement(s); setSettlementForm({ amount: s.amount, paidNow: "", type: s.type, paymentMethod: s.paymentMethod || "", transactionId: s.transactionId || "", notes: s.notes || "" }); setSettlementErrors({}); setMessage(""); setShowSettlementModal(true); }} className="rounded text-blue-500 text-sm"><Edit size={22} /></button>
                             )}
                             {can("DELETE_SUPPLIERS") && (
                               <button onClick={() => handleDeleteSettlement(s.id)} className="rounded text-red-500 text-sm"><Trash2 size={22} /></button>
@@ -576,18 +650,18 @@ export default function SuppliersClient() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-[95vw] sm:max-w-lg rounded-2xl bg-white p-4 sm:p-6 shadow-xl max-h-[90vh] overflow-y-auto">
               <h2 className="mb-4 text-lg sm:text-xl font-bold">{editingProduct ? "Edit Product" : "Add Product"}</h2>
-              <div className="space-y-4">
+              <form onSubmit={(e) => { e.preventDefault(); handleSaveProduct(); }} noValidate className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Product Name *</label>
                   <input type="text" value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value, errors: { ...productForm.errors, name: "" } })} className={`mt-1 w-full rounded-lg border p-3 ${productForm.errors?.name ? "border-red-400" : ""}`} />
                   {productForm.errors?.name && <p className="text-xs text-red-500 mt-1">{productForm.errors.name}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Category</label>
+                  <label className="block text-sm font-medium text-gray-700">Category *</label>
                   <select
                     value={productForm.category}
-                    onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
-                    className="mt-1 w-full rounded-lg border p-3"
+                    onChange={(e) => setProductForm({ ...productForm, category: e.target.value, errors: { ...productForm.errors, category: "" } })}
+                    className={`mt-1 w-full rounded-lg border p-3 ${productForm.errors?.category ? "border-red-400" : ""}`}
                   >
                     <option value="">Select category</option>
                     {categories.map((category) => (
@@ -596,6 +670,7 @@ export default function SuppliersClient() {
                       </option>
                     ))}
                   </select>
+                  {productForm.errors?.category && <p className="text-xs text-red-500 mt-1">{productForm.errors.category}</p>}
                 </div>
 
                 {!editingProduct && (
@@ -743,12 +818,14 @@ export default function SuppliersClient() {
                     </p>
                   </div>
                   <div className="mt-3">
-                    <label className="block text-sm font-medium text-gray-700">Min Stock Level (in {productForm.purchaseUnit || "packs"})</label>
-                    <input type="number" step="0.01" value={productForm.minStockLevel} onChange={(e) => setProductForm({ ...productForm, minStockLevel: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                    <label className="block text-sm font-medium text-gray-700">Min Stock Level (in {productForm.purchaseUnit || "packs"}) *</label>
+                    <input type="number" step="0.01" value={productForm.minStockLevel} onChange={(e) => setProductForm({ ...productForm, minStockLevel: e.target.value, errors: { ...productForm.errors, minStockLevel: "" } })} className={`mt-1 w-full rounded-lg border p-3 ${productForm.errors?.minStockLevel ? "border-red-400" : ""}`} />
+                    {productForm.errors?.minStockLevel && <p className="text-xs text-red-500 mt-1">{productForm.errors.minStockLevel}</p>}
                     <p className="text-xs text-gray-400 mt-1">Alerts when stock drops below this level in inventory</p>
                   </div>
                 </div>
-              </div>
+              </form>
+              {message && <div className="mt-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-600">{message}</div>}
               <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
                 <button onClick={() => setShowProductModal(false)} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">Cancel</button>
                 <button onClick={handleSaveProduct} disabled={saving} className="rounded-lg bg-orange-500 px-4 py-2 text-white hover:bg-orange-600 disabled:opacity-50">
@@ -764,7 +841,7 @@ export default function SuppliersClient() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-[95vw] sm:max-w-md rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
               <h2 className="mb-4 text-xl font-bold">{editingSettlement ? "Edit Settlement Record" : "Add Settlement Record"}</h2>
-              <div className="space-y-4">
+              <form onSubmit={(e) => { e.preventDefault(); handleSaveSettlement(); }} noValidate className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Transaction Type</label>
                   <div className="flex gap-4">
@@ -786,21 +863,23 @@ export default function SuppliersClient() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    {settlementForm.type === "purchase" ? "Total Purchase Amount (Rs.)" : "Payment Amount (Rs.)"}
+                    {settlementForm.type === "purchase" ? "Total Purchase Amount (Rs.) *" : "Payment Amount (Rs.) *"}
                   </label>
-                  <input type="number" step="0.01" value={settlementForm.amount} onChange={(e) => setSettlementForm({ ...settlementForm, amount: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                  <input type="number" step="0.01" value={settlementForm.amount} onChange={(e) => setSettlementForm({ ...settlementForm, amount: e.target.value })} className={`mt-1 w-full rounded-lg border p-3 ${settlementErrors.amount ? "border-red-400" : ""}`} />
+                  {settlementErrors.amount && <p className="mt-1 text-sm text-red-500">{settlementErrors.amount}</p>}
                 </div>
                 {settlementForm.type === "purchase" && !editingSettlement && (
                   <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
                     <div className="flex items-center gap-2 mb-2">
-                      <input type="checkbox" id="partialPay" checked={Number(settlementForm.paidNow) > 0} onChange={(e) => setSettlementForm({ ...settlementForm, paidNow: e.target.checked ? "0" : "" })} className="accent-orange-500" />
+                      <Checkbox id="partialPay" checked={partialPayEnabled} onChange={(e) => { setPartialPayEnabled(e.target.checked); if (e.target.checked) { setSettlementForm((prev) => ({ ...prev, paidNow: prev.paidNow || "1" })); } else { setSettlementForm((prev) => ({ ...prev, paidNow: "" })); } }} />
                       <label htmlFor="partialPay" className="text-sm font-medium text-blue-700 cursor-pointer">Paying partially now?</label>
                     </div>
-                    {Number(settlementForm.paidNow) > 0 && (
+                    {partialPayEnabled && (
                       <div>
-                        <label className="block text-xs font-medium text-gray-600">Amount Paying Now (Rs.)</label>
-                        <input type="number" step="0.01" value={settlementForm.paidNow} onChange={(e) => setSettlementForm({ ...settlementForm, paidNow: e.target.value })} className="mt-1 w-full rounded-lg border p-2.5 text-sm" />
-                        {Number(settlementForm.amount) > 0 && (
+                        <label className="block text-xs font-medium text-gray-600">Amount Paying Now (Rs.) *</label>
+                        <input type="number" step="0.01" value={settlementForm.paidNow} onChange={(e) => setSettlementForm({ ...settlementForm, paidNow: e.target.value })} className={`mt-1 w-full rounded-lg border p-2.5 text-sm ${settlementErrors.paidNow ? "border-red-400" : ""}`} />
+                        {settlementErrors.paidNow && <p className="mt-1 text-xs text-red-500">{settlementErrors.paidNow}</p>}
+                        {Number(settlementForm.amount) > 0 && Number(settlementForm.paidNow) > 0 && (
                           <p className="text-xs text-gray-500 mt-1">
                             Will go to credit: <strong>Rs.{Math.max(0, Number(settlementForm.amount) - Number(settlementForm.paidNow)).toFixed(2)}</strong>
                           </p>
@@ -809,11 +888,12 @@ export default function SuppliersClient() {
                     )}
                   </div>
                 )}
-                {(editingSettlement || settlementForm.type === "payment" || Number(settlementForm.paidNow) > 0) && (
+                {(editingSettlement || settlementForm.type === "payment" || partialPayEnabled) && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Payment Method</label>
-                      <input type="text" value={settlementForm.paymentMethod} onChange={(e) => setSettlementForm({ ...settlementForm, paymentMethod: e.target.value })} className="mt-1 w-full rounded-lg border p-3" placeholder="cash, bank, etc." />
+                      <label className="block text-sm font-medium text-gray-700">Payment Method *</label>
+                      <input type="text" value={settlementForm.paymentMethod} onChange={(e) => setSettlementForm({ ...settlementForm, paymentMethod: e.target.value })} className={`mt-1 w-full rounded-lg border p-3 ${settlementErrors.paymentMethod ? "border-red-400" : ""}`} placeholder="cash, bank, etc." />
+                      {settlementErrors.paymentMethod && <p className="mt-1 text-sm text-red-500">{settlementErrors.paymentMethod}</p>}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Transaction ID</label>
@@ -825,7 +905,8 @@ export default function SuppliersClient() {
                   <label className="block text-sm font-medium text-gray-700">Notes</label>
                   <textarea value={settlementForm.notes} onChange={(e) => setSettlementForm({ ...settlementForm, notes: e.target.value })} className="mt-1 w-full rounded-lg border p-3" rows={3} />
                 </div>
-              </div>
+              </form>
+              {message && <div className="mt-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-600">{message}</div>}
               <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
                 <button onClick={() => setShowSettlementModal(false)} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">Cancel</button>
                 <button onClick={handleSaveSettlement} disabled={saving} className="rounded-lg bg-orange-500 px-4 py-2 text-white hover:bg-orange-600 disabled:opacity-50">
@@ -911,10 +992,11 @@ export default function SuppliersClient() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-[95vw] sm:max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h2 className="mb-4 text-lg sm:text-xl font-bold">{editingSupplier ? "Edit Supplier" : "Add Supplier"}</h2>
-            <div className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveSupplier(); }} noValidate className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Supplier Name *</label>
-                <input type="text" value={supplierForm.name} onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                <input type="text" value={supplierForm.name} onChange={(e) => { setSupplierForm({ ...supplierForm, name: e.target.value }); setSupplierErrors((prev) => { const next = { ...prev }; delete next.name; return next; }); }} className={`mt-1 w-full rounded-lg border p-3 ${supplierErrors.name ? "border-red-400" : ""}`} />
+                {supplierErrors.name && <p className="mt-1 text-sm text-red-500">{supplierErrors.name}</p>}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -957,7 +1039,8 @@ export default function SuppliersClient() {
                 <label className="block text-sm font-medium text-gray-700">Notes</label>
                 <textarea value={supplierForm.notes} onChange={(e) => setSupplierForm({ ...supplierForm, notes: e.target.value })} className="mt-1 w-full rounded-lg border p-3" rows={3} />
               </div>
-            </div>
+            </form>
+            {message && <div className="mt-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-600">{message}</div>}
             <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
               <button onClick={() => setShowSupplierModal(false)} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">Cancel</button>
               <button onClick={handleSaveSupplier} disabled={saving} className="rounded-lg bg-orange-500 px-4 py-2 text-white hover:bg-orange-600 disabled:opacity-50">

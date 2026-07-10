@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
+import { useConfirm } from "@/app/_components/ConfirmPopup";
 import { motion } from "framer-motion";
 import {
   Wallet,
@@ -204,6 +205,7 @@ function DailyBalancesSection({ transactions }: { transactions: Transaction[] })
 export default function PaymentPage() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
+  const confirm = useConfirm();
 
   // const [open, setOpen] = useState(false);
   const handleDownload = (type: string) => {
@@ -225,8 +227,8 @@ export default function PaymentPage() {
   const [accountForm, setAccountForm] = useState({ accountName: "", holderName: "", method: "esewa", accountNumber: "", phoneNumber: "", bankName: "", branch: "", openingBalance: "", qrCode: "", notes: "" });
   const [savingAccount, setSavingAccount] = useState(false);
   const [uploadingQr, setUploadingQr] = useState(false);
-  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState<PaymentAccount | null>(null);
   const [accountSearch, setAccountSearch] = useState("");
+  const [accountErrors, setAccountErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetch("/api/payments")
@@ -273,6 +275,7 @@ export default function PaymentPage() {
     txId: "",
     notes: "",
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const filteredTransactions = useMemo(() => {
     const q = globalSearch.toLowerCase();
@@ -327,7 +330,11 @@ export default function PaymentPage() {
   }, [filteredTransactions, filteredDues]);
 
   async function addTransaction() {
-    if (!form.amount) return;
+    const newErrors: Record<string, string> = {};
+    if (!form.amount.toString().trim() || Number(form.amount) <= 0) newErrors.amount = "Amount is required.";
+    if (!form.person.trim()) newErrors.person = "This field is required.";
+    if (Object.keys(newErrors).length > 0) { setFormErrors(newErrors); return; }
+    setFormErrors({});
     const amount = Number(form.amount);
     const id = crypto.randomUUID();
     const newTx: Transaction = {
@@ -400,6 +407,7 @@ export default function PaymentPage() {
   function openAddAccount() {
     setAccountForm(emptyAccountForm);
     setEditingAccount(null);
+    setAccountErrors({});
     setShowAccountForm(true);
   }
 
@@ -417,15 +425,17 @@ export default function PaymentPage() {
       notes: account.notes || "",
     });
     setEditingAccount(account);
+    setAccountErrors({});
     setShowAccountForm(true);
   }
 
   async function handleSaveAccount() {
-    if (!accountForm.accountName || !accountForm.holderName || !accountForm.accountNumber) {
-      setMessage("Account name, holder name, and account number are required");
-      setMessageType("error");
-      return;
-    }
+    const newErrors: Record<string, string> = {};
+    if (!accountForm.accountName.trim()) newErrors.accountName = "Account name is required.";
+    if (!accountForm.holderName.trim()) newErrors.holderName = "Holder name is required.";
+    if (!accountForm.accountNumber.trim()) newErrors.accountNumber = "Account number is required.";
+    if (Object.keys(newErrors).length > 0) { setAccountErrors(newErrors); return; }
+    setAccountErrors({});
     setSavingAccount(true);
     try {
       const url = editingAccount ? `/api/payments/accounts/${editingAccount.id}` : "/api/payments/accounts";
@@ -453,12 +463,10 @@ export default function PaymentPage() {
     }
   }
 
-  async function handleDeleteAccount() {
-    if (!confirmDeleteAccount) return;
+  async function handleDeleteAccount(account: PaymentAccount) {
     try {
-      const res = await fetch(`/api/payments/accounts/${confirmDeleteAccount.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/payments/accounts/${account.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete account");
-      setConfirmDeleteAccount(null);
       setMessage("Account deleted");
       setMessageType("success");
       fetchAccounts();
@@ -739,20 +747,28 @@ export default function PaymentPage() {
           <div className="bg-orange-200 rounded-2xl border border-gray-100 p-5">
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-semibold">New Transaction</h3>
-              <button onClick={() => setShowForm(false)} className="text-xs text-black hover:text-gray-600">Cancel</button>
+              <button onClick={() => { setShowForm(false); setFormErrors({}); }} className="text-xs text-black hover:text-gray-600">Cancel</button>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <select className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as TransactionType })}>
-                <option value="cash_received">Cash Received</option>
-                <option value="cash_paid">Cash Paid</option>
-                <option value="online_received">Online Received</option>
-                <option value="online_paid">Online Paid</option>
-                <option value="expense">Expense</option>
-                <option value="bank_transfer">Bank Transfer</option>
-                <option value="refund">Refund</option>
-              </select>
-              <input placeholder="Amount" type="number" className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-              <input placeholder="Received from / Paid to" className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.person} onChange={(e) => setForm({ ...form, person: e.target.value })} />
+              <div>
+                <select className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all w-full" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as TransactionType })}>
+                  <option value="cash_received">Cash Received</option>
+                  <option value="cash_paid">Cash Paid</option>
+                  <option value="online_received">Online Received</option>
+                  <option value="online_paid">Online Paid</option>
+                  <option value="expense">Expense</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="refund">Refund</option>
+                </select>
+              </div>
+              <div>
+                <input placeholder="Amount *" type="number" className={`bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all w-full ${formErrors.amount ? "border-red-400" : "border-gray-200"}`} value={form.amount} onChange={(e) => { setForm({ ...form, amount: e.target.value }); setFormErrors((prev) => { const next = { ...prev }; delete next.amount; return next; }); }} />
+                {formErrors.amount && <p className="mt-1 text-xs text-red-500">{formErrors.amount}</p>}
+              </div>
+              <div>
+                <input placeholder="Received from / Paid to *" className={`bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all w-full ${formErrors.person ? "border-red-400" : "border-gray-200"}`} value={form.person} onChange={(e) => { setForm({ ...form, person: e.target.value }); setFormErrors((prev) => { const next = { ...prev }; delete next.person; return next; }); }} />
+                {formErrors.person && <p className="mt-1 text-xs text-red-500">{formErrors.person}</p>}
+              </div>
               <select className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value as PaymentMethod })}>
                 <option>cash</option>
                 <option>bank</option>
@@ -1264,11 +1280,19 @@ export default function PaymentPage() {
                               <Edit size={14} className="text-gray-500" />
                             </button>
                           )}
-                          {can("DELETE_PAYMENTS") && (
-                             <button onClick={() => setConfirmDeleteAccount(account)} className="p-1.5 rounded-lg transition-colors" title="Delete">
+                           {can("DELETE_PAYMENTS") && (
+                             <button onClick={async () => {
+                               const ok = await confirm({
+                                 title: "Delete Account",
+                                 message: `Are you sure you want to delete ${account.accountName}?`,
+                                 confirmText: "Delete",
+                                 variant: "danger",
+                               });
+                               if (ok) handleDeleteAccount(account);
+                             }} className="p-1.5 rounded-lg transition-colors" title="Delete">
                               <Trash2 size={14} className="text-red-400" />
                             </button>
-                          )}
+                           )}
                         </div>
                       </td>
                     </tr>
@@ -1289,15 +1313,17 @@ export default function PaymentPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-[95vw] sm:max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">{editingAccount ? "Edit Account" : "Add Payment Account"}</h2>
-            <div className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveAccount(); }} noValidate className="space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Account Name *</label>
-                  <input type="text" placeholder="e.g. Ram's eSewa" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.accountName} onChange={(e) => setAccountForm({ ...accountForm, accountName: e.target.value })} />
+                  <input type="text" placeholder="e.g. Ram's eSewa" className={`w-full bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 ${accountErrors.accountName ? "border-red-400" : "border-gray-200"}`} value={accountForm.accountName} onChange={(e) => { setAccountForm({ ...accountForm, accountName: e.target.value }); setAccountErrors((prev) => { const next = { ...prev }; delete next.accountName; return next; }); }} />
+                  {accountErrors.accountName && <p className="mt-1 text-xs text-red-500">{accountErrors.accountName}</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Holder Name *</label>
-                  <input type="text" placeholder="e.g. Ram Shrestha" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.holderName} onChange={(e) => setAccountForm({ ...accountForm, holderName: e.target.value })} />
+                  <input type="text" placeholder="e.g. Ram Shrestha" className={`w-full bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 ${accountErrors.holderName ? "border-red-400" : "border-gray-200"}`} value={accountForm.holderName} onChange={(e) => { setAccountForm({ ...accountForm, holderName: e.target.value }); setAccountErrors((prev) => { const next = { ...prev }; delete next.holderName; return next; }); }} />
+                  {accountErrors.holderName && <p className="mt-1 text-xs text-red-500">{accountErrors.holderName}</p>}
                 </div>
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
@@ -1312,7 +1338,8 @@ export default function PaymentPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Account Number / ID *</label>
-                  <input type="text" placeholder="Phone or account ID" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.accountNumber} onChange={(e) => setAccountForm({ ...accountForm, accountNumber: e.target.value })} />
+                  <input type="text" placeholder="Phone or account ID" className={`w-full bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 ${accountErrors.accountNumber ? "border-red-400" : "border-gray-200"}`} value={accountForm.accountNumber} onChange={(e) => { setAccountForm({ ...accountForm, accountNumber: e.target.value }); setAccountErrors((prev) => { const next = { ...prev }; delete next.accountNumber; return next; }); }} />
+                  {accountErrors.accountNumber && <p className="mt-1 text-xs text-red-500">{accountErrors.accountNumber}</p>}
                 </div>
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
@@ -1356,28 +1383,15 @@ export default function PaymentPage() {
                 <label className="block text-xs font-medium text-gray-500 mb-1">Notes</label>
                 <textarea placeholder="Optional notes" rows={2} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.notes} onChange={(e) => setAccountForm({ ...accountForm, notes: e.target.value })} />
               </div>
-            </div>
+            </form>
             <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
-              <button onClick={() => { setShowAccountForm(false); setEditingAccount(null); }} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+              <button onClick={() => { setShowAccountForm(false); setEditingAccount(null); setAccountErrors({}); }} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
               <button onClick={handleSaveAccount} disabled={savingAccount} className="rounded-lg bg-orange-500 px-5 py-2 text-sm text-white font-semibold hover:bg-orange-600 disabled:opacity-50">{savingAccount ? "Saving..." : editingAccount ? "Update" : "Create"}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Account Confirmation */}
-      {confirmDeleteAccount && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-[90vw] sm:max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-bold mb-2">Delete Account</h2>
-            <p className="text-sm text-gray-600 mb-6">Are you sure you want to delete <strong>{confirmDeleteAccount.accountName}</strong>?</p>
-            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
-              <button onClick={() => setConfirmDeleteAccount(null)} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
-              <button onClick={handleDeleteAccount} className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white">Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

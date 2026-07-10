@@ -2,6 +2,8 @@
 import { Edit, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createRoleWithPermissionsAction , deleteUserAction, getRolePermissionsAction, updateRolePermissionsAction} from "@/app/(superadmin)/_action/roles";
+import { useConfirm } from "@/app/_components/ConfirmPopup";
+import Checkbox from "@/app/_components/Checkbox";
 //static code for RBAc gareko bela ko ho
 // import { createRoleWithPermissionsAction, updateRolePermissionsAction, deleteUserAction, getRolePermissionsAction } from "@/app/(superadmin)/_action/roles";
 
@@ -20,6 +22,7 @@ interface User {
 export default function RolesClient() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
+  const confirm = useConfirm();
   const [showCreateRole, setShowCreateRole] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +35,24 @@ export default function RolesClient() {
   const [userPhone, setUserPhone] = useState("");
   const [userAddress, setUserAddress] = useState("");
   const [userPassword, setUserPassword] = useState("");
-  
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function updateField(field: string, value: string) {
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+    switch (field) {
+      case "roleName": setRoleName(value); break;
+      case "userName": setUserName(value); break;
+      case "userEmail": setUserEmail(value); break;
+      case "userPhone": setUserPhone(value); break;
+      case "userAddress": setUserAddress(value); break;
+      case "userPassword": setUserPassword(value); break;
+    }
+  }
+
   //to download the file
   // const [open, setOpen] = useState(false);
   //  const handleDownload = (type: string) => {
@@ -45,7 +65,18 @@ export default function RolesClient() {
 
   // creates a new role with permissions and assigns it to a new user
   const handleCreateRole = async () => {
-    if (!roleName || !userName) return;
+    const newErrors: Record<string, string> = {};
+    if (!roleName.trim()) newErrors.roleName = "Role name is required";
+    if (selectedPermissions.length === 0) newErrors.permissions = "Select at least one permission";
+    if (!userName.trim()) newErrors.userName = "Name is required";
+    if (!userEmail.trim()) newErrors.userEmail = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) newErrors.userEmail = "Enter a valid email";
+    if (!userPhone.trim()) newErrors.userPhone = "Phone is required";
+    if (!userAddress.trim()) newErrors.userAddress = "Address is required";
+    if (!userPassword) newErrors.userPassword = "Password is required";
+    else if (userPassword.length < 6) newErrors.userPassword = "Password must be at least 6 characters";
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
+
     await createRoleWithPermissionsAction(roleName, selectedPermissions, {
       userName,
       userEmail,
@@ -60,6 +91,7 @@ export default function RolesClient() {
     setUserPhone("");
     setUserAddress("");
     setUserPassword("");
+    setErrors({});
     setShowCreateRole(false);
     loadUsers();
     toast.success("Role & user created successfully");
@@ -107,6 +139,7 @@ export default function RolesClient() {
   };
 
   function openCreate() {
+    setErrors({});
     setShowCreateRole(true);
   }
 
@@ -148,13 +181,9 @@ export default function RolesClient() {
     };
   }, []);
 
-  // confirm dialog state for changing a user's role
-  const [confirm, setConfirm] = useState<{ user: User; role: string } | null>(null);
   // edit permissions modal state
   const [editUser, setEditUser] = useState<User | null>(null);
   const [editSelectedPermissions, setEditSelectedPermissions] = useState<string[]>([]);
-  // delete user confirmation state
-  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
 
   // loads current permissions of the selected user's role when edit modal opens
   useEffect(() => {
@@ -269,10 +298,16 @@ export default function RolesClient() {
                       <select
                         key={`${user.id}-${user.role}`}
                         defaultValue={user.role}
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const newRole = e.target.value;
                           if (newRole !== user.role) {
-                            setConfirm({ user, role: newRole });
+                            const ok = await confirm({
+                              title: "Confirm Role Change",
+                              message: `Are you sure you want to change ${user.name}'s role from "${user.role}" to "${newRole}"?`,
+                              confirmText: "Confirm",
+                              variant: "warning",
+                            });
+                            if (ok) updateRole(user.id, newRole);
                           }
                         }}
                         className="rounded border px-2 py-1 text-sm"
@@ -312,7 +347,19 @@ export default function RolesClient() {
                       )}
                       {can("DELETE_ROLES") && (
                       <button
-                        onClick={() => setDeleteTarget(user)}
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: "Delete User",
+                            message: `Are you sure you want to delete ${user.name}?`,
+                            confirmText: "Delete",
+                            variant: "danger",
+                          });
+                          if (ok) {
+                            await deleteUserAction(user.id);
+                            loadUsers();
+                            toast.success("User deleted");
+                          }
+                        }}
                         className="rounded text-red-500 text-sm"
                       >
                         <Trash2 size={22} />
@@ -350,17 +397,17 @@ export default function RolesClient() {
               {/* Role Name */}
               <div>
                 <label className="mb-2 block text-sm font-medium">
-                  Role Name
+                  Role Name <span className="text-red-500">*</span>
                 </label>
 
                 <input
                   type="text"
                   placeholder="Enter role name"
-                  // for the rbac imlementation
                   value={roleName}
-                  onChange={(e) => setRoleName(e.target.value)}
-                  className="w-full rounded-lg border p-3 outline-none focus:border-orange-500"
+                  onChange={(e) => updateField("roleName", e.target.value)}
+                  className={`w-full rounded-lg border p-3 outline-none focus:border-orange-500 ${errors.roleName ? "border-red-500" : ""}`}
                 />
+                {errors.roleName && <p className="mt-1 text-sm text-red-500">{errors.roleName}</p>}
               </div>
 
               {/* Permissions */}
@@ -408,9 +455,7 @@ export default function RolesClient() {
                             key={label}
                             className={`rounded-full p-3 flex items-center gap-2 text-sm ${moduleChechboxColors[module]}`}
                           >
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4"
+                            <Checkbox
                               onChange={(e) => {
                                 const permName = `${permPrefix}_${dbModule}`
                                 if (e.target.checked) {
@@ -431,6 +476,7 @@ export default function RolesClient() {
                     </div>
                   ))}
                 </div>
+                {errors.permissions && <p className="mt-1 text-sm text-red-500">{errors.permissions}</p>}
               </div>
 
               {/* User Details */}
@@ -438,34 +484,39 @@ export default function RolesClient() {
                 <h3 className="mb-4 text-lg font-semibold">Assign to User</h3>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-sm font-medium">Name *</label>
+                    <label className="mb-2 block text-sm font-medium">Name <span className="text-red-500">*</span></label>
                     <input type="text" placeholder="Enter user name"
-                      value={userName} onChange={(e) => setUserName(e.target.value)}
-                      className="w-full rounded-lg border p-3 outline-none focus:border-orange-500" />
+                      value={userName} onChange={(e) => updateField("userName", e.target.value)}
+                      className={`w-full rounded-lg border p-3 outline-none focus:border-orange-500 ${errors.userName ? "border-red-500" : ""}`} />
+                    {errors.userName && <p className="mt-1 text-sm text-red-500">{errors.userName}</p>}
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm font-medium">Email</label>
+                    <label className="mb-2 block text-sm font-medium">Email <span className="text-red-500">*</span></label>
                     <input type="email" placeholder="Enter email"
-                      value={userEmail} onChange={(e) => setUserEmail(e.target.value)}
-                      className="w-full rounded-lg border p-3 outline-none focus:border-orange-500" />
+                      value={userEmail} onChange={(e) => updateField("userEmail", e.target.value)}
+                      className={`w-full rounded-lg border p-3 outline-none focus:border-orange-500 ${errors.userEmail ? "border-red-500" : ""}`} />
+                    {errors.userEmail && <p className="mt-1 text-sm text-red-500">{errors.userEmail}</p>}
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm font-medium">Phone</label>
+                    <label className="mb-2 block text-sm font-medium">Phone <span className="text-red-500">*</span></label>
                     <input type="text" placeholder="Enter phone number"
-                      value={userPhone} onChange={(e) => setUserPhone(e.target.value)}
-                      className="w-full rounded-lg border p-3 outline-none focus:border-orange-500" />
+                      value={userPhone} onChange={(e) => updateField("userPhone", e.target.value)}
+                      className={`w-full rounded-lg border p-3 outline-none focus:border-orange-500 ${errors.userPhone ? "border-red-500" : ""}`} />
+                    {errors.userPhone && <p className="mt-1 text-sm text-red-500">{errors.userPhone}</p>}
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm font-medium">Address</label>
+                    <label className="mb-2 block text-sm font-medium">Address <span className="text-red-500">*</span></label>
                     <input type="text" placeholder="Enter address"
-                      value={userAddress} onChange={(e) => setUserAddress(e.target.value)}
-                      className="w-full rounded-lg border p-3 outline-none focus:border-orange-500" />
+                      value={userAddress} onChange={(e) => updateField("userAddress", e.target.value)}
+                      className={`w-full rounded-lg border p-3 outline-none focus:border-orange-500 ${errors.userAddress ? "border-red-500" : ""}`} />
+                    {errors.userAddress && <p className="mt-1 text-sm text-red-500">{errors.userAddress}</p>}
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm font-medium">Password</label>
+                    <label className="mb-2 block text-sm font-medium">Password <span className="text-red-500">*</span></label>
                     <input type="password" placeholder="Set password"
-                      value={userPassword} onChange={(e) => setUserPassword(e.target.value)}
-                      className="w-full rounded-lg border p-3 outline-none focus:border-orange-500" />
+                      value={userPassword} onChange={(e) => updateField("userPassword", e.target.value)}
+                      className={`w-full rounded-lg border p-3 outline-none focus:border-orange-500 ${errors.userPassword ? "border-red-500" : ""}`} />
+                    {errors.userPassword && <p className="mt-1 text-sm text-red-500">{errors.userPassword}</p>}
                   </div>
                 </div>
               </div>
@@ -529,9 +580,7 @@ export default function RolesClient() {
                           const permName = `${permPrefix}_${dbModule}`;
                           return (
                             <label key={label} className={`rounded-full p-3 flex items-center gap-2 text-sm ${moduleChechboxColors[module]}`}>
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4"
+                              <Checkbox
                                 checked={editSelectedPermissions.includes(permName)}
                                 onChange={(e) => {
                                   if (e.target.checked) {
@@ -564,65 +613,6 @@ export default function RolesClient() {
                 className="rounded-lg bg-blue-500 px-4 py-2 text-white"
               >
                 Save Permissions
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {confirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-[90vw] sm:max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-bold mb-2">Confirm Role Change</h2>
-            <p className="text-sm text-gray-600 mb-1">
-              Are you sure you want to change <strong>{confirm.user.name}</strong>&apos;s role?
-            </p>
-            <p className="text-sm text-gray-500 mb-6">
-              <span className="inline-block rounded bg-gray-200 px-2 py-0.5 text-xs font-medium">{confirm.user.role}</span>
-              &nbsp;&rarr;&nbsp;
-              <span className="inline-block rounded bg-orange-200 px-2 py-0.5 text-xs font-medium">{confirm.role}</span>
-            </p>
-            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
-              <button
-                onClick={() => setConfirm(null)}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  updateRole(confirm.user.id, confirm.role);
-                  setConfirm(null);
-                }}
-                className="rounded-lg bg-orange-500 px-4 py-2 text-sm text-white hover:bg-orange-600"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* modal: confirm delete user */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-[90vw] sm:max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-bold mb-2">Delete User</h2>
-            <p className="text-sm text-gray-600 mb-6">
-              Are you sure you want to delete <strong>{deleteTarget.name}</strong>?
-            </p>
-            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
-              <button onClick={() => setDeleteTarget(null)} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
-              <button
-                onClick={async () => {
-                  await deleteUserAction(deleteTarget.id);
-                  setDeleteTarget(null);
-                  loadUsers();
-                  toast.success("User deleted");
-                }}
-                className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white"
-              >
-                Delete
               </button>
             </div>
           </div>

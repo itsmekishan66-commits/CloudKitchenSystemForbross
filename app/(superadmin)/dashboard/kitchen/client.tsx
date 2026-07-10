@@ -3,6 +3,7 @@ import { Edit, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
+import Checkbox from "@/app/_components/Checkbox";
 
 interface Kitchen {
   id: number;
@@ -28,6 +29,16 @@ interface KitchenForm {
 
 const emptyForm: KitchenForm = { name: "", slug: "", location: "", phone: "", email: "", managerName: "", isActive: true };
 
+const ROLE_LABELS: Record<string, string> = {
+  "super-admin": "Super Admin",
+  admin: "Admin",
+  staff: "Staff",
+  "kitchen-manager": "Kitchen Manager",
+  "payment-manager": "Payment Manager",
+  "support-staff": "Support Staff",
+  customer: "Customer",
+};
+
 export default function KitchenClient() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
@@ -39,6 +50,8 @@ export default function KitchenClient() {
   const [form, setForm] = useState<KitchenForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [rolesList, setRolesList] = useState<{ id: number; name: string }[]>([]);
   const [search, setSearch] = useState("");
   
   //to download the file
@@ -73,11 +86,20 @@ export default function KitchenClient() {
       await loadKitchens();
     }
     void fetchKitchens();
+
+    fetch("/api/roles")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.error) setRolesList(data.roles ?? []);
+      })
+      .catch(console.error);
   }, []);
 
   function openCreate() {
     setEditing(null);
     setForm(emptyForm);
+    setErrors({});
+    setMessage("");
     setShowModal(true);
   }
 
@@ -92,6 +114,8 @@ export default function KitchenClient() {
       managerName: kitchen.managerName ?? "",
       isActive: kitchen.isActive,
     });
+    setErrors({});
+    setMessage("");
     setShowModal(true);
   }
 
@@ -99,11 +123,43 @@ export default function KitchenClient() {
     return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
   }
 
+  function updateField(field: keyof KitchenForm, value: string | boolean) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
   async function handleSave() {
-    if (!form.name || !form.slug) {
-      setMessage("Name and slug are required");
-      return;
+    const next: Record<string, string> = {};
+    if (!form.name.trim()) next.name = "This field is required.";
+    if (!form.slug.trim()) next.slug = "This field is required.";
+    if (!editing) {
+      if (!form.email.trim()) next.email = "This field is required.";
+      else if (!/^\S+@\S+\.\S+$/.test(form.email)) next.email = "Enter a valid email address.";
+      if (!form.managerName.trim()) next.managerName = "This field is required.";
     }
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
+
+    if (editing) {
+      const unchanged =
+        form.name === editing.name &&
+        form.slug === editing.slug &&
+        form.location === (editing.location ?? "") &&
+        form.phone === (editing.phone ?? "") &&
+        form.email === (editing.email ?? "") &&
+        form.managerName === (editing.managerName ?? "") &&
+        form.isActive === editing.isActive;
+      if (unchanged) {
+        setMessage("Nothing to update.");
+        return;
+      }
+    }
+
     setSaving(true);
     setMessage("");
 
@@ -226,36 +282,50 @@ if (loading) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-[95vw] sm:max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h2 className="mb-4 text-xl font-bold">{editing ? "Edit Kitchen" : "Add Kitchen"}</h2>
-            <div className="space-y-4">
+             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Name</label>
-                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value, slug: editing ? form.slug : generateSlug(e.target.value) })} className="mt-1 w-full rounded-lg border p-3" />
+                <input type="text" value={form.name} onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, name: v, slug: editing ? prev.slug : generateSlug(v) })); setErrors((prev) => { if (!prev.name) return prev; const n = { ...prev }; delete n.name; return n; }); }} className="mt-1 w-full rounded-lg border p-3" />
+                {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Slug</label>
-                <input type="text" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                <input type="text" value={form.slug} onChange={(e) => updateField("slug", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
+                {errors.slug && <p className="mt-1 text-sm text-red-500">{errors.slug}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Location</label>
-                <input type="text" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                <input type="text" value={form.location} onChange={(e) => updateField("location", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Phone</label>
-                <input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                <input type="text" value={form.phone} onChange={(e) => updateField("phone", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Email</label>
-                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                <input type="email" value={form.email} onChange={(e) => updateField("email", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
+                {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Manager Name</label>
-                <input type="text" value={form.managerName} onChange={(e) => setForm({ ...form, managerName: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                <select value={form.managerName} onChange={(e) => updateField("managerName", e.target.value)} className="mt-1 w-full rounded-lg border p-3 bg-white">
+                  <option value="">Select role</option>
+                  {rolesList
+                    .filter((r) => r.name !== "customer")
+                    .map((r) => (
+                      <option key={r.id} value={r.name}>{ROLE_LABELS[r.name] ?? r.name}</option>
+                    ))}
+                </select>
+                {errors.managerName && <p className="mt-1 text-sm text-red-500">{errors.managerName}</p>}
               </div>
               <div className="flex items-center gap-2">
-                <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} id="isActive" />
+                <Checkbox checked={form.isActive} onChange={(e) => updateField("isActive", e.target.checked)} id="isActive" />
                 <label htmlFor="isActive" className="text-sm text-gray-700">Active</label>
               </div>
             </div>
+            {message && (
+              <p className="mt-4 text-sm text-red-500">{message}</p>
+            )}
             <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
               <button onClick={() => setShowModal(false)} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">Cancel</button>
               <button onClick={handleSave} disabled={saving} className="rounded-lg bg-orange-500 px-4 py-2 text-white hover:bg-orange-600 disabled:opacity-50">

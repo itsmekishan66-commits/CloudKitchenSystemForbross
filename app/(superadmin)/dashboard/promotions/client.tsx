@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { Edit, Trash2 } from "lucide-react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
+import Checkbox from "@/app/_components/Checkbox";
 
 interface Promotion {
   id: number;
@@ -63,6 +64,12 @@ export default function PromotionsClient() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"error" | "success">("success");
   const [search, setSearch] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function updateForm(field: string, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => { const next = { ...prev }; delete next[field]; return next; });
+  }
 
   const filteredPromotions = useMemo(() => {
     if (!search.trim()) return promotions;
@@ -108,6 +115,8 @@ export default function PromotionsClient() {
     setEditing(null);
     setForm(emptyForm);
     setModalMode("promotion");
+    setErrors({});
+    setMessage("");
     setShowModal(true);
   }
 
@@ -126,6 +135,8 @@ export default function PromotionsClient() {
       endsAt: promo.endsAt ? promo.endsAt.slice(0, 16) : "",
       usageLimit: promo.usageLimit?.toString() ?? "",
     });
+    setErrors({});
+    setMessage("");
     setShowModal(true);
   }
 
@@ -133,8 +144,14 @@ export default function PromotionsClient() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors((prev) => ({ ...prev, image: "Image must be less than 5 MB." }));
+      event.target.value = "";
+      return;
+    }
+
     setUploadingImage(true);
-    setMessage("");
+    setErrors((prev) => { const next = { ...prev }; delete next.image; return next; });
 
     try {
       const formData = new FormData();
@@ -167,14 +184,34 @@ export default function PromotionsClient() {
   }
 
   async function handleSave() {
-    if (!form.title.trim()) {
-      setMessage("Title is required");
-      setMessageType("error");
-      return;
+    const newErrors: Record<string, string> = {};
+    if (!form.title.trim()) newErrors.title = "Title is required.";
+    if (!form.discountValue.toString().trim()) newErrors.discountValue = "Discount value is required.";
+    if (!form.code.trim()) newErrors.code = "Promo code is required.";
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
+
+    if (editing) {
+      const noChange =
+        form.title === editing.title &&
+        form.description === (editing.description ?? "") &&
+        form.image === (editing.image ?? "") &&
+        form.discountType === editing.discountType &&
+        form.discountValue === editing.discountValue &&
+        form.code === (editing.code ?? "") &&
+        form.isActive === editing.isActive &&
+        form.startsAt === (editing.startsAt ? editing.startsAt.slice(0, 16) : "") &&
+        form.endsAt === (editing.endsAt ? editing.endsAt.slice(0, 16) : "") &&
+        form.usageLimit === (editing.usageLimit?.toString() ?? "");
+      if (noChange) {
+        setMessage("Nothing to update.");
+        setMessageType("success");
+        return;
+      }
     }
 
-    setSaving(true);
+    setErrors({});
     setMessage("");
+    setSaving(true);
 
     try {
       const url = "/api/superadmin/promotions";
@@ -326,19 +363,21 @@ export default function PromotionsClient() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="max-h-[90vh] w-full max-w-[95vw] sm:max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="mb-4 text-xl font-bold">{editing ? (modalMode === "offer" ? "Edit Offer" : "Edit Promotion") : modalMode === "offer" ? "Add Offer" : "Add Promotion"}</h2>
-            <div className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} noValidate className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Title</label>
-                <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                <label className="block text-sm font-medium text-gray-700">Title *</label>
+                <input type="text" value={form.title} onChange={(e) => updateForm("title", e.target.value)} className={`mt-1 w-full rounded-lg border p-3 ${errors.title ? "border-red-400" : ""}`} />
+                {errors.title && <p className="mt-1 text-sm text-red-500">{errors.title}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Description</label>
-                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="mt-1 w-full rounded-lg border p-3" rows={2} />
+                <textarea value={form.description} onChange={(e) => updateForm("description", e.target.value)} className="mt-1 w-full rounded-lg border p-3" rows={2} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Offer Image</label>
                 <input type="file" accept="image/*" onChange={handleImageUpload} className="mt-1 w-full rounded-lg border p-3" />
                 {uploadingImage ? <p className="mt-2 text-sm text-gray-500">Uploading image...</p> : null}
+                {errors.image && <p className="mt-1 text-sm text-red-500">{errors.image}</p>}
                 {form.image ? (
                   <img src={form.image} alt="Offer preview" className="mt-3 h-28 w-full rounded-lg object-cover" />
                 ) : (
@@ -348,43 +387,50 @@ export default function PromotionsClient() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Discount Type</label>
-                  <select value={form.discountType} onChange={(e) => setForm({ ...form, discountType: e.target.value })} className="mt-1 w-full rounded-lg border p-3">
+                  <select value={form.discountType} onChange={(e) => updateForm("discountType", e.target.value)} className="mt-1 w-full rounded-lg border p-3">
                     <option value="percentage">Percentage</option>
                     <option value="fixed">Fixed</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Discount Value</label>
-                  <input type="number" step="0.01" value={form.discountValue} onChange={(e) => setForm({ ...form, discountValue: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                  <label className="block text-sm font-medium text-gray-700">Discount Value *</label>
+                  <input type="number" step="0.01" value={form.discountValue} onChange={(e) => updateForm("discountValue", e.target.value)} className={`mt-1 w-full rounded-lg border p-3 ${errors.discountValue ? "border-red-400" : ""}`} />
+                  {errors.discountValue && <p className="mt-1 text-sm text-red-500">{errors.discountValue}</p>}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Promo Code</label>
-                <input type="text" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                <label className="block text-sm font-medium text-gray-700">Promo Code *</label>
+                <input type="text" value={form.code} onChange={(e) => updateForm("code", e.target.value)} className={`mt-1 w-full rounded-lg border p-3 ${errors.code ? "border-red-400" : ""}`} />
+                {errors.code && <p className="mt-1 text-sm text-red-500">{errors.code}</p>}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Start Date</label>
-                  <input type="datetime-local" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                  <input type="datetime-local" value={form.startsAt} onChange={(e) => updateForm("startsAt", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">End Date</label>
-                  <input type="datetime-local" value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                  <input type="datetime-local" value={form.endsAt} onChange={(e) => updateForm("endsAt", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Usage Limit</label>
-                <input type="number" value={form.usageLimit} onChange={(e) => setForm({ ...form, usageLimit: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                <input type="number" value={form.usageLimit} onChange={(e) => updateForm("usageLimit", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
               </div>
               <div className="flex items-center gap-2">
-                <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} id="isActive" />
+                <Checkbox checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} id="isActive" />
                 <label htmlFor="isActive" className="text-sm text-gray-700">
                   Active
                 </label>
               </div>
-            </div>
+            </form>
+            {message && (
+              <div className={`mt-3 rounded-lg p-3 text-sm ${messageType === "error" ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700"}`}>
+                {message}
+              </div>
+            )}
             <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
-              <button onClick={() => setShowModal(false)} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">
+              <button onClick={() => { setShowModal(false); setErrors({}); setMessage(""); }} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">
                 Cancel
               </button>
               <button onClick={handleSave} disabled={saving} className="rounded-lg bg-orange-500 px-4 py-2 text-white hover:bg-orange-600 disabled:opacity-50">

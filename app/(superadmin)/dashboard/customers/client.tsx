@@ -1,8 +1,9 @@
 "use client";
-import { CircleArrowDown, Edit, Trash2 } from "lucide-react";
+import { CircleArrowDown, Edit, Eye, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
+import { useConfirm } from "@/app/_components/ConfirmPopup";
 
 const ROLE_OPTIONS = [
   // {label: "Super Admin", value: "super-admin"},
@@ -31,6 +32,7 @@ const emptyForm = { name: "", email: "", password: "", role: "customer", phone: 
 export default function CustomersClient() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
+  const confirm = useConfirm();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("customer");
@@ -38,10 +40,10 @@ export default function CustomersClient() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const router = useRouter();
   
   //to download the file
@@ -69,12 +71,38 @@ export default function CustomersClient() {
   }, [filter]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
+
+  const validateForm = (isEdit: boolean) => {
+    const next: Record<string, string> = {};
+    if (!form.name.trim()) next.name = "This field is required.";
+    if (!form.email.trim()) {
+      next.email = "This field is required.";
+    } else if (!/^\S+@\S+\.\S+$/.test(form.email)) {
+      next.email = "Enter a valid email address.";
+    }
+    if (!isEdit) {
+      if (!form.password) next.password = "This field is required.";
+      else if (form.password.length < 8) next.password = "Password must be at least 8 characters.";
+    } else if (form.password && form.password.length < 8) {
+      next.password = "Password must be at least 8 characters.";
+    }
+    setErrors(next);
+    return Object.keys(next).length === 0;
   };
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!validateForm(false)) return;
     setSubmitting(true);
     try {
       const res = await fetch("/api/users", {
@@ -109,6 +137,21 @@ export default function CustomersClient() {
     e.preventDefault();
     if (!editUser) return;
     setError("");
+    if (!validateForm(true)) return;
+
+    const isUnchanged =
+      form.name === editUser.name &&
+      form.email === editUser.email &&
+      form.phone === (editUser.phone ?? "") &&
+      form.address === (editUser.address ?? "") &&
+      form.role === editUser.role &&
+      !form.password;
+
+    if (isUnchanged) {
+      setError("Nothing to update.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const body: Record<string, unknown> = {
@@ -135,15 +178,12 @@ export default function CustomersClient() {
     finally { setSubmitting(false); }
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!deleteTarget) return;
+  const handleDeleteConfirm = async (user: User) => {
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/users/${deleteTarget.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
       if (!res.ok) { setError("Failed to delete user"); return; }
-      setDeleteTarget(null);
       router.refresh();
-      // fetchUsers();
     } catch { setError("Something went wrong"); }
     finally { setSubmitting(false); }
   };
@@ -274,7 +314,15 @@ export default function CustomersClient() {
                       )}
                       {can("DELETE_USERS") && (
                       <button
-                        onClick={() => setDeleteTarget(user)}
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: "Delete User",
+                            message: `Are you sure you want to delete ${user.name} (${user.email})? The user will be hidden from the system but their data will be preserved.`,
+                            confirmText: "Delete",
+                            variant: "danger",
+                          });
+                          if (ok) handleDeleteConfirm(user);
+                        }}
                         className="rounded text-red-500 text-sm"
                       >
                         <Trash2 size={22} />
@@ -283,9 +331,9 @@ export default function CustomersClient() {
                       {can("VIEW_USERS") && user.role==="customer" && (
                       <button
                         onClick={() => router.push(`/dashboard/customers/${user.id}`)}
-                        className="rounded-lg border border-gray-200 px-3 py-1 text-sm text-white bg-gray-600"
+                        className="text-black"
                       >
-                        View
+                        <Eye size={22} />
                       </button>
                       )}
                     </div>
@@ -305,18 +353,21 @@ export default function CustomersClient() {
               <h2 className="text-lg font-bold">Add User</h2>
               <button onClick={() => { setShowAddModal(false); setError(""); }} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
             </div>
-            <form onSubmit={handleAddSubmit} className="space-y-4">
+            <form onSubmit={handleAddSubmit} noValidate className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
-                <input name="name" value={form.name} onChange={handleInput} required className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                <input name="name" value={form.name} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
-                <input name="email" type="email" value={form.email} onChange={handleInput} required className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                <input name="email" type="email" value={form.email} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Password</label>
-                <input name="password" type="password" value={form.password} onChange={handleInput} required minLength={8} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                <input name="password" type="password" value={form.password} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Phone</label>
@@ -351,18 +402,21 @@ export default function CustomersClient() {
               <h2 className="text-lg font-bold">Edit User</h2>
               <button onClick={() => { setEditUser(null); setError(""); setForm(emptyForm); }} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
             </div>
-            <form onSubmit={handleEditSubmit} className="space-y-4">
+            <form onSubmit={handleEditSubmit} noValidate className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
-                <input name="name" value={form.name} onChange={handleInput} required className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                <input name="name" value={form.name} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
-                <input name="email" type="email" value={form.email} onChange={handleInput} required className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                <input name="email" type="email" value={form.email} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Password <span className="text-gray-400 font-normal">(leave blank to keep current)</span></label>
-                <input name="password" type="password" value={form.password} onChange={handleInput} minLength={8} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                <input name="password" type="password" value={form.password} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Phone</label>
@@ -395,32 +449,6 @@ export default function CustomersClient() {
         </div>
       )}
 
-      {/* Delete Confirmation */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-[90vw] sm:max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-bold mb-2">Delete User</h2>
-            <p className="text-sm text-gray-600 mb-6">
-              Are you sure you want to delete <strong>{deleteTarget.name}</strong> ({deleteTarget.email})? The user will be hidden from the system but their data will be preserved.
-            </p>
-            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
-              <button
-                onClick={() => setDeleteTarget(null)}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteConfirm}
-                disabled={submitting}
-                className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white shadow disabled:opacity-50 transition-colors"
-              >
-                {submitting ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -11,8 +11,6 @@ import {
   ChevronDown,
   LogOut,
   User,
-  Menu,
-  X,
 } from "lucide-react";
 import { useCart } from "./cart/CartContext";
 import CartDrawer from "./cart/CartDrawer";
@@ -264,12 +262,12 @@ export default function Navbar() {
           </div>
 
           {/* Mobile Hamburger */}
-          <button
+          {/* <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="hide-on-desktop z-100 top-10 text-white"
           >
             {mobileOpen ? <X size={26} /> : <Menu size={26} />}
-          </button>
+          </button> */}
 
         </div>
 

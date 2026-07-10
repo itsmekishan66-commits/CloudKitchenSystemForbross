@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { usePermissions } from "@/lib/permission-context";
 import toast from "react-hot-toast";
+import Checkbox from "@/app/_components/Checkbox";
 
 interface OrderItem {
   id: number;
@@ -397,11 +398,9 @@ export default function SettlePaymentPage() {
           {/* Mark as Due */}
           {remaining > 0 && (
             <label className="flex items-center gap-2.5 cursor-pointer">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={markAsDue}
                 onChange={(e) => setMarkAsDue(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
               />
               <span className="text-sm font-medium text-gray-700">Mark remaining Rs {remaining.toFixed(2)} as Due (Receivable)</span>
             </label>

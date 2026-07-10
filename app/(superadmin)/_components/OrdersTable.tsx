@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
+import Checkbox from "@/app/_components/Checkbox";
 
 interface OrderItem {
   id: number;
@@ -60,7 +61,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
   const [messageType, setMessageType] = useState<"success" | "error">("success");
   const [localOrders, setLocalOrders] = useState(orders);
   const [addItemOrder, setAddItemOrder] = useState<Order | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<{ itemId: number; orderId: number; title: string } | null>(null);
+
   const [settleOrder, setSettleOrder] = useState<Order | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [selectedMenuItem, setSelectedMenuItem] = useState("");
@@ -415,7 +416,15 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                           {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && (
                             <td className="py-1.5 text-right">
                               <button
-                                onClick={() => setConfirmDelete({ itemId: item.id, orderId: order.id, title: item.title })}
+                                onClick={async () => {
+                                  const ok = await confirm({
+                                    title: "Remove Item",
+                                    message: `Are you sure you want to remove ${item.title} from this order?`,
+                                    confirmText: "Remove",
+                                    variant: "danger",
+                                  });
+                                  if (ok) deleteItem(item.id, order.id);
+                                }}
                                 className="text-red-400 text-xs"
                               >
                                 ✕
@@ -473,35 +482,6 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
           </div>
         ))}
       </div>
-
-      {/* Delete Confirmation */}
-      {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-[90vw] sm:max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-bold mb-2">Remove Item</h2>
-            <p className="text-sm text-gray-600 mb-6">
-              Are you sure you want to remove <strong>{confirmDelete.title}</strong> from this order?
-            </p>
-            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
-              <button
-                onClick={() => setConfirmDelete(null)}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  deleteItem(confirmDelete.itemId, confirmDelete.orderId);
-                  setConfirmDelete(null);
-                }}
-                className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white"
-              >
-                Remove
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Settlement Popup */}
       {settleOrder && (
@@ -629,8 +609,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                         <div className="space-y-2">
                           {item.addons.map((addon, i) => (
                             <label key={i} className="flex items-center gap-3 p-2 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer">
-                              <input
-                                type="checkbox"
+                              <Checkbox
                                 checked={selectedAddons.some((a) => a.name === addon.name)}
                                 onChange={(e) => {
                                   if (e.target.checked) {
@@ -639,7 +618,6 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                                     setSelectedAddons((prev) => prev.filter((a) => a.name !== addon.name));
                                   }
                                 }}
-                                className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
                               />
                               <span className="text-sm text-gray-700 flex-1">{addon.name}</span>
                               <span className="text-sm text-gray-500">+Rs.{Number(addon.price).toFixed(2)}</span>

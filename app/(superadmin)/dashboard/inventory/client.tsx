@@ -35,7 +35,7 @@ interface InventoryForm {
   kitchenId: number | null;
 }
 
-const emptyForm: InventoryForm = { name: "", category: "Other", quantity: "0", unit: "pcs", minStockLevel: "0", pricePerUnit: "0", kitchenId: null };
+const emptyForm: InventoryForm = { name: "", category: "", quantity: "", unit: "", minStockLevel: "", pricePerUnit: "", kitchenId: null };
 
 export default function InventoryClient() {
   const permissions = usePermissions();
@@ -48,10 +48,21 @@ export default function InventoryClient() {
   const [form, setForm] = useState<InventoryForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"inventory" | "supplier-stock" | "inventory-stock">("inventory");
+
+  function updateForm(field: string, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
   const [supplierStock, setSupplierStock] = useState<SupplierStockItem[]>([]);
   const [stockLoading, setStockLoading] = useState(false);
+  const [categories, setCategories] = useState<{ id: number; name: string; slug: string }[]>([]);
 
   //to download the file
    const handleDownload = (type: string) => {
@@ -100,6 +111,13 @@ export default function InventoryClient() {
   }, []);
 
   useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((d) => { if (d.categories) setCategories(d.categories); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     // Avoid synchronous setState during render/effect by deferring calls
     if (activeTab === "supplier-stock") {
       const t = setTimeout(() => { void loadSupplierStock(); }, 0);
@@ -114,6 +132,8 @@ export default function InventoryClient() {
   function openCreate() {
     setEditing(null);
     setForm(emptyForm);
+    setErrors({});
+    setMessage("");
     setShowModal(true);
   }
 
@@ -128,6 +148,8 @@ export default function InventoryClient() {
       pricePerUnit: item.pricePerUnit,
       kitchenId: item.kitchenId,
     });
+    setErrors({});
+    setMessage("");
     setShowModal(true);
   }
 
@@ -141,12 +163,33 @@ export default function InventoryClient() {
 
 
   async function handleSave() {
-    if (!form.name) {
-      setMessage("Name is required");
-      return;
+    const newErrors: Record<string, string> = {};
+    if (!form.name.trim()) newErrors.name = "Name is required.";
+    if (!form.category.trim()) newErrors.category = "Category is required.";
+    if (!form.quantity.toString().trim()) newErrors.quantity = "Quantity is required.";
+    if (!form.unit.trim()) newErrors.unit = "Unit is required.";
+    if (!form.minStockLevel.toString().trim()) newErrors.minStockLevel = "Min stock level is required.";
+    if (!form.pricePerUnit.toString().trim()) newErrors.pricePerUnit = "Price per unit is required.";
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
+
+    if (editing) {
+      const noChange =
+        form.name === editing.name &&
+        form.category === editing.category &&
+        form.quantity === editing.quantity &&
+        form.unit === editing.unit &&
+        form.minStockLevel === editing.minStockLevel &&
+        form.pricePerUnit === editing.pricePerUnit &&
+        form.kitchenId === editing.kitchenId;
+      if (noChange) {
+        setMessage("Nothing to update.");
+        return;
+      }
     }
-    setSaving(true);
+
+    setErrors({});
     setMessage("");
+    setSaving(true);
 
     try {
       if (editing) {
@@ -304,36 +347,50 @@ export default function InventoryClient() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-[95vw] sm:max-w-lg rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="mb-4 text-xl font-bold">{editing ? "Edit Inventory Item" : "Add Inventory Item"}</h2>
-            <div className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} noValidate className="space-y-4">
+              {message && message !== "Nothing to update." && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{message}</div>}
               <div>
                 <label className="block text-sm font-medium text-gray-700">Name</label>
-                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                <input type="text" value={form.name} onChange={(e) => updateForm("name", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
+                {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Category</label>
-                <input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                <select value={form.category} onChange={(e) => updateForm("category", e.target.value)} className="mt-1 w-full rounded-lg border p-3">
+                  <option value="">Select category</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                  <option value="Other">Other</option>
+                </select>
+                {errors.category && <p className="mt-1 text-sm text-red-500">{errors.category}</p>}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Quantity</label>
-                  <input type="number" step="0.01" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                  <input type="number" step="0.01" value={form.quantity} onChange={(e) => updateForm("quantity", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
+                  {errors.quantity && <p className="mt-1 text-sm text-red-500">{errors.quantity}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Unit</label>
-                  <input type="text" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                  <input type="text" value={form.unit} onChange={(e) => updateForm("unit", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
+                  {errors.unit && <p className="mt-1 text-sm text-red-500">{errors.unit}</p>}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Min Stock Level</label>
-                  <input type="number" step="0.01" value={form.minStockLevel} onChange={(e) => setForm({ ...form, minStockLevel: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                  <input type="number" step="0.01" value={form.minStockLevel} onChange={(e) => updateForm("minStockLevel", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
+                  {errors.minStockLevel && <p className="mt-1 text-sm text-red-500">{errors.minStockLevel}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Price Per Unit</label>
-                  <input type="number" step="0.01" value={form.pricePerUnit} onChange={(e) => setForm({ ...form, pricePerUnit: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                  <input type="number" step="0.01" value={form.pricePerUnit} onChange={(e) => updateForm("pricePerUnit", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
+                  {errors.pricePerUnit && <p className="mt-1 text-sm text-red-500">{errors.pricePerUnit}</p>}
                 </div>
               </div>
-            </div>
+            </form>
+            {message && <div className="mt-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-600">{message}</div>}
             <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
               <button onClick={() => setShowModal(false)} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">Cancel</button>
               <button onClick={handleSave} disabled={saving} className="rounded-lg bg-orange-500 px-4 py-2 text-white hover:bg-orange-600 disabled:opacity-50">

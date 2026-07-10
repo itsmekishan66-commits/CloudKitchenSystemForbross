@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
+import { useConfirm } from "@/app/_components/ConfirmPopup";
 type Zone = {
     id: number;
     landmarkName: string;
@@ -16,13 +17,13 @@ const inputClass ="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm ou
 export default function DeliveryZonesClient() {
     const permissions = usePermissions();
     const can = (p: string) => permissions.includes(p);
+    const confirm = useConfirm();
 
     const [zones, setZones] = useState<Zone[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState<Zone | null>(null);
     const [saving, setSaving] = useState(false);
-    const [deleteTarget, setDeleteTarget] = useState<Zone | null>(null);
 
     const [form, setForm] = useState({
         landmarkName: "",
@@ -120,16 +121,10 @@ export default function DeliveryZonesClient() {
     //     }
     // }
 
-    function handleDelete(zone: Zone) {
-        setDeleteTarget(zone);
-    }
-
-    async function confirmDelete() {
-        if (!deleteTarget) return;
+    async function handleDelete(zone: Zone) {
         try {
-            const res = await fetch(`/api/delivery-zones/${deleteTarget.id}`, { method: "DELETE" });
+            const res = await fetch(`/api/delivery-zones/${zone.id}`, { method: "DELETE" });
             if (!res.ok) throw new Error("Failed to delete zone");
-            setDeleteTarget(null);
             loadZones();
         } catch (err) {
             console.error(err);
@@ -202,7 +197,15 @@ export default function DeliveryZonesClient() {
                                                 </button>
                                             )}
                                             {can("DELETE_SETTINGS") && (
-                                                <button onClick={() => handleDelete(zone)}
+                                                <button onClick={async () => {
+                                                    const ok = await confirm({
+                                                        title: "Delete Zone",
+                                                        message: `Are you sure you want to delete ${zone.landmarkName}?`,
+                                                        confirmText: "Delete",
+                                                        variant: "danger",
+                                                    });
+                                                    if (ok) handleDelete(zone);
+                                                }}
                                                     className="flex-1 rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white"
                                                 >Delete
                                                 </button>
@@ -256,7 +259,15 @@ export default function DeliveryZonesClient() {
                                                             </button>
                                                         )}
                                                         {can("DELETE_SETTINGS") && (
-                                                            <button onClick={() => handleDelete(zone)}
+                                                            <button onClick={async () => {
+                                                                const ok = await confirm({
+                                                                    title: "Delete Zone",
+                                                                    message: `Are you sure you want to delete ${zone.landmarkName}?`,
+                                                                    confirmText: "Delete",
+                                                                    variant: "danger",
+                                                                });
+                                                                if (ok) handleDelete(zone);
+                                                            }}
                                                                 className="rounded-md bg-red-500 px-4 py-1.5 text-sm text-white"
                                                             >Delete
                                                             </button>
@@ -375,31 +386,6 @@ export default function DeliveryZonesClient() {
                 </div>
             )}
 
-            {/* Delete confirmation popup */}
-            {deleteTarget && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
-                        <h3 className="text-lg font-bold mb-2">Delete Zone</h3>
-                        <p className="text-gray-600 mb-6">
-                            Are you sure you want to delete <strong>{deleteTarget.landmarkName}</strong>?
-                        </p>
-                        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
-                            <button
-                                onClick={() => setDeleteTarget(null)}
-                                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium hover:bg-gray-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={confirmDelete}
-                                className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-medium text-white"
-                            >
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

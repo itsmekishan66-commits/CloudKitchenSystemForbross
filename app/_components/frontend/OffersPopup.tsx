@@ -1,6 +1,8 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
-import { X, Bot } from "lucide-react";
+import { useEffect, useState} from "react";
+// import { useEffect, useState, useRef } from "react";
+import { X } from "lucide-react";
+// import { X, Bot } from "lucide-react";
 
 interface PromotionItem {
   id: number;
@@ -18,30 +20,30 @@ export default function OffersPopup() {
   const [loading, setLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [autoOpened, setAutoOpened] = useState(false);
-  const [botOpen, setBotOpen] = useState(false);
-  const [typedText, setTypedText] = useState("");
-  const botMessage = "We welcome you to our Cloud Kitchen! Order your favourite food in a blink 🍔";
-  const botMessage1 = "For any queries, please contact us at +977 9800000000 or email us at hello@example.com";
-  const fullMessage = botMessage + "\n\n" + botMessage1;
-  const typingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // const [botOpen, setBotOpen] = useState(false);
+  // const [typedText, setTypedText] = useState("");
+  // const botMessage = "We welcome you to our Cloud Kitchen! Order your favourite food in a blink 🍔";
+  // const botMessage1 = "For any queries, please contact us at +977 9800000000 or email us at hello@example.com";
+  // const fullMessage = botMessage + "\n\n" + botMessage1;
+  // const typingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    let i = 0;
+  // useEffect(() => {
+  //   let i = 0;
 
-    function typeChar() {
-      if (i < fullMessage.length) {
-        setTypedText(fullMessage.slice(0, i + 1));
-        i++;
-        typingRef.current = setTimeout(typeChar, 30);
-      }
-    }
+  //   function typeChar() {
+  //     if (i < fullMessage.length) {
+  //       setTypedText(fullMessage.slice(0, i + 1));
+  //       i++;
+  //       typingRef.current = setTimeout(typeChar, 30);
+  //     }
+  //   }
 
-    typeChar();
+  //   typeChar();
 
-    return () => {
-      if (typingRef.current) clearTimeout(typingRef.current);
-    };
-  }, [botOpen, fullMessage]);
+  //   return () => {
+  //     if (typingRef.current) clearTimeout(typingRef.current);
+  //   };
+  // }, [botOpen, fullMessage]);
 
   useEffect(() => {
     const alreadyShown = sessionStorage.getItem("offers_popup_shown");
@@ -109,7 +111,7 @@ export default function OffersPopup() {
       <style>{`@keyframes breathe { 0%, 100% { transform: scale(1.4); } 50% { transform: scale(1.06); } }`}</style>
 
       {/* Bot Icon + Typing Bubble */}
-      <span className="fixed bottom-28 right-8 z-50 flex flex-col items-end gap-2">
+      {/* <span className="fixed bottom-32 right-8 z-50 flex flex-col items-end gap-2">
         {botOpen && (
           <div className="max-w-116 rounded-2xl rounded-br-sm bg-white p-8 shadow-xl border border-gray-100">
             <div className="flex items-start gap-3">
@@ -131,13 +133,13 @@ export default function OffersPopup() {
         >
           <Bot size={22} />
         </button>
-      </span>
+      </span> */}
 
       {/* Floating Offers Button */}
-      <span className="fixed bottom-8 right-8 z-50">
+      <span className="fixed bottom-18 md:bottom-8 right-8 z-50">
         <button
           onClick={() => setOpen(true)}
-          className="rounded-full bg-yellow-300 px-6 py-3 font-bold text-black shadow-lg transition-all duration-300 hover:bg-yellow-400"
+          className="rounded-full bg-yellow-300 px-4 py-2 md:px-6 md:py-3 font-bold text-black shadow-lg transition-all duration-300 hover:bg-yellow-400"
           style={{ animation: "breathe 2.5s ease-in-out infinite" }}
         >
         🏷️ Offers

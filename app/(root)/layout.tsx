@@ -1,3 +1,4 @@
+import BottomNav from "../_components/frontend/BottomNav";
 import { CartProvider } from "../_components/frontend/cart/CartContext";
 import Footer from "../_components/frontend/Footer";
 import Navbar from "../_components/frontend/Navbar";
@@ -17,6 +18,7 @@ export default function HomeLayout({
         {children}
       </main>
       <Footer />
+      <BottomNav />
     </CartProvider>
 
 

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { usePermissions } from "@/lib/permission-context";
 import OrdersTable from "../../_components/OrdersTable";
+import Checkbox from "@/app/_components/Checkbox";
 
 interface OrderItem {
   id: number;
@@ -71,6 +72,7 @@ export default function OrdersClient() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Item adder state (inside modal)
   const [addMenuItemId, setAddMenuItemId] = useState("");
@@ -169,6 +171,7 @@ export default function OrdersClient() {
     setLookedUpUser(null);
     setLookupError("");
     setFormError("");
+    setFieldErrors({});
     void loadZones();
     fetch("/api/orders/items")
       .then((res) => res.json())
@@ -182,6 +185,16 @@ export default function OrdersClient() {
       ...prev,
       items: prev.items.map((it, i) => (i === index ? { ...it, [key]: value } : it)),
     }));
+  }
+
+  function updateForm(field: keyof typeof form, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   }
 
   const computedTotal = useMemo(() => {
@@ -216,15 +229,18 @@ export default function OrdersClient() {
 
   async function handleCreateOrder() {
     setFormError("");
-    if (!form.customerName.trim() || !form.phone.trim() || !form.address.trim()) {
-      setFormError("Name, phone and address are required");
-      return;
-    }
+    const next: Record<string, string> = {};
+    if (!form.customerName.trim()) next.customerName = "This field is required.";
+    if (!form.phone.trim()) next.phone = "This field is required.";
+    if (!form.address.trim()) next.address = "This field is required.";
+    setFieldErrors(next);
+    if (Object.keys(next).length > 0) return;
+
     const validItems = form.items.filter(
       (it) => it.title.trim() && (Number(it.quantity) || 0) > 0 && (Number(it.price) || 0) >= 0,
     );
     if (validItems.length === 0) {
-      setFormError("Add at least one valid item (title, quantity and price)");
+      setFieldErrors((prev) => ({ ...prev, items: "At least one item is required." }));
       return;
     }
 
@@ -380,28 +396,31 @@ export default function OrdersClient() {
                   <input
                     type="text"
                     value={form.customerName}
-                    onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                    onChange={(e) => updateForm("customerName", e.target.value)}
                     className="mt-1 w-full rounded-lg border p-3"
                   />
+                  {fieldErrors.customerName && <p className="mt-1 text-sm text-red-500">{fieldErrors.customerName}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Phone *</label>
                   <input
                     type="text"
                     value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    onChange={(e) => updateForm("phone", e.target.value)}
                     className="mt-1 w-full rounded-lg border p-3"
                   />
+                  {fieldErrors.phone && <p className="mt-1 text-sm text-red-500">{fieldErrors.phone}</p>}
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Address *</label>
                 <textarea
                   value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  onChange={(e) => updateForm("address", e.target.value)}
                   rows={2}
                   className="mt-1 w-full rounded-lg border p-3"
                 />
+                {fieldErrors.address && <p className="mt-1 text-sm text-red-500">{fieldErrors.address}</p>}
               </div>
 
               {/* User type */}
@@ -664,8 +683,7 @@ export default function OrdersClient() {
                       <div className="space-y-2">
                         {item.addons.map((addon, i) => (
                           <label key={i} className="flex items-center gap-3 p-2 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer">
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={selectedAddons.some((a) => a.name === addon.name)}
                               onChange={(e) => {
                                 const extra = Number(addon.price);
@@ -677,7 +695,6 @@ export default function OrdersClient() {
                                   setAddItemPrice(((basePrice + addonTotal - extra) || 0).toFixed(2));
                                 }
                               }}
-                              className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
                             />
                             <span className="text-sm text-gray-700 flex-1">{addon.name}</span>
                             <span className="text-sm text-gray-500">+Rs.{Number(addon.price).toFixed(2)}</span>
@@ -740,6 +757,10 @@ export default function OrdersClient() {
                   </div>
                 )}
               </div>
+
+              {fieldErrors.items && (
+                <p className="mt-2 text-sm text-red-500">{fieldErrors.items}</p>
+              )}
 
               <div className="flex items-center justify-between rounded-xl bg-gray-50 p-4">
                 <span className="text-sm font-medium text-gray-600">Total</span>

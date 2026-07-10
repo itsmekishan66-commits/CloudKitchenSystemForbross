@@ -49,6 +49,13 @@ export default function CheckoutForm() {
     streetAddress: "",
   });
 
+  const [errors, setErrors] = useState<{
+    customerName?: string;
+    phone?: string;
+    streetAddress?: string;
+    zoneId?: string;
+  }>({});
+
   // Fetch active delivery zones
   useEffect(() => {
     fetch("/api/delivery-zones")
@@ -148,15 +155,28 @@ export default function CheckoutForm() {
 
       setError("");
 
-      if (!form.customerName.trim() || !form.phone.trim() || !form.streetAddress.trim()) {
-        setError("Name, phone, and address are required.");
+      const newErrors: typeof errors = {};
+      if (!form.customerName.trim()) {
+        newErrors.customerName = "Full name is required.";
+      }
+      if (!form.phone.trim()) {
+        newErrors.phone = "Phone number is required.";
+      }
+      if (!form.streetAddress.trim()) {
+        newErrors.streetAddress = "Street address is required.";
+      }
+      if (!selectedZoneId) {
+        newErrors.zoneId = isGuest
+          ? "Please select a delivery landmark."
+          : "This field is required.";
+      }
+
+      if (Object.keys(newErrors).length > 0) {
+        setErrors(newErrors);
         return;
       }
 
-      if (!selectedZoneId) {
-        setError("Please select a delivery landmark.");
-        return;
-      }
+      setErrors({});
 
       if (items.length === 0) {
         setError("Your cart is empty.");
@@ -202,6 +222,12 @@ export default function CheckoutForm() {
   );
 
   const showGuestModal = !userLoading && !user;
+  const isGuest = !user;
+
+  const setField = (field: keyof typeof form, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
+  };
 
   const addressSection = (
     <>
@@ -211,7 +237,10 @@ export default function CheckoutForm() {
           required
           value={selectedZoneId ?? ""}
           className="w-full pl-10 pr-10 py-3 bg-gray-700 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm text-white appearance-none"
-          onChange={(e) => setSelectedZoneId(e.target.value ? Number(e.target.value) : null)}
+          onChange={(e) => {
+            setSelectedZoneId(e.target.value ? Number(e.target.value) : null);
+            setErrors((prev) => ({ ...prev, zoneId: undefined }));
+          }}
         >
           <option value="">Select Delivery landmark</option>
           {zones.map((zone) => (
@@ -223,18 +252,20 @@ export default function CheckoutForm() {
         </select>
         <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
       </div>
+      {errors.zoneId ? <p className="mt-1 text-sm text-red-400">{errors.zoneId}</p> : null}
 
       <div className="relative">
         <MapPin size={18} className="absolute left-3.5 top-3 text-gray-500" />
         <textarea
-          required
+          required={isGuest}
           placeholder="your exact street address, house number, apartment, etc."
           value={form.streetAddress}
           rows={3}
           className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm text-white resize-none placeholder-gray-400"
-          onChange={(e) => setForm({ ...form, streetAddress: e.target.value })}
+          onChange={(e) => setField("streetAddress", e.target.value)}
         />
       </div>
+      {errors.streetAddress ? <p className="mt-1 text-sm text-red-400">{errors.streetAddress}</p> : null}
 
       {selectedZoneId && (
         <div className="flex justify-between items-center text-sm px-1">
@@ -271,24 +302,26 @@ export default function CheckoutForm() {
       <div className="relative">
         <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
         <input
-          required
+          required={isGuest}
           placeholder="Full Name"
           value={form.customerName}
           className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm text-white placeholder-gray-400"
-          onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+          onChange={(e) => setField("customerName", e.target.value)}
         />
       </div>
+      {errors.customerName ? <p className="mt-1 text-sm text-red-400">{errors.customerName}</p> : null}
 
       <div className="relative">
         <Phone size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
         <input
-          required
+          required={isGuest}
           placeholder="Phone Number"
           value={form.phone}
           className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm text-white placeholder-gray-400"
-          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          onChange={(e) => setField("phone", e.target.value)}
         />
       </div>
+      {errors.phone ? <p className="mt-1 text-sm text-red-400">{errors.phone}</p> : null}
 
       {addressSection}
 
@@ -377,9 +410,10 @@ export default function CheckoutForm() {
 
   return (
     <>
-      {showGuestModal && guestModal}
-
-      <form onSubmit={handleSubmit} className="space-y-5 max-w-xl -mt-8">
+      {showGuestModal
+        ? guestModal
+        : (
+          <form onSubmit={handleSubmit} noValidate className="space-y-5 max-w-xl -mt-8">
         <div className="bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-700 space-y-4">
           <h2 className="font-bold text-lg text-white">Delivery Details</h2>
           {formFields}
@@ -416,6 +450,7 @@ export default function CheckoutForm() {
           Cancel Order
         </button>
       </form>
+      )}
     </>
   );
 }

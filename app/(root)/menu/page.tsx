@@ -6,6 +6,7 @@ import Image from "next/image";
 import { FaPlusCircle, FaStar, FaStarHalfAlt } from "react-icons/fa";
 import { safeImageUrl } from "@/lib/image";
 import toast from "react-hot-toast";
+import Checkbox from "@/app/_components/Checkbox";
 
 type AddonItem = { name: string; price: number };
 
@@ -375,8 +376,7 @@ function MenuContent() {
                       <p className="font-medium text-sm text-white">{addon.name}</p>
                       <p className="text-xs text-gray-400">+ Rs. {Number(addon.price).toFixed(2)}</p>
                     </div>
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={isSelected}
                       onChange={(e) => {
                         if (e.target.checked) {
@@ -385,7 +385,6 @@ function MenuContent() {
                           setSelectedAddons(selectedAddons.filter((a) => a.name !== addon.name));
                         }
                       }}
-                      className="h-4 w-4 accent-orange-500"
                     />
                   </label>
                 );

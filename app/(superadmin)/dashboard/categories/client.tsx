@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
+import Checkbox from "@/app/_components/Checkbox";
 import{ Edit,Trash2} from "lucide-react";
 
 interface Category {
@@ -34,6 +35,7 @@ export default function CategoriesClient() {
   const [form, setForm] = useState<CategoryForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   //to download the file
   // const [open, setOpen] = useState(false);
@@ -68,20 +70,48 @@ export default function CategoriesClient() {
   function openCreate() {
     setEditing(null);
     setForm(emptyForm);
+    setErrors({});
+    setMessage("");
     setShowModal(true);
   }
 
   function openEdit(cat: Category) {
     setEditing(cat);
     setForm({ name: cat.name, slug: cat.slug, image: cat.image ?? "", isActive: cat.isActive });
+    setErrors({});
+    setMessage("");
     setShowModal(true);
   }
 
+  function updateForm(field: keyof CategoryForm, value: string | boolean) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
   async function handleSave() {
-    if (!form.name || !form.slug) {
-      setMessage("Name and slug are required");
-      return;
+    const next: Record<string, string> = {};
+    if (!form.name.trim()) next.name = "This field is required.";
+    if (!form.slug.trim()) next.slug = "This field is required.";
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
+
+    if (editing) {
+      const unchanged =
+        form.name === editing.name &&
+        form.slug === editing.slug &&
+        (form.image || "") === (editing.image ?? "") &&
+        form.isActive === editing.isActive;
+      if (unchanged) {
+        setMessage("Nothing to update.");
+        return;
+      }
     }
+
     setSaving(true);
     setMessage("");
 
@@ -196,21 +226,26 @@ export default function CategoriesClient() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Name</label>
-                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                <input type="text" value={form.name} onChange={(e) => updateForm("name", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
+                {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Slug</label>
-                <input type="text" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+                <input type="text" value={form.slug} onChange={(e) => updateForm("slug", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
+                {errors.slug && <p className="mt-1 text-sm text-red-500">{errors.slug}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Image URL</label>
                 <input type="text" value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
               </div>
               <div className="flex items-center gap-2">
-                <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} id="isActive" />
+                <Checkbox checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} id="isActive" />
                 <label htmlFor="isActive" className="text-sm text-gray-700">Active</label>
               </div>
             </div>
+            {message && (
+              <div className="mb-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-700">{message}</div>
+            )}
             <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
               <button onClick={() => setShowModal(false)} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">Cancel</button>
               <button onClick={handleSave} disabled={saving} className="rounded-lg bg-orange-500 px-4 py-2 text-white hover:bg-orange-600 disabled:opacity-50">

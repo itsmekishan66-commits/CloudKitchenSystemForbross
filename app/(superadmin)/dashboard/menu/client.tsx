@@ -119,6 +119,7 @@ export default function MenuClient() {
   const [form, setForm] = useState<MenuForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -135,6 +136,7 @@ export default function MenuClient() {
   const [editingRecipeId, setEditingRecipeId] = useState<number | null>(null);
   const [recipeSaving, setRecipeSaving] = useState(false);
   const [recipeMessage, setRecipeMessage] = useState("");
+  const [recipeErrors, setRecipeErrors] = useState<Record<string, string>>({});
   const [inventoryOptions, setInventoryOptions] = useState<InventoryOption[]>([]);
   const [recipeUploading, setRecipeUploading] = useState(false);
   const recipeFileInputRef = useRef<HTMLInputElement>(null);
@@ -181,6 +183,7 @@ export default function MenuClient() {
   function openCreate() {
     setEditing(null);
     setForm(emptyForm);
+    setErrors({});
     setShowModal(true);
   }
 
@@ -200,6 +203,7 @@ export default function MenuClient() {
       ...emptyRecipeForm,
       menuItemId: recipeListMenuItemId,
     });
+    setRecipeErrors({});
     setRecipeView("form");
   }
 
@@ -226,6 +230,7 @@ export default function MenuClient() {
         notes: ing.notes ?? "",
       })),
     });
+    setRecipeErrors({});
     setRecipeView("form");
   }
 
@@ -244,6 +249,10 @@ export default function MenuClient() {
 
   // this is the code for menu recipe - handle image upload
   async function handleRecipeUpload(file: File) {
+    if (file.size > 5 * 1024 * 1024) {
+      setRecipeErrors((prev) => ({ ...prev, image: "Image must be 5 MB or less." }));
+      return;
+    }
     setRecipeUploading(true);
     try {
       const formData = new FormData();
@@ -251,7 +260,7 @@ export default function MenuClient() {
       const res = await fetch("/api/images", { method: "POST", body: formData });
       const data = await res.json();
       if (data.error) { console.error(data.error); return; }
-      setRecipeForm({ ...recipeForm, image: data.path });
+      updateRecipeForm("image", data.path);
     } catch (err) {
       console.error("Upload failed", err);
     } finally {
@@ -259,8 +268,20 @@ export default function MenuClient() {
     }
   }
 
+  function updateRecipeForm<K extends keyof RecipeForm>(field: K, value: RecipeForm[K]) {
+    setRecipeForm((prev) => ({ ...prev, [field]: value }));
+    setRecipeErrors((prev) => {
+      const key = field as string;
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
+
   function openEdit(item: MenuItem) {
     setEditing(item);
+    setErrors({});
     const existingAddons: AddonRow[] = Array.isArray(item.addons) ? item.addons.map((a: Addon) => ({ name: a.name || "", price: String(a.price ?? 0) })) : [];
     setForm({
       title: item.title,
@@ -280,11 +301,48 @@ export default function MenuClient() {
     return title.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
   }
 
+  function updateForm<K extends keyof MenuForm>(field: K, value: MenuForm[K]) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => {
+      const key = field as string;
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
+
   async function handleSave() {
-    if (!form.title || !form.slug || !form.price) {
-      setMessage("Title, slug, and price are required");
-      return;
+    const next: Record<string, string> = {};
+    if (!form.title.trim()) next.title = "This field is required.";
+    if (!form.slug.trim()) next.slug = "This field is required.";
+    if (!form.categoryId) next.categoryId = "This field is required.";
+    if (!form.price.trim()) next.price = "This field is required.";
+    if (!form.image.trim()) next.image = "Image is required.";
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
+
+    if (editing) {
+      const norm = (v: string | null) => (v ?? "").trim();
+      const formAddons = form.addons.map((a) => ({ name: a.name.trim(), price: a.price }));
+      const editAddons = (editing.addons ?? []).map((a) => ({ name: (a.name ?? "").trim(), price: String(a.price ?? "") }));
+      const unchanged =
+        norm(form.title) === norm(editing.title) &&
+        norm(form.slug) === norm(editing.slug) &&
+        form.categoryId === editing.categoryId &&
+        norm(form.price) === norm(editing.price) &&
+        (form.image || "") === (editing.image ?? "") &&
+        (form.description || "") === (editing.description ?? "") &&
+        (form.badge || "") === (editing.badge ?? "") &&
+        form.isAvailable === editing.isAvailable &&
+        (form.discountPercent || "") === (editing.discountPercent ?? "") &&
+        JSON.stringify(formAddons) === JSON.stringify(editAddons);
+      if (unchanged) {
+        setMessage("Nothing to update.");
+        return;
+      }
     }
+
     setSaving(true);
     setMessage("");
 
@@ -326,6 +384,10 @@ export default function MenuClient() {
   }
 
   async function handleUpload(file: File) {
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors((prev) => ({ ...prev, image: "Image must be 5 MB or less." }));
+      return;
+    }
     setUploading(true);
     try {
       const formData = new FormData();
@@ -336,7 +398,7 @@ export default function MenuClient() {
         console.error(data.error);
         return;
       }
-      setForm({ ...form, image: data.path });
+      updateForm("image", data.path);
     } catch (err) {
       console.error("Upload failed", err);
     } finally {
@@ -372,10 +434,20 @@ export default function MenuClient() {
 
   // this is the code for menu recipe - save recipe
   async function handleRecipeSave() {
-    if (!recipeForm.title || !recipeForm.menuItemId) {
-      setRecipeMessage("Title and menu item are required");
-      return;
+    const next: Record<string, string> = {};
+    if (!recipeForm.menuItemId) next.menuItemId = "This field is required.";
+    if (!recipeForm.title.trim()) next.title = "This field is required.";
+    if (!recipeForm.prepTime.trim()) next.prepTime = "This field is required.";
+    if (!recipeForm.cookTime.trim()) next.cookTime = "This field is required.";
+    if (!(Number(recipeForm.servings) > 0)) next.servings = "Servings must be greater than 0.";
+    if (!recipeForm.image.trim()) next.image = "This field is required.";
+    if (!recipeForm.instructions.trim()) next.instructions = "This field is required.";
+    if (recipeForm.ingredients.filter((i) => i.inventoryItemId && i.quantity).length === 0) {
+      next.ingredients = "Add at least one ingredient.";
     }
+    setRecipeErrors(next);
+    if (Object.keys(next).length > 0) return;
+
     setRecipeSaving(true);
     setRecipeMessage("");
 
@@ -447,6 +519,7 @@ export default function MenuClient() {
         { inventoryItemId: null, inventoryItemName: "", quantity: "", unit: "", notes: "" },
       ],
     });
+    setRecipeErrors((prev) => { if (!prev.ingredients) return prev; const n = { ...prev }; delete n.ingredients; return n; });
   }
 
   // this is the code for menu recipe - remove ingredient row
@@ -582,18 +655,15 @@ export default function MenuClient() {
                   Item Title
                 </label>
 
-                <input type="text" value={form.title} onChange={(e) =>
-                  setForm({
-                    ...form,
-                    title: e.target.value,
-                    slug: editing
-                      ? form.slug
-                      : generateSlug(e.target.value),
-                  })
-                }
+                <input type="text" value={form.title} onChange={(e) => {
+                  const v = e.target.value;
+                  setForm((prev) => ({ ...prev, title: v, slug: editing ? prev.slug : generateSlug(v) }));
+                  setErrors((prev) => { if (!prev.title) return prev; const n = { ...prev }; delete n.title; return n; });
+                }}
                   placeholder="Wagyu Gold Burger"
                   className=" w-full rounded-xl border border-slate-200 bg-slate-50 px-4py-3 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
                 />
+                {errors.title && <p className="mt-1 text-sm text-red-500">{errors.title}</p>}
               </div>
 
               {/* Slug */}
@@ -603,15 +673,11 @@ export default function MenuClient() {
                 </label>
 
                 <input type="text" value={form.slug}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      slug: e.target.value,
-                    })
-                  }
+                  onChange={(e) => updateForm("slug", e.target.value)}
                   placeholder="wagyu-gold-burger"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50  px-4 py-3 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
                 />
+                {errors.slug && <p className="mt-1 text-sm text-red-500">{errors.slug}</p>}
               </div>
 
               {/* Category + Price */}
@@ -623,12 +689,7 @@ export default function MenuClient() {
                   </label>
 
                   <select value={form.categoryId ?? ""} onChange={(e) =>
-                    setForm({
-                      ...form,
-                      categoryId: e.target.value
-                        ? Number(e.target.value)
-                        : null,
-                    })
+                    updateForm("categoryId", e.target.value ? Number(e.target.value) : null)
                   }
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
                   >
@@ -640,6 +701,7 @@ export default function MenuClient() {
                       <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))}
                   </select>
+                  {errors.categoryId && <p className="mt-1 text-sm text-red-500">{errors.categoryId}</p>}
                 </div>
 
                 <div>
@@ -648,15 +710,11 @@ export default function MenuClient() {
                   </label>
 
                   <input type="number" step="0.01" value={form.price}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        price: e.target.value,
-                      })
-                    }
+                    onChange={(e) => updateForm("price", e.target.value)}
                     placeholder="299.00"
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
                   />
+                  {errors.price && <p className="mt-1 text-sm text-red-500">{errors.price}</p>}
                 </div>
 
               </div>
@@ -683,14 +741,12 @@ export default function MenuClient() {
                 </div>
 
                 <input type="text" value={form.image} onChange={(e) =>
-                  setForm({
-                    ...form,
-                    image: e.target.value,
-                  })
+                  updateForm("image", e.target.value)
                 }
                   placeholder="https://example.com/image.jpg"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
                 />
+                {errors.image && <p className="mt-1 text-sm text-red-500">{errors.image}</p>}
 
                 {form.image && (
                   <div className="mt-4">
@@ -831,6 +887,12 @@ export default function MenuClient() {
               </div>
 
             </div>
+
+            {message && (
+              <div className="px-4 sm:px-8 pb-2">
+                <div className="rounded-xl bg-blue-50 p-3 text-sm text-blue-700">{message}</div>
+              </div>
+            )}
 
             {/* Footer */}
             <div className="border-t bg-white px-4 sm:px-8 py-4 sm:py-5 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 rounded-b-3xl">
@@ -1016,9 +1078,9 @@ export default function MenuClient() {
                   )}
 
                   {/* Menu Item selector */}
-                  <div>
+                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">Menu Item</label>
-                    <select value={recipeForm.menuItemId ?? ""} onChange={(e) => setRecipeForm({ ...recipeForm, menuItemId: e.target.value ? Number(e.target.value) : null })}
+                    <select value={recipeForm.menuItemId ?? ""} onChange={(e) => updateRecipeForm("menuItemId", e.target.value ? Number(e.target.value) : null)}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-green-500 focus:ring-4 focus:ring-green-100"
                     >
                       <option value="">Select Menu Item</option>
@@ -1026,38 +1088,43 @@ export default function MenuClient() {
                         <option key={item.id} value={item.id}>{item.title}</option>
                       ))}
                     </select>
+                    {recipeErrors.menuItemId && <p className="mt-1 text-sm text-red-500">{recipeErrors.menuItemId}</p>}
                   </div>
 
                   {/* Title */}
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">Recipe Title</label>
-                    <input type="text" value={recipeForm.title} onChange={(e) => setRecipeForm({ ...recipeForm, title: e.target.value })}
+                    <input type="text" value={recipeForm.title} onChange={(e) => updateRecipeForm("title", e.target.value)}
                       placeholder="e.g. Classic Margherita"
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-green-500 focus:ring-4 focus:ring-green-100"
                     />
+                    {recipeErrors.title && <p className="mt-1 text-sm text-red-500">{recipeErrors.title}</p>}
                   </div>
 
                   {/* Prep, Cook, Servings */}
                   <div className="grid md:grid-cols-3 gap-5">
                     <div>
                       <label className="mb-2 block text-sm font-semibold text-slate-700">Prep Time</label>
-                      <input type="text" value={recipeForm.prepTime} onChange={(e) => setRecipeForm({ ...recipeForm, prepTime: e.target.value })}
+                      <input type="text" value={recipeForm.prepTime} onChange={(e) => updateRecipeForm("prepTime", e.target.value)}
                         placeholder="15 mins"
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-green-500"
                       />
+                      {recipeErrors.prepTime && <p className="mt-1 text-sm text-red-500">{recipeErrors.prepTime}</p>}
                     </div>
                     <div>
                       <label className="mb-2 block text-sm font-semibold text-slate-700">Cook Time</label>
-                      <input type="text" value={recipeForm.cookTime} onChange={(e) => setRecipeForm({ ...recipeForm, cookTime: e.target.value })}
+                      <input type="text" value={recipeForm.cookTime} onChange={(e) => updateRecipeForm("cookTime", e.target.value)}
                         placeholder="25 mins"
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-green-500"
                       />
+                      {recipeErrors.cookTime && <p className="mt-1 text-sm text-red-500">{recipeErrors.cookTime}</p>}
                     </div>
                     <div>
                       <label className="mb-2 block text-sm font-semibold text-slate-700">Servings</label>
-                      <input type="number" min="1" value={recipeForm.servings} onChange={(e) => setRecipeForm({ ...recipeForm, servings: e.target.value })}
+                      <input type="number" min="1" value={recipeForm.servings} onChange={(e) => updateRecipeForm("servings", e.target.value)}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-green-500"
                       />
+                      {recipeErrors.servings && <p className="mt-1 text-sm text-red-500">{recipeErrors.servings}</p>}
                     </div>
                   </div>
 
@@ -1077,10 +1144,11 @@ export default function MenuClient() {
                         className="hidden"
                       />
                     </div>
-                    <input type="text" value={recipeForm.image} onChange={(e) => setRecipeForm({ ...recipeForm, image: e.target.value })}
+                    <input type="text" value={recipeForm.image} onChange={(e) => updateRecipeForm("image", e.target.value)}
                       placeholder="https://example.com/recipe.jpg"
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-green-500"
                     />
+                    {recipeErrors.image && <p className="mt-1 text-sm text-red-500">{recipeErrors.image}</p>}
                     {recipeForm.image && (
                       <div className="mt-4">
                         <img src={recipeForm.image} alt="Recipe preview" className="h-40 w-full rounded-2xl object-cover border" />
@@ -1100,10 +1168,11 @@ export default function MenuClient() {
                   {/* Instructions */}
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">Instructions</label>
-                    <textarea rows={4} value={recipeForm.instructions} onChange={(e) => setRecipeForm({ ...recipeForm, instructions: e.target.value })}
+                    <textarea rows={4} value={recipeForm.instructions} onChange={(e) => updateRecipeForm("instructions", e.target.value)}
                       placeholder="Step-by-step preparation instructions..."
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 resize-none outline-none transition focus:border-green-500"
                     />
+                    {recipeErrors.instructions && <p className="mt-1 text-sm text-red-500">{recipeErrors.instructions}</p>}
                   </div>
 
                   {/* Ingredients */}
@@ -1179,6 +1248,7 @@ export default function MenuClient() {
                       {recipeForm.ingredients.length === 0 && (
                         <p className="text-xs text-gray-400">No ingredients added yet. Click &ldquo;+ Add Ingredient&rdquo; to link inventory items.</p>
                       )}
+                      {recipeErrors.ingredients && <p className="mt-2 text-sm text-red-500">{recipeErrors.ingredients}</p>}
                     </div>
 
                     {/* Cost Summary */}

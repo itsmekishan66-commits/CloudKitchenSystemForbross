@@ -149,6 +149,8 @@ export default function CheckoutForm() {
     }
   }, [couponCode]);
 
+  const isGuest = !user;
+
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -218,11 +220,10 @@ export default function CheckoutForm() {
         setLoading(false);
       }
     },
-    [form, items, grandTotal, deliveryCharge, selectedZoneId, paymentMethod, clearCart, router, appliedCoupon, couponDiscount],
+    [form, items, grandTotal, deliveryCharge, selectedZoneId, paymentMethod, clearCart, router, appliedCoupon, couponDiscount, isGuest],
   );
 
   const showGuestModal = !userLoading && !user;
-  const isGuest = !user;
 
   const setField = (field: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));

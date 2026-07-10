@@ -3,7 +3,6 @@ import { Edit, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createRoleWithPermissionsAction , deleteUserAction, getRolePermissionsAction, updateRolePermissionsAction} from "@/app/(superadmin)/_action/roles";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
-import Checkbox from "@/app/_components/Checkbox";
 //static code for RBAc gareko bela ko ho
 // import { createRoleWithPermissionsAction, updateRolePermissionsAction, deleteUserAction, getRolePermissionsAction } from "@/app/(superadmin)/_action/roles";
 
@@ -455,7 +454,9 @@ export default function RolesClient() {
                             key={label}
                             className={`rounded-full p-3 flex items-center gap-2 text-sm ${moduleChechboxColors[module]}`}
                           >
-                            <Checkbox
+                            <input
+                              type="checkbox"
+                              className="accent-orange-500"
                               onChange={(e) => {
                                 const permName = `${permPrefix}_${dbModule}`
                                 if (e.target.checked) {
@@ -580,7 +581,9 @@ export default function RolesClient() {
                           const permName = `${permPrefix}_${dbModule}`;
                           return (
                             <label key={label} className={`rounded-full p-3 flex items-center gap-2 text-sm ${moduleChechboxColors[module]}`}>
-                              <Checkbox
+                              <input
+                                type="checkbox"
+                                className="accent-orange-500"
                                 checked={editSelectedPermissions.includes(permName)}
                                 onChange={(e) => {
                                   if (e.target.checked) {

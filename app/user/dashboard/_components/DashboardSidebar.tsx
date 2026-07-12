@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, ShoppingCart, Heart, CreditCard, Bell, User, LogOut, Menu, X, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Heart, CreditCard, Bell, User, LogOut, Menu, X, ArrowLeft, LifeBuoy } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -29,6 +29,7 @@ export default function DashboardSidebar() {
     { name: "Payments", icon: CreditCard, href: "/user/dashboard/payments" },
     { name: "Notifications", icon: Bell, href: "/user/dashboard/notifications" },
     { name: "Profile", icon: User, href: "/user/dashboard/profile" },
+    { name: "Support", icon: LifeBuoy, href: "/user/dashboard/support" },
     { name: "Back to Home", icon: ArrowLeft, href: "/" },
   ];
 

@@ -8,17 +8,18 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatDate(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = toDate(date);
 
   return d.toLocaleDateString("en-NP", {
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: "Asia/Kathmandu",
   });
 }
 
 export function formatDateTime(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = toDate(date);
 
   return d.toLocaleString("en-NP", {
     year: "numeric",
@@ -27,7 +28,25 @@ export function formatDateTime(date: Date | string): string {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
+    timeZone: "Asia/Kathmandu",
   });
+}
+
+// The database stores datetimes as Asia/Kathmandu wall-clock time, but the
+// driver tags them with a "Z" (UTC) or returns them as naive strings. In every
+// case we want to display the stored wall-clock as Asia/Kathmandu time, so we
+// strip any timezone marker and re-anchor the value to +05:45. The
+// Asia/Kathmandu formatting below then converts it back to the same wall-clock.
+function toDate(date: Date | string): Date {
+  let s: string;
+  if (typeof date === "string") {
+    s = date.trim();
+  } else {
+    s = date.toISOString();
+  }
+  s = s.replace(" ", "T");
+  s = s.replace(/Z$/, "").replace(/[+-]\d{2}:?\d{2}$/, "");
+  return new Date(s + "+05:45");
 }
 
 export function formatPhone(phone: string): string {

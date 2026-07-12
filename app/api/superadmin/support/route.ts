@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
 import {
-  getSupportTickets,
+  getSupportTicketsWithUsers,
   getSupportTicketById,
+  getRepliesByTicket,
   createSupportTicket,
   updateSupportTicket,
   deleteSupportTicket,
@@ -36,10 +37,11 @@ export async function GET(request: Request) {
     if (id) {
       const ticket = await getSupportTicketById(Number(id));
       if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });
-      return NextResponse.json({ ticket });
+      const replies = await getRepliesByTicket(Number(id));
+      return NextResponse.json({ ticket, replies });
     }
 
-    const tickets = await getSupportTickets();
+    const tickets = await getSupportTicketsWithUsers();
     return NextResponse.json({ tickets });
   } catch (error) {
     console.error("Failed to load support tickets", error);
@@ -72,7 +74,6 @@ export async function POST(request: Request) {
       userId: body.userId ?? user.id,
       subject,
       message,
-      assignedTo: cleanText(body.assignedTo) || null,
     });
 
     await createActivityLog({
@@ -108,13 +109,31 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Valid id is required" }, { status: 400 });
     }
 
-    await updateSupportTicket(id, {
-      subject: body.subject,
-      message: body.message,
-      status: body.status,
-      priority: body.priority,
-      assignedTo: body.assignedTo,
-    });
+    const existing = await getSupportTicketById(id);
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // A resolved or closed ticket cannot be reopened
+    if (
+      (existing.status === "Resolved" || existing.status === "Closed") &&
+      body.status !== undefined &&
+      body.status !== existing.status
+    ) {
+      return NextResponse.json(
+        { error: "A resolved or closed ticket cannot be reopened" },
+        { status: 403 },
+      );
+    }
+
+    const update: Partial<NewSupportTicket> = {};
+    if (body.subject !== undefined) update.subject = body.subject;
+    if (body.message !== undefined) update.message = body.message;
+    if (body.status !== undefined) update.status = body.status;
+    if (body.priority !== undefined) update.priority = body.priority;
+    if (body.resolutionNote !== undefined) update.resolutionNote = body.resolutionNote;
+
+    await updateSupportTicket(id, update);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

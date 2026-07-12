@@ -8,6 +8,7 @@ import {
   type NewSupplierProduct,
   type NewSupplierSettlement,
 } from "@/db/schemas";
+import { recordSupplierSettlement } from "@/db/services/accounting";
 
 // ---- Suppliers ----
 export async function getSuppliers() {
@@ -16,6 +17,11 @@ export async function getSuppliers() {
 
 export async function getSupplierById(id: number) {
   const [item] = await db.select().from(suppliers).where(eq(suppliers.id, id)).limit(1);
+  return item ?? null;
+}
+
+export async function getSupplierByName(name: string) {
+  const [item] = await db.select().from(suppliers).where(eq(suppliers.name, name)).limit(1);
   return item ?? null;
 }
 
@@ -70,7 +76,17 @@ export async function getSupplierSettlements(supplierId: number) {
 
 export async function createSupplierSettlement(data: NewSupplierSettlement) {
   const result = await db.insert(supplierSettlements).values(data);
-  return result[0].insertId;
+  const id = result[0].insertId;
+  try {
+    await recordSupplierSettlement({
+      id,
+      type: data.type as "purchase" | "payment",
+      amount: data.amount,
+    });
+  } catch (err) {
+    console.error("Failed to record accounting entry for settlement", id, err);
+  }
+  return id;
 }
 
 export async function updateSupplierSettlement(id: number, data: Partial<NewSupplierSettlement>) {

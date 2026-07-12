@@ -99,11 +99,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { type } = await params;
     const { searchParams } = new URL(request.url);
     const source = searchParams.get("source") || "users";
+    // Sanitize for safe use in Content-Disposition (strip quotes and line breaks).
+    const filename = source.replace(/["\r\n;]/g, "").slice(0, 100) || "export";
 
     const data = await fetchData(source);
     if (data instanceof NextResponse) return data;
-
-    const filename = source;
 
     switch (type) {
         case "csv": {

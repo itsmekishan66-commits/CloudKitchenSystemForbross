@@ -3,9 +3,9 @@ import { createOrder, getOrdersWithDetails, updateOrderStatus, getOrderById } fr
 import { getActivePromotionByCode, incrementPromotionUsage } from "@/db/services/promotions";
 import { createUser } from "@/db/services/users";
 import { db } from "@/db";
-import { eq } from "drizzle-orm";
-import { users } from "@/db/schemas";
-import type { DeliveryZone, NewOrder } from "@/db/schemas";
+import { eq, inArray } from "drizzle-orm";
+import { users, menuItems } from "@/db/schemas";
+import type { NewOrder } from "@/db/schemas";
 import { getCurrentUser } from "@/lib/auth";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -81,7 +81,6 @@ export async function POST(request: Request) {
   const phone = cleanText(payload.phone);
   const address = cleanText(payload.address);
   const paymentMethod = cleanText(payload.paymentMethod) || "COD";
-  const total = Number(payload.total);
   const items = Array.isArray(payload.items) ? payload.items : [];
   const couponCode = cleanText(payload.couponCode);
   const couponDiscount = Number(payload.couponDiscount) || 0;
@@ -100,17 +99,38 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!Number.isFinite(total) || total <= 0 || items.length === 0) {
+  if (items.length === 0) {
     return NextResponse.json(
-      { error: "A non-empty cart and valid total are required" },
+      { error: "A non-empty cart is required" },
       { status: 400 },
     );
   }
 
-  //yo delivery charge validation ko lagi
+  // Recompute the subtotal from authoritative DB prices to prevent price tampering.
+  const menuItemIds = items
+    .map((i) => Number(i.id))
+    .filter((id) => Number.isInteger(id));
+  const priceRows =
+    menuItemIds.length > 0
+      ? await db
+          .select({ id: menuItems.id, price: menuItems.price })
+          .from(menuItems)
+          .where(inArray(menuItems.id, menuItemIds))
+      : [];
+  const priceMap = new Map(priceRows.map((r) => [r.id, Number(r.price)]));
+
+  const itemsSubtotal = items.reduce((sum, item) => {
+    const id = Number(item.id);
+    const authoritative =
+      Number.isInteger(id) && priceMap.has(id)
+        ? (priceMap.get(id) as number)
+        : Number(item.price);
+    return sum + authoritative * item.quantity;
+  }, 0);
+
+  // Delivery charge is validated server-side from the selected zone.
   const zoneId = Number.isInteger(payload.zoneId) ? payload.zoneId : null;
   const deliveryCharge = Number(payload.deliveryCharge) || 0;
-  // If zoneId provided, validate it and calculate charge server-side
 
   if (!zoneId) {
     return NextResponse.json(
@@ -119,31 +139,26 @@ export async function POST(request: Request) {
     );
   }
 
-  // const deliverySavings = 0;
-  let zone: DeliveryZone | null = null;
-  if (zoneId) {
-    const { getZoneById } = await import("@/db/services/delivery-zones");
-    zone = await getZoneById(zoneId);
-    if (!zone || !zone.isActive) {
-      return NextResponse.json(
-        { error: "Selected delivery area is not available" },
-        { status: 400 }
-      );
-    }
-    const expectedCharge = Number(zone.deliveryCharge);
-    // deliverySavings = Math.max(0, expectedCharge - deliveryCharge);
-    Math.max(0, expectedCharge - deliveryCharge);
-    // Calculate items subtotal (excl delivery) for min order check
-    const itemsSubtotal = items.reduce((s, item) => s + item.price * item.quantity, 0);
-    const effectiveCharge =
-      zone.minOrderAmount && itemsSubtotal >= Number(zone.minOrderAmount) ? 0 : expectedCharge;
+  const { getZoneById } = await import("@/db/services/delivery-zones");
+  const zone = await getZoneById(zoneId);
+  if (!zone || !zone.isActive) {
+    return NextResponse.json(
+      { error: "Selected delivery area is not available" },
+      { status: 400 },
+    );
+  }
 
-    if (Math.abs(deliveryCharge - effectiveCharge) > 0.01) {
-      return NextResponse.json(
-        { error: "Delivery charge mismatch" },
-        { status: 400 }
-      );
-    }
+  const expectedCharge = Number(zone.deliveryCharge);
+  const effectiveCharge =
+    zone.minOrderAmount && itemsSubtotal >= Number(zone.minOrderAmount)
+      ? 0
+      : expectedCharge;
+
+  if (Math.abs(deliveryCharge - effectiveCharge) > 0.01) {
+    return NextResponse.json(
+      { error: "Delivery charge mismatch" },
+      { status: 400 },
+    );
   }
 
   try {
@@ -165,14 +180,6 @@ export async function POST(request: Request) {
       userId = guestId;
     }
 
-    // const itemSavings = items.reduce((sum, item) => {
-    items.reduce((sum, item) => {
-      if (!item.originalPrice) return sum;
-      const addonTotal = (item.addons || []).reduce((s, a) => s + a.price, 0);
-      const discountedItemPrice = item.price - addonTotal;
-      return sum + Math.max(0, item.originalPrice - discountedItemPrice) * item.quantity;
-    }, 0);
-
     let appliedCoupon = null as { id: number; code: string } | null;
     let appliedCouponDiscount = Math.max(0, couponDiscount);
 
@@ -187,21 +194,28 @@ export async function POST(request: Request) {
       const endsAt = promotion.endsAt ? new Date(promotion.endsAt) : null;
       const usageLimit = Number(promotion.usageLimit ?? 0) || 0;
       const usageCount = Number(promotion.usageCount ?? 0) || 0;
-      const isValid = (!startsAt || startsAt <= now) && (!endsAt || endsAt >= now) && (usageLimit === 0 || usageCount < usageLimit);
+      const isValid =
+        (!startsAt || startsAt <= now) &&
+        (!endsAt || endsAt >= now) &&
+        (usageLimit === 0 || usageCount < usageLimit);
 
       if (!isValid) {
         return NextResponse.json({ error: "Coupon is no longer valid" }, { status: 400 });
       }
 
-      const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
       if (promotion.discountType === "percentage") {
-        appliedCouponDiscount = Math.min(subtotal, subtotal * (Number(promotion.discountValue) / 100));
+        appliedCouponDiscount = Math.min(
+          itemsSubtotal,
+          itemsSubtotal * (Number(promotion.discountValue) / 100),
+        );
       } else {
-        appliedCouponDiscount = Math.min(subtotal, Number(promotion.discountValue) || 0);
+        appliedCouponDiscount = Math.min(itemsSubtotal, Number(promotion.discountValue) || 0);
       }
 
       appliedCoupon = { id: promotion.id, code: promotion.code ?? couponCode };
     }
+
+    const total = Math.max(0, itemsSubtotal - appliedCouponDiscount + effectiveCharge);
 
     const orderId = await createOrder({
       userId,
@@ -209,11 +223,16 @@ export async function POST(request: Request) {
       phone,
       address,
       paymentMethod,
-      deliveryCharge: deliveryCharge.toFixed(2),
+      deliveryCharge: effectiveCharge.toFixed(2),
       total: total.toFixed(2),
       landmarkName: zone?.landmarkName || "",
       discountAmount: appliedCouponDiscount > 0 ? appliedCouponDiscount.toFixed(2) : "0.00",
       items: items.map((item) => {
+        const id = Number(item.id);
+        const authoritative =
+          Number.isInteger(id) && priceMap.has(id)
+            ? (priceMap.get(id) as number)
+            : Number(item.price);
         const meta: Record<string, unknown> = {
           image: item.image,
           clientId: item.id,
@@ -222,10 +241,10 @@ export async function POST(request: Request) {
         if (item.originalPrice) meta.originalPrice = item.originalPrice;
         if (item.discountPercent) meta.discountPercent = item.discountPercent;
         return {
-          menuItemId: Number.isInteger(Number(item.id)) ? Number(item.id) : null,
+          menuItemId: Number.isInteger(id) ? id : null,
           title: item.title,
           quantity: item.quantity,
-          price: item.price.toFixed(2),
+          price: authoritative.toFixed(2),
           meta,
         };
       }),
@@ -235,8 +254,7 @@ export async function POST(request: Request) {
       const [creditUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       if (creditUser && Number(creditUser.creditBalance || 0) > 0) {
         const credit = Number(creditUser.creditBalance);
-        const orderTotal = Number(total);
-        const appliedCredit = Math.min(credit, orderTotal);
+        const appliedCredit = Math.min(credit, total);
         await db.update(users)
           .set({ creditBalance: String(credit - appliedCredit) })
           .where(eq(users.id, userId));

@@ -87,6 +87,12 @@ const defaultPermissions = [
 
     { name: "VIEW_MESSAGES", description: "View messages" },
     { name: "DELETE_MESSAGES", description: "Delete messages" },
+
+    { name: "VIEW_ACCOUNTING", description: "View accounting" },
+    { name: "CREATE_ACCOUNTING", description: "Create accounting entries" },
+    { name: "UPDATE_ACCOUNTING", description: "Update accounting entries" },
+    { name: "DELETE_ACCOUNTING", description: "Delete accounting entries" },
+    { name: "DOWNLOAD_ACCOUNTING", description: "Download accounting reports" },
 ];
 
 async function seedPermissions() {

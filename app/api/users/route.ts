@@ -33,6 +33,12 @@ export async function POST(request: Request) {
     }
 
     const roleName = role || "customer";
+    if (roleName === "super-admin") {
+      return NextResponse.json(
+        { error: "The super-admin role cannot be created via this endpoint" },
+        { status: 403 },
+      );
+    }
     const roleId = await getRoleIdByName(roleName);
     if (!roleId) {
       return NextResponse.json({ error: `Role "${roleName}" not found` }, { status: 400 });

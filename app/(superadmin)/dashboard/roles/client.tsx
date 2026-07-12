@@ -27,6 +27,8 @@ export default function RolesClient() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const perPage = 20;
   const [roleName, setRoleName] = useState("");
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [userName, setUserName] = useState("");
@@ -99,6 +101,17 @@ export default function RolesClient() {
   // filters out customers — only management roles shown in the table
   const managementUsers = users.filter((u) => u.role !== "customer");
 
+  const displayedUsers = searchQuery
+    ? managementUsers.filter((u) =>
+      u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    : managementUsers;
+
+  const totalPages = Math.ceil(displayedUsers.length / perPage);
+  const start = (page - 1) * perPage;
+  const visibleUsers = displayedUsers.slice(start, start + perPage);
+
   // colour-coded backgrounds and checkbox styles for each module in the permissions grid
   const moduleBgColors: Record<string, string> = {
     Dashboard: "bg-red-50 border-red-200",
@@ -117,6 +130,7 @@ export default function RolesClient() {
     Settings: "bg-slate-50 border-slate-200",
     Roles: "bg-violet-50 border-violet-200",
     Messages: "bg-emerald-50 border-emerald-200",
+    Accounting: "bg-lime-50 border-lime-200",
   };
   const moduleChechboxColors: Record<string, string> = {
     Dashboard: "bg-red-100 text-red-700",
@@ -135,6 +149,7 @@ export default function RolesClient() {
     Settings: "bg-slate-100 text-slate-700",
     Roles: "bg-violet-100 text-violet-700",
     Messages: "bg-emerald-100 text-emerald-700",
+    Accounting: "bg-lime-100 text-lime-700",
   };
 
   function openCreate() {
@@ -232,8 +247,8 @@ export default function RolesClient() {
 
       <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <input type="text" placeholder="Search by name or email..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+           value={searchQuery}
+           onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
           className="w-full rounded-lg border border-gray-300 px-4 sm:px-6 py-3 sm:py-4 text-sm outline-none focus:border-orange-500"
         />
         <div className="flex items-center flex-wrap gap-3 shrink-0">
@@ -266,22 +281,10 @@ export default function RolesClient() {
             </tr>
           </thead>
           <tbody>
-            {(searchQuery
-              ? managementUsers.filter((u) =>
-                u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                u.email?.toLowerCase().includes(searchQuery.toLowerCase())
-              )
-              : managementUsers
-            ).length === 0 ? (
+            {visibleUsers.length === 0 ? (
               <tr><td colSpan={5} className="p-8 text-center text-gray-400">No users found</td></tr>
             ) : (
-              (searchQuery
-                ? managementUsers.filter((u) =>
-                  u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  u.email?.toLowerCase().includes(searchQuery.toLowerCase())
-                )
-                : managementUsers
-              ).map((user) => (
+              visibleUsers.map((user) => (
                 <tr key={user.id} className="border-t">
                   <td className="p-4 font-medium">{user.name}</td>
                   <td className="p-4 text-gray-500">{user.email}</td>
@@ -373,6 +376,30 @@ export default function RolesClient() {
         </table>
       </div>
 
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
+          <p className="text-sm text-gray-500">
+            Page {page} of {totalPages} ({displayedUsers.length} users)
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
 
 
       {/* modal: create a new role with permissions and assign it to a new user */}
@@ -433,6 +460,7 @@ export default function RolesClient() {
                     ["Settings", "SETTINGS"],
                     ["Roles", "ROLES"],
                     ["Messages", "MESSAGES"],
+                    ["Accounting", "ACCOUNTING"],
                   ] as [string, string][]).map(([module, dbModule]) => (
                     <div
                       key={module}
@@ -567,6 +595,7 @@ export default function RolesClient() {
                     ["Settings", "SETTINGS"],
                     ["Roles", "ROLES"],
                     ["Messages", "MESSAGES"],
+                    ["Accounting", "ACCOUNTING"],
                   ] as [string, string][]).map(([module, dbModule]) => (
                     <div key={module} className={`rounded-xl border p-4 ${moduleBgColors[module]}`}>
                       <h4 className="mb-3 font-semibold">{module}</h4>

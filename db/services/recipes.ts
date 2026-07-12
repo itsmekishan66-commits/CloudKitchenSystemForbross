@@ -1,5 +1,5 @@
 // this is the code for menu recipe - recipes service layer
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { inventoryItems, recipeIngredients, recipes, type NewRecipe, type NewRecipeIngredient } from "@/db/schemas";
@@ -78,28 +78,38 @@ export async function getRecipes(menuItemId?: number) {
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(asc(recipes.title));
 
-  const results: RecipeWithCost[] = [];
+  const recipeIds = recipeRows.map((r) => r.id);
+  const ingredientRows =
+    recipeIds.length > 0
+      ? await db
+          .select({
+            id: recipeIngredients.id,
+            recipeId: recipeIngredients.recipeId,
+            inventoryItemId: recipeIngredients.inventoryItemId,
+            ing_quantity: recipeIngredients.quantity,
+            unit: recipeIngredients.unit,
+            notes: recipeIngredients.notes,
+            inventory_name: inventoryItems.name,
+            ing_price_per_unit: inventoryItems.pricePerUnit,
+          })
+          .from(recipeIngredients)
+          .innerJoin(inventoryItems, eq(recipeIngredients.inventoryItemId, inventoryItems.id))
+          .where(inArray(recipeIngredients.recipeId, recipeIds))
+      : [];
 
-  for (const recipe of recipeRows) {
-    const ingredientRows = await db
-      .select({
-        id: recipeIngredients.id,
-        recipeId: recipeIngredients.recipeId,
-        inventoryItemId: recipeIngredients.inventoryItemId,
-        ing_quantity: recipeIngredients.quantity,
-        unit: recipeIngredients.unit,
-        notes: recipeIngredients.notes,
-        inventory_name: inventoryItems.name,
-        ing_price_per_unit: inventoryItems.pricePerUnit,
-      })
-      .from(recipeIngredients)
-      .innerJoin(inventoryItems, eq(recipeIngredients.inventoryItemId, inventoryItems.id))
-      .where(eq(recipeIngredients.recipeId, recipe.id));
-
-    results.push(mapRecipeWithCost(recipe as unknown as Record<string, unknown>, ingredientRows as unknown as Record<string, unknown>[]));
+  const ingredientsByRecipe = new Map<number, Record<string, unknown>[]>();
+  for (const ing of ingredientRows) {
+    const list = ingredientsByRecipe.get(Number(ing.recipeId)) ?? [];
+    list.push(ing as unknown as Record<string, unknown>);
+    ingredientsByRecipe.set(Number(ing.recipeId), list);
   }
 
-  return results;
+  return recipeRows.map((recipe) =>
+    mapRecipeWithCost(
+      recipe as unknown as Record<string, unknown>,
+      ingredientsByRecipe.get(Number(recipe.id)) ?? []
+    )
+  );
 }
 
 export async function getRecipeById(id: number) {

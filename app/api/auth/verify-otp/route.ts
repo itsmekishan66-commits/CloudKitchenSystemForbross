@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { createUser, findAndDeletePendingRegistration } from "@/db/services";
+import { rateLimit, getClientIdentifier } from "@/lib/rateLimit";
 
 export async function POST(request: Request) {
   try {
+    const limit = rateLimit(getClientIdentifier(request, "verify-otp"), {
+      windowMs: 10 * 60 * 1000,
+      max: 10,
+    });
+    if (!limit.success) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfter) } },
+      );
+    }
+
     const { email, otp } = await request.json();
 
     if (!email || !otp) {

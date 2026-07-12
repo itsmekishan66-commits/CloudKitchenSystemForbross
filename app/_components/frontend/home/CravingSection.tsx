@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { safeImageUrl } from "@/lib/image";
+import { dedupedFetch } from "@/lib/fetchCache";
 
 type ApiCategory = {
   id: number;
@@ -17,8 +18,7 @@ export default function CravingsSection() {
   const [categories, setCategories] = useState<ApiCategory[]>([]);
 
   useEffect(() => {
-    fetch("/api/categories?active=true")
-      .then((res) => res.json())
+    dedupedFetch<{ categories: ApiCategory[] }>("/api/categories?active=true")
       .then((data) => setCategories(data.categories || []))
       .catch(() => { });
   }, []);

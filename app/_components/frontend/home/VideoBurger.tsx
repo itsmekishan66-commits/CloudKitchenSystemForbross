@@ -44,6 +44,7 @@ export default function VideoBurger() {
                         loop
                         muted
                         playsInline
+                        preload="none"
                         className="w-full h-full object-cover"
                         onLoadedMetadata={() => {
                             if (videoRef.current) videoRef.current.playbackRate = 0.5;

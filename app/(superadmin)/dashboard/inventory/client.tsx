@@ -51,6 +51,8 @@ export default function InventoryClient() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"inventory" | "supplier-stock" | "inventory-stock">("inventory");
+  const [page, setPage] = useState(1);
+  const perPage = 20;
 
   function updateForm(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -77,6 +79,10 @@ export default function InventoryClient() {
     const q = search.toLowerCase();
     return items.filter((i) => i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q));
   }, [items, search]);
+
+  const totalPages = Math.ceil(filteredItems.length / perPage);
+  const start = (page - 1) * perPage;
+  const visibleItems = filteredItems.slice(start, start + perPage);
 
   async function loadItems() {
     try {
@@ -290,7 +296,7 @@ export default function InventoryClient() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Search inventory..."
             className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
           />
@@ -309,10 +315,10 @@ export default function InventoryClient() {
               </tr>
             </thead>
             <tbody>
-              {filteredItems.length === 0 ? (
+              {visibleItems.length === 0 ? (
                 <tr><td colSpan={6} className="p-8 text-center text-gray-400">No inventory items found</td></tr>
               ) : (
-                filteredItems.map((item) => {
+                visibleItems.map((item) => {
                   const isLow = Number(item.quantity) <= Number(item.minStockLevel);
                   return (
                     <tr key={item.id} className={`border-t ${isLow ? "bg-red-50" : ""}`}>
@@ -332,6 +338,30 @@ export default function InventoryClient() {
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-500">
+              Page {page} of {totalPages} ({filteredItems.length} items)
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </>
       )}
 

@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -12,6 +12,7 @@ import {
   supplierProducts,
   users,
 } from "@/db/schemas";
+import { recordOrderSale } from "@/db/services/accounting";
 
 type CreateOrderInput = NewOrder & {
   items: Omit<NewOrderItem, "id" | "orderId">[];
@@ -49,19 +50,25 @@ export async function getOrdersWithDetails() {
     .orderBy(desc(orders.createdAt));
 
 
-  //N+1 query problem
+  // Fetch all order items in a single query, then group in memory (avoids N+1)
+  const orderIds = rawOrders.map((o) => o.id);
+  const allItems =
+    orderIds.length > 0
+      ? await db.select().from(orderItems).where(inArray(orderItems.orderId, orderIds))
+      : [];
+  const itemsByOrder = new Map<number, (typeof allItems)[number][]>();
+  for (const item of allItems) {
+    const list = itemsByOrder.get(item.orderId) ?? [];
+    list.push(item);
+    itemsByOrder.set(item.orderId, list);
+  }
 
-  const ordersWithItems = await Promise.all(
-    rawOrders.map(async (row) => {
-      const items = await db
-        .select()
-        .from(orderItems)
-        .where(eq(orderItems.orderId, row.id));
-      return { ...row, userEmail: row.userEmail ?? null, isGuest: row.isGuest ?? false, items };
-    }),
-  );
-
-  // return ordersWithItems;
+  const ordersWithItems = rawOrders.map((row) => ({
+    ...row,
+    userEmail: row.userEmail ?? null,
+    isGuest: row.isGuest ?? false,
+    items: itemsByOrder.get(row.id) ?? [],
+  }));
 
   // Compute previous dues per customer
   const duesByUser = new Map<number, number>();
@@ -86,6 +93,64 @@ export async function getOrdersWithDetails() {
     }
     return { ...order, previousDues, userCreditBalance: Number(order.creditBalance ?? 0) };
   });
+}
+
+export async function getOrderWithDetailsById(orderId: number) {
+  const [row] = await db
+    .select({
+      id: orders.id,
+      userId: orders.userId,
+      customerName: orders.customerName,
+      phone: orders.phone,
+      address: orders.address,
+      paymentMethod: orders.paymentMethod,
+      status: orders.status,
+      total: orders.total,
+      deliveryCharge: orders.deliveryCharge,
+      landmarkName: orders.landmarkName,
+      discountAmount: orders.discountAmount,
+      dueAmount: orders.dueAmount,
+      paymentSettled: orders.paymentSettled,
+      notes: orders.notes,
+      createdAt: orders.createdAt,
+      updatedAt: orders.updatedAt,
+      userEmail: users.email,
+      isGuest: users.isGuest,
+      creditBalance: users.creditBalance,
+    })
+    .from(orders)
+    .leftJoin(users, eq(orders.userId, users.id))
+    .where(eq(orders.id, orderId))
+    .limit(1);
+
+  if (!row) return null;
+
+  const items = await db
+    .select()
+    .from(orderItems)
+    .where(eq(orderItems.orderId, orderId));
+
+  const order = {
+    ...row,
+    userEmail: row.userEmail ?? null,
+    isGuest: row.isGuest ?? false,
+    items,
+  };
+
+  // Previous dues = sum of due amounts on the customer's other orders.
+  let previousDues = 0;
+  if (order.userId) {
+    const others = await db
+      .select({ due: orders.dueAmount })
+      .from(orders)
+      .where(and(eq(orders.userId, order.userId), sql`${orders.id} != ${orderId}`));
+    previousDues = Math.max(
+      0,
+      others.reduce((sum, o) => sum + (Number(o.due) || 0), 0),
+    );
+  }
+
+  return { ...order, previousDues, userCreditBalance: Number(order.creditBalance ?? 0) };
 }
 
 export async function getOrdersByUserId(userId: number) {
@@ -191,6 +256,25 @@ export async function updateOrderStatus(
 
     await tx.update(orders).set({ status }).where(eq(orders.id, id));
   });
+
+  if (status === "Delivered") {
+    try {
+      const order = await getOrderById(id);
+      if (order) {
+        await recordOrderSale({
+          id,
+          total: order.total,
+          dueAmount: order.dueAmount ?? "0",
+          items: order.items.map((i) => ({
+            menuItemId: i.menuItemId,
+            quantity: Number(i.quantity),
+          })),
+        });
+      }
+    } catch (err) {
+      console.error("Failed to record accounting entry for order", id, err);
+    }
+  }
 }
 
 export async function updateOrderPaymentStatus(id: number, settled: boolean, dueAmount?: string | number) {
@@ -214,17 +298,22 @@ export async function getUserOrdersWithItems(userId: number) {
     .where(eq(orders.userId, userId))
     .orderBy(desc(orders.createdAt));
 
-  const ordersWithItems = await Promise.all(
-    userOrders.map(async (order) => {
-      const items = await db
-        .select()
-        .from(orderItems)
-        .where(eq(orderItems.orderId, order.id));
-      return { ...order, items };
-    }),
-  );
+  const orderIds = userOrders.map((o) => o.id);
+  const allItems =
+    orderIds.length > 0
+      ? await db.select().from(orderItems).where(inArray(orderItems.orderId, orderIds))
+      : [];
+  const itemsByOrder = new Map<number, (typeof allItems)[number][]>();
+  for (const item of allItems) {
+    const list = itemsByOrder.get(item.orderId) ?? [];
+    list.push(item);
+    itemsByOrder.set(item.orderId, list);
+  }
 
-  return ordersWithItems;
+  return userOrders.map((order) => ({
+    ...order,
+    items: itemsByOrder.get(order.id) ?? [],
+  }));
 }
 
 export async function getUserOrderStats(userId: number) {

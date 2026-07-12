@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useCart } from "../cart/CartContext";
 import Link from "next/link";
 import { safeImageUrl } from "@/lib/image";
+import { dedupedFetch } from "@/lib/fetchCache";
 import toast from "react-hot-toast";
 
 type ApiMenuItem = {
@@ -83,8 +84,7 @@ export default function FeaturedMenu() {
   const touchX = useRef(0);
 
   useEffect(() => {
-    fetch("/api/menu-items")
-      .then((res) => res.json())
+    dedupedFetch<{ items: ApiMenuItem[] }>("/api/menu-items")
       .then((data) => setItems(data.items || []))
       .catch(() => { });
   }, []);

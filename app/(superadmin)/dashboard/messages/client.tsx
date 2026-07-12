@@ -28,6 +28,12 @@ export default function MessagesClient() {
   const confirm = useConfirm();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const perPage = 20;
+
+  const totalPages = Math.ceil(messages.length / perPage);
+  const start = (page - 1) * perPage;
+  const visibleMessages = messages.slice(start, start + perPage);
 
   //to download the file
   // const [open, setOpen] = useState(false);
@@ -114,7 +120,7 @@ export default function MessagesClient() {
         <div className="text-center py-20 text-gray-400">No messages yet</div>
       ) : (
         <div className="space-y-4">
-          {messages.map((msg) => (
+          {visibleMessages.map((msg) => (
             <div
               key={msg.id}
               className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
@@ -173,6 +179,30 @@ export default function MessagesClient() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
+          <p className="text-sm text-gray-500">
+            Page {page} of {totalPages} ({messages.length} messages)
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>

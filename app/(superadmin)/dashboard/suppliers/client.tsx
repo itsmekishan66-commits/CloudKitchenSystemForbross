@@ -96,6 +96,8 @@ export default function SuppliersClient() {
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const perPage = 20;
   const [message, setMessage] = useState("");
 
   // Supplier form modal
@@ -128,6 +130,10 @@ export default function SuppliersClient() {
     const q = search.toLowerCase();
     return suppliers.filter((s) => s.name.toLowerCase().includes(q) || (s.contactPerson ?? "").toLowerCase().includes(q) || (s.email ?? "").toLowerCase().includes(q));
   }, [suppliers, search]);
+
+  const totalPages = Math.ceil(filteredSuppliers.length / perPage);
+  const start = (page - 1) * perPage;
+  const visibleSuppliers = filteredSuppliers.slice(start, start + perPage);
 
   async function loadSuppliers() {
     try {
@@ -935,7 +941,7 @@ export default function SuppliersClient() {
       {message && <div className="mb-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-700">{message}</div>}
 
       <div className="mb-4">
-        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search suppliers by name, contact, email..." className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+        <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search suppliers by name, contact, email..." className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
       </div>
 
       {filteredSuppliers.length === 0 ? (
@@ -946,7 +952,7 @@ export default function SuppliersClient() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {filteredSuppliers.map((s) => (
+          {visibleSuppliers.map((s) => (
             <div key={s.id} className="rounded-xl bg-white shadow p-5 hover:shadow-md transition-shadow cursor-pointer" onClick={() => selectSupplier(s)}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -984,6 +990,30 @@ export default function SuppliersClient() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
+          <p className="text-sm text-gray-500">
+            Page {page} of {totalPages} ({filteredSuppliers.length} suppliers)
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
 

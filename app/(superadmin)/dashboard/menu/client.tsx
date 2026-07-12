@@ -121,6 +121,8 @@ export default function MenuClient() {
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const perPage = 20;
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -155,6 +157,10 @@ export default function MenuClient() {
     const q = search.toLowerCase();
     return items.filter((i) => i.title.toLowerCase().includes(q));
   }, [items, search]);
+
+  const totalPages = Math.ceil(filteredItems.length / perPage);
+  const start = (page - 1) * perPage;
+  const visibleItems = filteredItems.slice(start, start + perPage);
 
   async function loadData() {
     try {
@@ -589,7 +595,7 @@ export default function MenuClient() {
       )}
 
       <div className="mb-4">
-        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search menu items.."
+        <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search menu items.."
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
         />
       </div>
@@ -606,10 +612,10 @@ export default function MenuClient() {
             </tr>
           </thead>
           <tbody>
-            {filteredItems.length === 0 ? (
+            {visibleItems.length === 0 ? (
               <tr><td colSpan={5} className="p-8 text-center text-gray-400">No menu items found</td></tr>
             ) : (
-              filteredItems.map((item) => (
+              visibleItems.map((item) => (
                 <tr key={item.id} className="border-t">
                   <td className="p-4 font-medium">{item.title}</td>
                   <td className="p-4">Rs.{item.price}</td>
@@ -630,6 +636,30 @@ export default function MenuClient() {
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
+          <p className="text-sm text-gray-500">
+            Page {page} of {totalPages} ({filteredItems.length} items)
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">

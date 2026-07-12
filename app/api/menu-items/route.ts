@@ -11,6 +11,7 @@ import {
 } from "@/db/services/menu-items";
 import type { NewMenuItem } from "@/db/schemas";
 import { createActivityLog } from "@/db/services/activity-logs";
+import { cacheHeaders } from "@/lib/apiCache";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
     const available = searchParams.get("available");
 
     const items = available === "true" ? await getAvailableMenuItems() : await getMenuItems();
-    return NextResponse.json({ items });
+    return NextResponse.json({ items }, { headers: cacheHeaders() });
   } catch (error) {
     console.error("Failed to load menu items", error);
     return NextResponse.json({ error: "Unable to load menu items" }, { status: 500 });

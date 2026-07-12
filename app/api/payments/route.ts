@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { getTransactions, createTransaction, getDues, createDue, updateDue } from "@/db/services/payments";
+import { getTransactions, createTransaction, getDues, createDue, updateDue, getDueById, getPaymentAccountById } from "@/db/services/payments";
+import { markOrderPaymentSettled } from "@/db/services/orders";
+import { getSupplierByName, createSupplierSettlement } from "@/db/services/suppliers";
 import type { NewTransaction, NewDue } from "@/db/schemas";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -32,10 +34,14 @@ export async function POST(request: Request) {
         const payload = await request.json();
 
         if (payload._kind === "transaction") {
+            const amount = Number(payload.amount);
+            if (!Number.isFinite(amount) || amount <= 0) {
+                return NextResponse.json({ error: "Amount must be a positive number" }, { status: 400 });
+            }
             const data: NewTransaction = {
                 id: payload.id,
                 type: payload.type,
-                amount: String(payload.amount),
+                amount: amount.toFixed(2),
                 receivedFrom: payload.receivedFrom || null,
                 paidTo: payload.paidTo || null,
                 paymentMethod: payload.paymentMethod,
@@ -47,13 +53,25 @@ export async function POST(request: Request) {
         }
 
         if (payload._kind === "due") {
+            const totalDue = Number(payload.totalDue);
+            const paid = Number(payload.paid || "0");
+            const remaining = Number(payload.remaining ?? payload.totalDue);
+            if (!Number.isFinite(totalDue) || totalDue < 0) {
+                return NextResponse.json({ error: "Invalid total due" }, { status: 400 });
+            }
+            if (!Number.isFinite(paid) || paid < 0) {
+                return NextResponse.json({ error: "Invalid paid amount" }, { status: 400 });
+            }
+            if (!Number.isFinite(remaining) || remaining < 0) {
+                return NextResponse.json({ error: "Invalid remaining amount" }, { status: 400 });
+            }
             const data: NewDue = {
                 id: payload.id,
                 personName: payload.personName,
                 role: payload.role,
-                totalDue: String(payload.totalDue),
-                paid: String(payload.paid || "0"),
-                remaining: String(payload.remaining ?? payload.totalDue),
+                totalDue: totalDue.toFixed(2),
+                paid: paid.toFixed(2),
+                remaining: remaining.toFixed(2),
                 status: payload.status || "pending",
             };
             await createDue(data);
@@ -75,12 +93,58 @@ export async function PATCH(request: Request) {
         const payload = await request.json();
 
         if (payload._kind === "settle_due") {
-            const { id, paid, remaining, status } = payload;
+            const { id, paid, remaining, status, paymentMethod, accountId, accountName } = payload;
+            const existing = await getDueById(id);
+            const settledAmount = Number(paid) - Number(existing?.paid || 0);
+
             await updateDue(id, {
                 paid: String(paid),
                 remaining: String(remaining),
                 status,
             });
+
+            if (status === "paid" && Number(remaining) <= 0 && existing?.orderId) {
+                await markOrderPaymentSettled(Number(existing.orderId));
+            }
+
+            if (settledAmount > 0) {
+                const method = paymentMethod || "cash";
+                const isReceived = (existing?.role || "customer") === "customer";
+                const type = method === "cash"
+                    ? (isReceived ? "cash_received" : "cash_paid")
+                    : (isReceived ? "online_received" : "online_paid");
+
+                const account = accountId ? await getPaymentAccountById(accountId) : null;
+                const linkedAccountId = account ? account.id : null;
+                const accountLabel = accountName || account?.accountName || (method === "cash" ? "Cash" : method);
+
+                await createTransaction({
+                    id: crypto.randomUUID(),
+                    type,
+                    amount: String(settledAmount),
+                    receivedFrom: isReceived ? (existing?.personName || null) : null,
+                    paidTo: isReceived ? null : (existing?.personName || null),
+                    paymentMethod: method,
+                    accountId: linkedAccountId,
+                    transactionId: linkedAccountId ? `SETTLE-${linkedAccountId}` : null,
+                    notes: `Due settlement${existing?.orderId ? ` (Order #${existing.orderId})` : ""} via ${accountLabel}`,
+                });
+
+                if (!isReceived && existing?.personName) {
+                    const supplier = await getSupplierByName(existing.personName);
+                    if (supplier) {
+                        await createSupplierSettlement({
+                            supplierId: supplier.id,
+                            amount: settledAmount.toFixed(2),
+                            type: "payment",
+                            paymentMethod: method,
+                            transactionId: linkedAccountId ? `ACC-${linkedAccountId}` : null,
+                            notes: `Payment via Payments section${existing.orderId ? ` (Order #${existing.orderId})` : ""} via ${accountLabel}`,
+                        });
+                    }
+                }
+            }
+
             return NextResponse.json({ ok: true });
         }
 

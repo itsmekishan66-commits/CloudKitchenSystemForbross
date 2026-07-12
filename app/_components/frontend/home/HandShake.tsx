@@ -38,6 +38,7 @@ export default function HandShake() {
                         loop
                         muted
                         playsInline
+                        preload="none"
                         className="w-full h-full object-cover object-top"
                         onLoadedMetadata={() => {
                             if (videoRef.current) videoRef.current.playbackRate = 0.5;

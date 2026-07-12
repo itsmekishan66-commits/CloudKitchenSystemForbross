@@ -64,6 +64,8 @@ export default function PromotionsClient() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"error" | "success">("success");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const perPage = 20;
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   function updateForm(field: string, value: string) {
@@ -76,6 +78,10 @@ export default function PromotionsClient() {
     const q = search.toLowerCase();
     return promotions.filter((p) => p.title.toLowerCase().includes(q) || (p.code ?? "").toLowerCase().includes(q));
   }, [promotions, search]);
+
+  const totalPages = Math.ceil(filteredPromotions.length / perPage);
+  const start = (page - 1) * perPage;
+  const visiblePromotions = filteredPromotions.slice(start, start + perPage);
 
   async function loadPromotions() {
     try {
@@ -291,9 +297,9 @@ export default function PromotionsClient() {
       <div className="mb-4">
         <input
           type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search promotions..."
+           value={search}
+           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+           placeholder="Search promotions..."
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
         />
       </div>
@@ -312,14 +318,14 @@ export default function PromotionsClient() {
             </tr>
           </thead>
           <tbody>
-            {filteredPromotions.length === 0 ? (
+            {visiblePromotions.length === 0 ? (
               <tr>
                 <td colSpan={7} className="p-8 text-center text-gray-400">
                   No promotions found
                 </td>
               </tr>
             ) : (
-              filteredPromotions.map((promo) => (
+              visiblePromotions.map((promo) => (
                 <tr key={promo.id} className="border-t">
                   <td className="p-4 font-medium">{promo.title}</td>
                   <td className="p-4">
@@ -358,6 +364,30 @@ export default function PromotionsClient() {
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
+          <p className="text-sm text-gray-500">
+            Page {page} of {totalPages} ({filteredPromotions.length} promotions)
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

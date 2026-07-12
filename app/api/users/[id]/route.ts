@@ -72,6 +72,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 
     if (role) {
+      if (role === "super-admin") {
+        return NextResponse.json(
+          { error: "The super-admin role cannot be assigned via this endpoint" },
+          { status: 403 },
+        );
+      }
+
       const [target] = await db
         .select({ currentRole: roles.name })
         .from(users)

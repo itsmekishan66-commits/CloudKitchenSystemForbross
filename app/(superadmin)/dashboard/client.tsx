@@ -95,6 +95,23 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
     Cancelled: "bg-red-100 text-red-700",
   };
 
+  const moduleColors: Record<string, string> = {
+    "/dashboard/orders": "from-blue-500 to-indigo-600",
+    "/dashboard/customers": "from-purple-500 to-fuchsia-600",
+    "/dashboard/guest-users": "from-pink-500 to-rose-600",
+    "/dashboard/kitchen": "from-orange-500 to-amber-600",
+    "/dashboard/menu": "from-emerald-500 to-green-600",
+    "/dashboard/categories": "from-teal-500 to-cyan-600",
+    "/dashboard/inventory": "from-violet-500 to-purple-600",
+    "/dashboard/payment": "from-green-500 to-emerald-600",
+    "/dashboard/support": "from-sky-500 to-blue-600",
+    "/dashboard/messages": "from-rose-500 to-pink-600",
+    "/dashboard/reports": "from-indigo-500 to-blue-600",
+    "/dashboard/promotions": "from-red-500 to-orange-600",
+    "/dashboard/settings": "from-slate-500 to-gray-600",
+    "/dashboard/roles": "from-amber-500 to-yellow-600",
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -129,8 +146,8 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
                   <h2 className="mt-1 text-xl sm:text-2xl lg:text-3xl font-bold"> {stat.value} </h2>
                   <span className="mt-2 inline-flex rounded-full bg-green-100 px-2 py-1 text-[10px] sm:text-xs lg:text-sm text-green-700"> {stat.growth} </span>
                 </div>
-                <div className="rounded-xl sm:rounded-2xl bg-orange-100 p-2 sm:p-3 lg:p-4 shrink-0">
-                  <Icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
+                <div className={`rounded-xl sm:rounded-2xl bg-linear-to-br ${moduleColors[stat.module] ?? "from-orange-500 to-orange-600"} p-2 sm:p-3 lg:p-4 shrink-0`}>
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-white" />
                 </div>
               </div>
             </div>
@@ -146,8 +163,8 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
             return (
               <Link key={module.name} href={module.href}
                 className="group rounded-2xl sm:rounded-3xl border border-white/20 bg-white/80 p-3 sm:p-5 lg:p-6 shadow-lg backdrop-blur-xl transition-all hover:-translate-y-1 sm:hover:-translate-y-2 hover:shadow-2xl">
-                <div className="mb-3 sm:mb-4 flex h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 items-center justify-center rounded-xl sm:rounded-2xl bg-orange-100 transition-colors group-hover:bg-orange-200">
-                  <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+                <div className={`mb-3 sm:mb-4 flex h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 items-center justify-center rounded-xl sm:rounded-2xl bg-linear-to-br ${moduleColors[module.href] ?? "from-orange-500 to-orange-600"} transition-colors group-hover:brightness-110`}>
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
                 <h3 className="text-sm sm:text-base lg:text-lg font-semibold leading-tight"> {module.name} </h3>
                 <p className="mt-1 sm:mt-2 text-[11px] sm:text-sm text-gray-500 leading-relaxed">  Manage and monitor {module.name.toLowerCase()} </p>

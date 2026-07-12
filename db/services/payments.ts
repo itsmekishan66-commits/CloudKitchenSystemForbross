@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { transactions, dues, paymentAccounts, type NewTransaction, type NewDue } from "@/db/schemas";
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 type NewPaymentAccount = typeof paymentAccounts.$inferInsert;
 
@@ -14,6 +14,11 @@ export async function createTransaction(data: NewTransaction) {
 
 export async function getDues() {
     return db.select().from(dues).orderBy(desc(dues.createdAt));
+}
+
+export async function getDueById(id: string) {
+    const [due] = await db.select().from(dues).where(eq(dues.id, id)).limit(1);
+    return due || null;
 }
 
 export async function createDue(data: NewDue) {
@@ -48,31 +53,42 @@ export async function deletePaymentAccount(id: string) {
 export async function getAccountBalances() {
     const accounts = await db.select().from(paymentAccounts).orderBy(desc(paymentAccounts.createdAt));
 
-    const balances = await Promise.all(
-        accounts.map(async (account) => {
-            const [received] = await db
-                .select({ total: sql<string>`coalesce(sum(${transactions.amount}), 0)` })
-                .from(transactions)
-                .where(sql`${transactions.accountId} = ${account.id} and ${transactions.type} in ('cash_received', 'online_received', 'refund')`);
-
-            const [paid] = await db
-                .select({ total: sql<string>`coalesce(sum(${transactions.amount}), 0)` })
-                .from(transactions)
-                .where(sql`${transactions.accountId} = ${account.id} and ${transactions.type} in ('cash_paid', 'online_paid', 'expense', 'bank_transfer')`);
-
-            const opening = Number(account.openingBalance || 0);
-            const totalReceived = Number(received?.total || 0);
-            const totalPaid = Number(paid?.total || 0);
-            const closingBalance = opening + totalReceived - totalPaid;
-
-            return {
-                ...account,
-                totalReceived,
-                totalPaid,
-                closingBalance,
-            };
+    // Fetch all transactions once, then compute per-account totals in memory (avoids N+1)
+    const allTx = await db
+        .select({
+            accountId: transactions.accountId,
+            paymentMethod: transactions.paymentMethod,
+            type: transactions.type,
+            amount: transactions.amount,
         })
-    );
+        .from(transactions);
 
-    return balances;
+    const RECEIVED = new Set(["cash_received", "online_received", "refund"]);
+    const PAID = new Set(["cash_paid", "online_paid", "expense", "bank_transfer"]);
+
+    return accounts.map((account) => {
+        let totalReceived = 0;
+        let totalPaid = 0;
+
+        for (const tx of allTx) {
+            const matches =
+                tx.accountId === account.id ||
+                (tx.accountId == null && tx.paymentMethod === account.method);
+            if (!matches) continue;
+
+            const amt = Number(tx.amount) || 0;
+            if (RECEIVED.has(tx.type)) totalReceived += amt;
+            else if (PAID.has(tx.type)) totalPaid += amt;
+        }
+
+        const opening = Number(account.openingBalance || 0);
+        const closingBalance = opening + totalReceived - totalPaid;
+
+        return {
+            ...account,
+            totalReceived,
+            totalPaid,
+            closingBalance,
+        };
+    });
 }

@@ -1,6 +1,8 @@
 import { requirePermission } from "@/lib/requirePermission";
 import { PERMISSIONS } from "@/lib/permissions";
-import ReportsClient from "./client";
+import dynamic from "next/dynamic";
+
+const ReportsClient = dynamic(() => import("./client"));
 
 const ReportsPage = async () => {
   await requirePermission(PERMISSIONS.VIEW_REPORTS);

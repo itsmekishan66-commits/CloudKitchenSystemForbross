@@ -2,12 +2,17 @@ import { NextResponse } from "next/server";
 import { readdirSync, statSync, writeFileSync, mkdirSync } from "fs";
 import { join, extname } from "path";
 import { randomUUID } from "crypto";
+import { getCurrentUser } from "@/lib/auth";
 
 const IMAGE_EXTENSIONS = new Set([
-  ".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif", ".svg",
+  ".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif",
 ]);
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const UPLOAD_DIR = join("uploads", "menu");
+const IMAGE_CACHE_TTL = 30 * 1000; // 30s
+
+let cachedImages: string[] | null = null;
+let cachedAt = 0;
 
 function walk(dir: string, baseDir: string): string[] {
   const results: string[] = [];
@@ -31,15 +36,30 @@ function walk(dir: string, baseDir: string): string[] {
   return results;
 }
 
-export async function GET() {
+function getPublicImages(): string[] {
+  const now = Date.now();
+  if (cachedImages && now - cachedAt < IMAGE_CACHE_TTL) {
+    return cachedImages;
+  }
   const publicDir = join(process.cwd(), "public");
   const images = walk(publicDir, "");
   images.sort();
-  return NextResponse.json({ images });
+  cachedImages = images;
+  cachedAt = now;
+  return images;
+}
+
+export async function GET() {
+  return NextResponse.json({ images: getPublicImages() });
 }
 
 export async function POST(request: Request) {
   try {
+    const user = await getCurrentUser();
+    if (!user || user.isGuest || user.role === "customer") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
@@ -53,7 +73,7 @@ export async function POST(request: Request) {
 
     const ext = extname(file.name).toLowerCase();
     if (!IMAGE_EXTENSIONS.has(ext)) {
-      return NextResponse.json({ error: "Invalid file type. Allowed: jpg, jpeg, png, gif, webp, avif, svg" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid file type. Allowed: jpg, jpeg, png, gif, webp, avif" }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -64,6 +84,8 @@ export async function POST(request: Request) {
 
     mkdirSync(absoluteDir, { recursive: true });
     writeFileSync(absolutePath, buffer);
+
+    cachedImages = null;
 
     return NextResponse.json({ path: "/" + relativePath.replace(/\\/g, "/") });
   } catch (error) {

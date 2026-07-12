@@ -100,7 +100,7 @@ export default function Home() {
                 onClick={() => setActive(cardIndex)}
               >
                 {/* Background video */}
-                <video src="/burger.mp4" autoPlay loop muted playsInline className="absolute inset-0 h-full w-full object-cover" />
+                <video src="/burger.mp4" autoPlay loop muted playsInline preload="none" className="absolute inset-0 h-full w-full object-cover" />
 
                 {/* Dark overlay */}
                 <div className="absolute inset-0 bg-linear-to-t from-black via-black/50 to-transparent" />

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getActivePromotionByCode, getActivePromotions } from "@/db/services/promotions";
+import { cacheHeaders } from "@/lib/apiCache";
 
 export const dynamic = "force-dynamic";
 
@@ -26,11 +27,11 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: "Coupon is no longer valid" }, { status: 404 });
       }
 
-      return NextResponse.json({ promotion });
+      return NextResponse.json({ promotion }, { headers: cacheHeaders(120) });
     }
 
     const promotions = await getActivePromotions();
-    return NextResponse.json({ promotions });
+    return NextResponse.json({ promotions }, { headers: cacheHeaders(120) });
   } catch (error) {
     console.error("Failed to load public promotions", error);
     return NextResponse.json({ error: "Unable to load promotions" }, { status: 500 });

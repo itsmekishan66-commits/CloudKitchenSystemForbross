@@ -55,6 +55,14 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
 
+    // Prevent privilege escalation: the super-admin role must not be assignable via the API.
+    if (role === "super-admin") {
+      return NextResponse.json(
+        { error: "The super-admin role cannot be assigned via this endpoint" },
+        { status: 403 },
+      );
+    }
+
     const [target] = await db
       .select({ currentRole: rolesTable.name })
       .from(users)

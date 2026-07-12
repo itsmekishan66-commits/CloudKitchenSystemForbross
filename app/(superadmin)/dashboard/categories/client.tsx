@@ -30,6 +30,8 @@ export default function CategoriesClient() {
   const confirm = useConfirm();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const perPage = 20;
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState<CategoryForm>(emptyForm);
@@ -48,8 +50,11 @@ export default function CategoriesClient() {
   // };
 
 
-  async function loadCategories() {
+  const totalPages = Math.ceil(categories.length / perPage);
+  const start = (page - 1) * perPage;
+  const visibleCategories = categories.slice(start, start + perPage);
 
+  async function loadCategories() {
     try {
       const res = await fetch("/api/categories");
       const data = await res.json();
@@ -196,10 +201,10 @@ export default function CategoriesClient() {
             </tr>
           </thead>
           <tbody>
-            {categories.length === 0 ? (
+            {visibleCategories.length === 0 ? (
               <tr><td colSpan={4} className="p-8 text-center text-gray-400">No categories found</td></tr>
             ) : (
-              categories.map((cat) => (
+              visibleCategories.map((cat) => (
                 <tr key={cat.id} className="border-t">
                   <td className="p-4 font-medium">{cat.name}</td>
                   <td className="p-4 text-gray-500">{cat.slug}</td>
@@ -218,6 +223,30 @@ export default function CategoriesClient() {
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
+          <p className="text-sm text-gray-500">
+            Page {page} of {totalPages} ({categories.length} categories)
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

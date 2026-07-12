@@ -18,6 +18,7 @@ import AuthModal from "../AuthModal";
 import useUser from "../../../hooks/useUser";
 import toast from "react-hot-toast";
 import { safeImageUrl } from "@/lib/image";
+import { dedupedFetch } from "@/lib/fetchCache";
 
 export default function Navbar() {
   const { cartCount } = useCart();
@@ -37,8 +38,7 @@ export default function Navbar() {
   const [logoUrl, setLogoUrl] = useState("");
 
   useEffect(() => {
-    fetch("/api/site-settings")
-      .then((res) => res.json())
+    dedupedFetch<Record<string, string>>("/api/site-settings")
       .then((data) => {
         if (!data.error) {
           if (data.siteName) setSiteName(data.siteName);
@@ -52,8 +52,7 @@ export default function Navbar() {
     if (!navSearch.trim()) { return; }
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch("/api/menu-items");
-        const data = await res.json();
+        const data = await dedupedFetch<{ items: { id: number; title: string; price: string; image: string | null; isAvailable: boolean }[] }>("/api/menu-items");
         const q = navSearch.toLowerCase();
         const matches = (data.items || []).filter((item: { id: number; title: string; price: string; image: string | null; isAvailable: boolean }) => item.isAvailable && item.title.toLowerCase().includes(q)
         );

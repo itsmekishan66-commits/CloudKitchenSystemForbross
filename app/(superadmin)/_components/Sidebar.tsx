@@ -25,6 +25,7 @@ import {
   LogOut,
   Menu,
   X,
+  Landmark,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -92,6 +93,12 @@ const menuItems = [
     href: "/dashboard/payment",
     icon: CreditCard,
     permission: PERMISSIONS.VIEW_PAYMENTS,
+  },
+  {
+    title: "Accounting",
+    href: "/dashboard/accounting",
+    icon: Landmark,
+    permission: PERMISSIONS.VIEW_ACCOUNTING,
   },
   {
     title: "Support",

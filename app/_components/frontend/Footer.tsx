@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, FormEvent } from "react";
 import toast from "react-hot-toast";
+import { dedupedFetch } from "@/lib/fetchCache";
 import {
   FaFacebookF,
   FaInstagram,
@@ -21,8 +22,7 @@ export default function Footer() {
   const [location, setLocation] = useState("");
 
   useEffect(() => {
-    fetch("/api/site-settings")
-      .then((res) => res.json())
+    dedupedFetch<Record<string, string>>("/api/site-settings")
       .then((data) => {
         if (!data.error) {
           if (data.siteName) setSiteName(data.siteName);

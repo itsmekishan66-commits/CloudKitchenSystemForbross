@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useCart } from "../cart/CartContext";
 import toast from "react-hot-toast";
 import { safeImageUrl } from "@/lib/image";
+import { dedupedFetch } from "@/lib/fetchCache";
 
 type ApiMenuItem = {
     id: number;
@@ -55,8 +56,7 @@ export default function CurvedLoopCarousel() {
     useEffect(() => {
         async function load() {
             try {
-                const res = await fetch("/api/menu-items?available=true");
-                const data = await res.json();
+                const data = await dedupedFetch<{ items: ApiMenuItem[] }>("/api/menu-items?available=true");
 
                 const mapped: SliderItem[] = (data.items || []).map((item: ApiMenuItem) => {
                     const basePrice = Number(item.price);

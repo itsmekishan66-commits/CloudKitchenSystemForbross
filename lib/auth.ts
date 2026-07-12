@@ -49,7 +49,7 @@ export async function requireUser(): Promise<UserWithRole> {
 
 export async function requireAdmin(): Promise<UserWithRole> {
   const user = await requireUser();
-  if (!["super-admin", "admin", "staff", "kitchen-manager", "payment-manager", "support-staff", "customer"].includes(user.role)) redirect("/dashboard");
+  if (!["super-admin", "admin", "staff", "kitchen-manager", "payment-manager", "support-staff"].includes(user.role)) redirect("/dashboard");
   return user;
 }
 

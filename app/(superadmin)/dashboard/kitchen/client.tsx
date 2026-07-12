@@ -53,6 +53,8 @@ export default function KitchenClient() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [rolesList, setRolesList] = useState<{ id: number; name: string }[]>([]);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const perPage = 20;
   
   //to download the file
   // const [open, setOpen] = useState(false);
@@ -68,6 +70,10 @@ export default function KitchenClient() {
     const q = search.toLowerCase();
     return kitchens.filter((k) => k.name.toLowerCase().includes(q) || (k.location ?? "").toLowerCase().includes(q) || (k.managerName ?? "").toLowerCase().includes(q));
   }, [kitchens, search]);
+
+  const totalPages = Math.ceil(filteredKitchens.length / perPage);
+  const start = (page - 1) * perPage;
+  const visibleKitchens = filteredKitchens.slice(start, start + perPage);
 
   async function loadKitchens() {
     try {
@@ -235,9 +241,9 @@ if (loading) {
       <div className="mb-4">
         <input
           type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search kitchens..."
+           value={search}
+           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+           placeholder="Search kitchens..."
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
         />
       </div>
@@ -254,10 +260,10 @@ if (loading) {
             </tr>
           </thead>
           <tbody >
-            {filteredKitchens.length === 0 ? (
+            {visibleKitchens.length === 0 ? (
               <tr><td colSpan={5} className="p-8 text-center text-gray-400">No kitchens found</td></tr>
             ) : (
-              filteredKitchens.map((kitchen) => (
+              visibleKitchens.map((kitchen) => (
                 <tr key={kitchen.id} className="border-t">
                   <td className="p-2 md:p-4 font-medium">{kitchen.name}</td>
                   <td className="p-2 md:p-4 text-gray-500">{kitchen.slug}</td>
@@ -277,6 +283,30 @@ if (loading) {
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
+          <p className="text-sm text-gray-500">
+            Page {page} of {totalPages} ({filteredKitchens.length} kitchens)
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

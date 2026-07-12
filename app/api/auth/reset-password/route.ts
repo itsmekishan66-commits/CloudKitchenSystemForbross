@@ -3,9 +3,21 @@ import { getUserByEmail } from "@/db/services/users";
 import { findValidToken, markTokenUsed } from "@/db/services/password-reset-tokens";
 import { updateUserPassword } from "@/db/services/users";
 import { hashPassword } from "@/lib/auth";
+import { rateLimit, getClientIdentifier } from "@/lib/rateLimit";
 
 export async function POST(request: Request) {
   try {
+    const limit = rateLimit(getClientIdentifier(request, "reset-password"), {
+      windowMs: 15 * 60 * 1000,
+      max: 5,
+    });
+    if (!limit.success) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfter) } },
+      );
+    }
+
     const { token, password } = await request.json();
 
     if (!token || !password) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getActiveZones, getAllZones, createZone } from "@/db/services/delivery-zones";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
+import { cacheHeaders } from "@/lib/apiCache";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
     if (!admin) {
         try {
             const zones = await getActiveZones();
-            return NextResponse.json({ zones });
+            return NextResponse.json({ zones }, { headers: cacheHeaders() });
         } catch (error) {
             console.error("Failed to load delivery zones", error);
             return NextResponse.json(
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
         if (user instanceof NextResponse) return user;
 
         const zones = await getAllZones();
-        return NextResponse.json({ zones });
+        return NextResponse.json({ zones }, { headers: cacheHeaders() });
     } catch (error) {
         console.error("Failed to load delivery zones", error);
         return NextResponse.json(

@@ -2,6 +2,7 @@
 import { useEffect, useState} from "react";
 // import { useEffect, useState, useRef } from "react";
 import { X } from "lucide-react";
+import { dedupedFetch } from "@/lib/fetchCache";
 // import { X, Bot } from "lucide-react";
 
 interface PromotionItem {
@@ -65,9 +66,8 @@ export default function OffersPopup() {
     const loadPromotions = async () => {
       setLoading(true);
       try {
-        const res = await fetch("/api/promotions");
-        const data = await res.json();
-        if (isMounted && !data.error) {
+        const data = await dedupedFetch<{ promotions?: PromotionItem[] }>("/api/promotions");
+        if (isMounted && !("error" in data)) {
           const nextPromotions = data.promotions ?? [];
           setPromotions(nextPromotions);
           setActiveIndex(0);

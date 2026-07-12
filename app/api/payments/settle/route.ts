@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { createTransaction, createDue, updateDue, getDues } from "@/db/services/payments";
 import { updateOrderPaymentStatus } from "@/db/services/orders";
+import { recordCustomerPayment } from "@/db/services/accounting";
 import { orders, users } from "@/db/schemas";
 import type { NewTransaction, NewDue } from "@/db/schemas";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
@@ -108,6 +109,16 @@ export async function POST(request: Request) {
           remaining: String(newRemaining),
           status: newStatus,
         });
+      }
+
+      try {
+        await recordCustomerPayment({
+          orderId: Number(orderId),
+          amount: totalReceived,
+          referenceId: `SETTLE-${orderId}-${Date.now()}`,
+        });
+      } catch (e) {
+        console.error("Failed to record customer payment accounting entry", e);
       }
     }
 

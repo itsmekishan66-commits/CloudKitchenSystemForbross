@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getOrdersWithDetails } from "@/db/services/orders";
+import { getOrderWithDetailsById } from "@/db/services/orders";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
 
@@ -21,8 +21,7 @@ export async function GET(
       return NextResponse.json({ error: "Invalid order ID" }, { status: 400 });
     }
 
-    const orders = await getOrdersWithDetails();
-    const order = orders.find((o: { id: number }) => o.id === orderId);
+    const order = await getOrderWithDetailsById(orderId);
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });

@@ -37,6 +37,8 @@ export default function CustomersClient() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("customer");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const perPage = 20;
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
@@ -194,6 +196,10 @@ export default function CustomersClient() {
     return users.filter((u) => u.name.toLowerCase().includes(q) || (u.email ?? "").toLowerCase().includes(q) || (u.phone ?? "").toLowerCase().includes(q));
   }, [users, search]);
 
+  const totalPages = Math.ceil(filteredUsers.length / perPage);
+  const start = (page - 1) * perPage;
+  const visibleUsers = filteredUsers.slice(start, start + perPage);
+
   const roleColors: Record<string, string> = {
     "super-admin": "bg-red-100 text-red-700",
     admin: "bg-purple-100 text-purple-700",
@@ -268,9 +274,9 @@ export default function CustomersClient() {
       <div className="mb-4">
         <input
           type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search users..."
+           value={search}
+           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+           placeholder="Search users..."
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
         />
       </div>
@@ -288,10 +294,10 @@ export default function CustomersClient() {
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.length === 0 ? (
+            {visibleUsers.length === 0 ? (
               <tr><td colSpan={6} className="p-8 text-center text-gray-400">No users found</td></tr>
             ) : (
-              filteredUsers.map((user) => (
+              visibleUsers.map((user) => (
                 <tr key={user.id} className="border-t">
                   <td className="p-4 font-medium">{user.name}</td>
                   <td className="p-4 text-gray-500">{user.email}</td>
@@ -344,6 +350,30 @@ export default function CustomersClient() {
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
+          <p className="text-sm text-gray-500">
+            Page {page} of {totalPages} ({filteredUsers.length} users)
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Add User Modal */}
       {showAddModal && (

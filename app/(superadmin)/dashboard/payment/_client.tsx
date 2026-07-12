@@ -1,0 +1,1800 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { usePermissions } from "@/lib/permission-context";
+import { useConfirm } from "@/app/_components/ConfirmPopup";
+import { motion } from "framer-motion";
+import {
+  Wallet,
+  Building2,
+  TrendingUp,
+  Clock,
+  ArrowDownRight,
+  ArrowUpRight,
+  Banknote,
+  Plus,
+  Search,
+  ChevronDown,
+  CreditCard,
+  Landmark,
+  Smartphone,
+  CircleArrowDown,
+  Upload,
+  X,
+  Edit,
+  Trash2,
+  Power,
+  Eye,
+} from "lucide-react";
+
+type PaymentMethod = "cash" | "bank" | "esewa" | "khalti" | "fonepay" | "card";
+type TransactionType =
+  | "cash_received"
+  | "cash_paid"
+  | "online_received"
+  | "online_paid"
+  | "expense"
+  | "bank_transfer"
+  | "refund";
+
+interface Transaction {
+  id: string;
+  type: TransactionType;
+  amount: number;
+  receivedFrom?: string;
+  paidTo?: string;
+  paymentMethod: PaymentMethod;
+  transactionId?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+interface Due {
+  id: string;
+  personName: string;
+  orderId?: number | null;
+  role: "customer" | "supplier" | "staff";
+  totalDue: number;
+  paid: number;
+  remaining: number;
+  status: "pending" | "partial" | "paid";
+  createdAt: string;
+}
+
+interface PaymentAccount {
+  id: string;
+  accountName: string;
+  holderName: string;
+  method: string;
+  accountNumber: string;
+  phoneNumber: string | null;
+  bankName: string | null;
+  branch: string | null;
+  openingBalance: number;
+  qrCode: string | null;
+  notes: string | null;
+  status: string;
+}
+
+interface DueGroup {
+  personName: string;
+  dues: Due[];
+  totalDue: number;
+  totalPaid: number;
+  totalRemaining: number;
+  status: "pending" | "partial" | "paid";
+}
+
+function aggregateDues(list: Due[]): DueGroup[] {
+  const map = new Map<string, Due[]>();
+  for (const d of list) {
+    const arr = map.get(d.personName) ?? [];
+    arr.push(d);
+    map.set(d.personName, arr);
+  }
+  const groups: DueGroup[] = [];
+  for (const [personName, dues] of map.entries()) {
+    const totalDue = dues.reduce((s, d) => s + d.totalDue, 0);
+    const totalPaid = dues.reduce((s, d) => s + d.paid, 0);
+    const totalRemaining = dues.reduce((s, d) => s + d.remaining, 0);
+    const status: DueGroup["status"] = totalRemaining <= 0 ? "paid" : totalPaid > 0 ? "partial" : "pending";
+    groups.push({ personName, dues, totalDue, totalPaid, totalRemaining, status });
+  }
+  return groups;
+}
+
+const typeConfig: Record<TransactionType, { label: string; color: string; bg: string; icon: typeof ArrowDownRight }> = {
+  cash_received: { label: "Cash Received", color: "text-emerald-700", bg: "bg-emerald-50", icon: ArrowDownRight },
+  cash_paid: { label: "Cash Paid", color: "text-red-700", bg: "bg-red-50", icon: ArrowUpRight },
+  online_received: { label: "Online Received", color: "text-emerald-700", bg: "bg-emerald-50", icon: ArrowDownRight },
+  online_paid: { label: "Online Paid", color: "text-red-700", bg: "bg-red-50", icon: ArrowUpRight },
+  expense: { label: "Expense", color: "text-orange-700", bg: "bg-orange-50", icon: ArrowUpRight },
+  bank_transfer: { label: "Bank Transfer", color: "text-blue-700", bg: "bg-blue-50", icon: ArrowUpRight },
+  refund: { label: "Refund", color: "text-purple-700", bg: "bg-purple-50", icon: ArrowDownRight },
+};
+
+const paymentIcons: Record<PaymentMethod, typeof CreditCard> = {
+  cash: Banknote,
+  bank: Landmark,
+  esewa: Smartphone,
+  khalti: Smartphone,
+  fonepay: Smartphone,
+  card: CreditCard,
+};
+
+const statusConfig = {
+  pending: { label: "Pending", color: "text-amber-700", bg: "bg-amber-50", dot: "bg-amber-400" },
+  partial: { label: "Partial", color: "text-blue-700", bg: "bg-blue-50", dot: "bg-blue-400" },
+  paid: { label: "Paid", color: "text-emerald-700", bg: "bg-emerald-50", dot: "bg-emerald-400" },
+};
+
+function Pagination({
+  total,
+  perPage,
+  page,
+  onPage,
+}: {
+  total: number;
+  perPage: number;
+  page: number;
+  onPage: (p: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const windowStart = Math.floor((page - 1) / 10) * 10 + 1;
+  const windowEnd = Math.min(totalPages, windowStart + 9);
+  const pages: number[] = [];
+  for (let p = windowStart; p <= windowEnd; p++) pages.push(p);
+
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      <button
+        onClick={() => onPage(Math.max(1, page - 1))}
+        disabled={page <= 1}
+        className="flex items-center gap-1 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-2 rounded-xl transition-colors"
+      >
+        <span aria-hidden="true">←</span> Prev
+      </button>
+      {pages.map((p) => (
+        <button
+          key={p}
+          onClick={() => onPage(p)}
+          className={`min-w-9.5 text-sm font-medium px-3 py-2 rounded-xl transition-colors ${
+            p === page ? "bg-orange-500 text-white" : "text-gray-700 bg-gray-50 hover:bg-gray-100"
+          }`}
+        >
+          {p}
+        </button>
+      ))}
+      <button
+        onClick={() => onPage(Math.min(totalPages, page + 1))}
+        disabled={page >= totalPages}
+        className="flex items-center gap-1 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-2 rounded-xl transition-colors"
+      >
+        Next <span aria-hidden="true">→</span>
+      </button>
+    </div>
+  );
+}
+
+function DailyBalancesSection({ transactions }: { transactions: Transaction[] }) {
+  const dailyBalances = useMemo(() => {
+    const dailyMap = new Map<string, { received: number; paid: number }>();
+
+    transactions.forEach((t) => {
+      const prev = dailyMap.get(t.createdAt) || { received: 0, paid: 0 };
+      if (t.type.includes("received") || t.type === "refund") {
+        prev.received += t.amount;
+      } else {
+        prev.paid += t.amount;
+      }
+      dailyMap.set(t.createdAt, prev);
+    });
+
+    const sortedDates = Array.from(dailyMap.keys()).sort();
+
+    let opening = 0;
+    const balances: { date: string; opening: number; received: number; paid: number; closing: number }[] = [];
+
+    sortedDates.forEach((date) => {
+      const day = dailyMap.get(date)!;
+      const closing = opening + day.received - day.paid;
+      balances.push({ date, opening, received: day.received, paid: day.paid, closing });
+      opening = closing;
+    });
+
+    return balances;
+  }, [transactions]);
+
+  const totals = useMemo(() => {
+    const t = { opening: 0, closing: 0 };
+    if (dailyBalances.length === 0) return t;
+    t.opening = dailyBalances[0].opening;
+    t.closing = dailyBalances[dailyBalances.length - 1].closing;
+    return t;
+  }, [dailyBalances]);
+
+  const DAILY_PER_PAGE = 10;
+  const [dailyPage, setDailyPage] = useState(1);
+  const paginatedDaily = dailyBalances.slice(0, dailyPage * DAILY_PER_PAGE);
+  // const hasMoreDaily = paginatedDaily.length < dailyBalances.length;
+
+  if (dailyBalances.length === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.12 }}
+      className="bg-white rounded-2xl border border-gray-100"
+    >
+      <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center shadow-md">
+            <Landmark size={16} className="text-black" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm">Daily Balance Overview</h3>
+            <p className="text-xs text-gray-400">Opening & closing balance by day</p>
+          </div>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-gray-50">
+              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Date</th>
+              <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Opening Balance</th>
+              <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Closing Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedDaily.map((d, i) => {
+              const isToday = d.date === new Date().toISOString().slice(0, 10);
+              return (
+                <motion.tr
+                  key={d.date}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: i * 0.05 }}
+                  className={`border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors ${isToday ? "bg-orange-50/40" : ""}`}
+                >
+                  <td className="px-5 py-4">
+                    <span className="text-sm font-medium">{d.date}</span>
+                    {isToday && (
+                      <span className="ml-2 text-[10px] font-semibold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full">Today</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-4 text-right text-sm font-semibold">Rs {d.opening.toLocaleString()}</td>
+                  <td className="px-5 py-4 text-right text-sm font-bold">Rs {d.closing.toLocaleString()}</td>
+                </motion.tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="bg-gray-50 border-t-2 border-gray-200">
+              <td className="px-5 py-4 text-sm font-bold">Total</td>
+              <td className="px-5 py-4 text-right text-sm font-bold">Rs {totals.opening.toLocaleString()}</td>
+              <td className="px-5 py-4 text-right text-sm font-bold">Rs {totals.closing.toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div className="p-4 border-t border-gray-50 flex items-center justify-between">
+        <span className="text-xs text-gray-400">
+          Showing {paginatedDaily.length} of {dailyBalances.length}
+        </span>
+        <Pagination total={dailyBalances.length} perPage={DAILY_PER_PAGE} page={dailyPage} onPage={setDailyPage} />
+      </div>
+      </motion.div>
+    );
+  }
+
+export default function PaymentPage() {
+  const permissions = usePermissions();
+  const can = (p: string) => permissions.includes(p);
+  const confirm = useConfirm();
+
+  // const [open, setOpen] = useState(false);
+  const handleDownload = (type: string) => {
+    if (type) {
+      window.open(`/api/exports/${type}?source=payment`, "_blank");
+    }
+  };
+
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState<"success" | "error">("success");
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [dues, setDues] = useState<Due[]>([]);
+  const [accounts, setAccounts] = useState<(PaymentAccount & { totalReceived: number; totalPaid: number; closingBalance: number })[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [activeTab, setActiveTab] = useState<"overview" | "accounts">("overview");
+  const [showAccountForm, setShowAccountForm] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<PaymentAccount | null>(null);
+  const [accountForm, setAccountForm] = useState({ accountName: "", holderName: "", method: "esewa", accountNumber: "", phoneNumber: "", bankName: "", branch: "", openingBalance: "", qrCode: "", notes: "" });
+  const [savingAccount, setSavingAccount] = useState(false);
+  const [uploadingQr, setUploadingQr] = useState(false);
+  const [accountSearch, setAccountSearch] = useState("");
+  const [accountErrors, setAccountErrors] = useState<Record<string, string>>({});
+
+  async function fetchPayments() {
+    const [pRes, aRes] = await Promise.all([
+      fetch("/api/payments"),
+      fetch("/api/payments/accounts"),
+    ]);
+    const data = await pRes.json();
+    const txList = (data.transactions || []).map((t: Record<string, unknown>) => ({
+      ...t,
+      amount: Number(t.amount),
+      createdAt: t.createdAt ? (t.createdAt as string).slice(0, 10) : "",
+    }));
+    const dueList = (data.dues || []).map((d: Record<string, unknown>) => ({
+      ...d,
+      totalDue: Number(d.totalDue),
+      paid: Number(d.paid),
+      remaining: Number(d.remaining),
+      createdAt: d.createdAt ? (d.createdAt as string).slice(0, 10) : "",
+    }));
+    const aData = await aRes.json();
+    return { txList, dueList, accounts: (aData.accounts || []) as (PaymentAccount & { totalReceived: number; totalPaid: number; closingBalance: number })[] };
+  }
+
+  async function loadPaymentsData() {
+    try {
+      const { txList, dueList, accounts } = await fetchPayments();
+      setTransactions(txList);
+      setDues(dueList);
+      setAccounts(accounts);
+    } catch (err) {
+      console.error("Failed to load payments", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPayments()
+      .then(({ txList, dueList, accounts }) => {
+        if (cancelled) return;
+        setTransactions(txList);
+        setDues(dueList);
+        setAccounts(accounts);
+      })
+      .catch((err) => console.error("Failed to load payments", err))
+      .finally(() => setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const PER_PAGE = 10;
+
+  const [showForm, setShowForm] = useState(false);
+  // const [showSupplierForm, setShowSupplierForm] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState("");
+  const filterStatus = useMemo(() => "all",[]);
+  const [txPage, setTxPage] = useState(1);
+  const [receivablePage, setReceivablePage] = useState(1);
+  const [duesPage, setDuesPage] = useState(1);
+  const [accountBalancesPage, setAccountBalancesPage] = useState(1);
+  const [accountsPage, setAccountsPage] = useState(1);
+  const [form, setForm] = useState({
+    type: "cash_received" as TransactionType,
+    amount: "",
+    person: "",
+    method: "cash" as PaymentMethod,
+    txId: "",
+    notes: "",
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const filteredTransactions = useMemo(() => {
+    const q = globalSearch.toLowerCase();
+    return transactions.filter((t) =>
+      !q ||
+      typeConfig[t.type].label.toLowerCase().includes(q) ||
+      t.receivedFrom?.toLowerCase().includes(q) ||
+      t.paidTo?.toLowerCase().includes(q) ||
+      t.paymentMethod.toLowerCase().includes(q) ||
+      t.transactionId?.toLowerCase().includes(q) ||
+      t.notes?.toLowerCase().includes(q)
+    );
+  }, [transactions, globalSearch]);
+
+  const filteredDues = useMemo(() => {
+    const q = globalSearch.toLowerCase();
+    return dues.filter((d) => {
+      const isActive = d.status !== "paid" && d.remaining > 0;
+      const matchesSearch = !q || d.personName.toLowerCase().includes(q) || d.role.toLowerCase().includes(q);
+      const matchesStatus = filterStatus === "all" || d.status === filterStatus;
+      return isActive && matchesSearch && matchesStatus;
+    });
+  }, [dues, globalSearch, filterStatus]);
+
+  const analytics = useMemo(() => {
+    let cashReceived = 0, onlineReceived = 0, cashPaid = 0, onlinePaid = 0, expenses = 0;
+    let bankTransfer = 0;
+    filteredTransactions.forEach((t) => {
+      if (t.type === "cash_received") cashReceived += t.amount;
+      if (t.type === "online_received") onlineReceived += t.amount;
+      if (t.type === "cash_paid") cashPaid += t.amount;
+      if (t.type === "online_paid") onlinePaid += t.amount;
+      if (t.type === "expense") expenses += t.amount;
+      if (t.type === "bank_transfer") bankTransfer += t.amount;
+      if (t.type === "refund") {
+        if (t.paymentMethod === "cash") cashPaid += t.amount;
+        else onlinePaid += t.amount;
+      }
+    });
+    const cashBalance = cashReceived - cashPaid - expenses - bankTransfer;
+    const bankBalance = onlineReceived - onlinePaid + bankTransfer;
+    const pendingDue = filteredDues.reduce((acc, d) => acc + d.remaining, 0);
+    const totalDueAll = filteredDues.reduce((acc, d) => acc + d.totalDue, 0);
+    const totalCollected = filteredDues.reduce((acc, d) => acc + d.paid, 0);
+    const customerDues = filteredDues.filter((d) => d.role === "customer").reduce((acc, d) => acc + d.remaining, 0);
+    const customerDueTotal = filteredDues.filter((d) => d.role === "customer").reduce((acc, d) => acc + d.totalDue, 0);
+    const customerDuePaid = filteredDues.filter((d) => d.role === "customer").reduce((acc, d) => acc + d.paid, 0);
+    const supplierDueTotal = filteredDues.filter((d) => d.role !== "customer").reduce((acc, d) => acc + d.totalDue, 0);
+    const supplierDuePaid = filteredDues.filter((d) => d.role !== "customer").reduce((acc, d) => acc + d.paid, 0);
+    const supplierDueRemaining = filteredDues.filter((d) => d.role !== "customer").reduce((acc, d) => acc + d.remaining, 0);
+    return { cashReceived, onlineReceived, cashPaid, onlinePaid, expenses, cashBalance, bankBalance, pendingDue, totalSales: cashReceived + onlineReceived, totalDueAll, totalCollected, customerDues, customerDueTotal, customerDuePaid, supplierDueTotal, supplierDuePaid, supplierDueRemaining };
+  }, [filteredTransactions, filteredDues]);
+
+  async function addTransaction() {
+    const newErrors: Record<string, string> = {};
+    if (!form.amount.toString().trim() || Number(form.amount) <= 0) newErrors.amount = "Amount is required.";
+    if (!form.person.trim()) newErrors.person = "This field is required.";
+    if (Object.keys(newErrors).length > 0) { setFormErrors(newErrors); return; }
+    setFormErrors({});
+    const amount = Number(form.amount);
+    const id = crypto.randomUUID();
+    const newTx: Transaction = {
+      id,
+      type: form.type,
+      amount,
+      receivedFrom: form.type.includes("received") ? form.person : undefined,
+      paidTo: !form.type.includes("received") ? form.person : undefined,
+      paymentMethod: form.method,
+      transactionId: form.txId,
+      notes: form.notes,
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+
+    try {
+      const res = await fetch("/api/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ _kind: "transaction", ...newTx }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Server error (${res.status})`);
+      }
+      setTransactions((prev) => [newTx, ...prev]);
+      await loadPaymentsData();
+      setForm({ type: "cash_received", amount: "", person: "", method: "cash", txId: "", notes: "" });
+      setShowForm(false);
+      // setShowSupplierForm(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to add transaction";
+      setMessage(msg);
+      setMessageType("error");
+    }
+  }
+
+  const [settleDueTarget, setSettleDueTarget] = useState<Due | null>(null);
+  const [settleAmount, setSettleAmount] = useState("");
+  const [settleSelection, setSettleSelection] = useState("cash");
+  const [settlingDue, setSettlingDue] = useState(false);
+  const [settleError, setSettleError] = useState("");
+  const [detailTarget, setDetailTarget] = useState<{ personName: string; dues: Due[] } | null>(null);
+
+  const settleOptions = useMemo(() => {
+    const opts: { value: string; label: string; method: PaymentMethod; accountId: string | null; qrCode: string | null; holderName: string }[] = [
+      { value: "cash", label: "Cash", method: "cash", accountId: null, qrCode: null, holderName: "" },
+    ];
+    accounts
+      .filter((a) => a.status === "active")
+      .forEach((a) => {
+        const methodMap: Record<string, PaymentMethod> = {
+          esewa: "esewa",
+          khalti: "khalti",
+          netbanking: "bank",
+          card: "card",
+        };
+        opts.push({
+          value: a.id,
+          label: `${a.accountName} (${a.method === "netbanking" ? "Net Banking" : a.method})`,
+          method: methodMap[a.method] || "cash",
+          accountId: a.id,
+          qrCode: a.qrCode || null,
+          holderName: a.holderName || "",
+        });
+      });
+    return opts;
+  }, [accounts]);
+
+  const selectedSettleOption = useMemo(
+    () => settleOptions.find((o) => o.value === settleSelection) || settleOptions[0],
+    [settleOptions, settleSelection]
+  );
+
+  function deriveSettlePayment(selection: string) {
+    const opt = settleOptions.find((o) => o.value === selection);
+    if (!opt) return { method: "cash" as PaymentMethod, accountId: null as string | null, accountName: "" };
+    return { method: opt.method, accountId: opt.accountId, accountName: opt.value === "cash" ? "" : opt.label };
+  }
+
+  async function settleDue(d: Due, amount: number) {
+    const amt = Number(amount);
+    if (!amt || amt <= 0) {
+      setSettleError("Enter a valid amount greater than 0");
+      return;
+    }
+    if (amt > d.remaining) {
+      setSettleError(
+        `Amount cannot exceed remaining Rs ${d.remaining.toLocaleString()}`
+      );
+      return;
+    }
+    setSettlingDue(true);
+    setSettleError("");
+    const newPaid = Math.min(d.paid + amt, d.totalDue);
+    const newRemaining = d.totalDue - newPaid;
+    const newStatus =
+      newRemaining === 0 ? "paid" : newPaid > 0 ? "partial" : "pending";
+    const { method: settleMethod, accountId, accountName } = deriveSettlePayment(settleSelection);
+    try {
+      const res = await fetch("/api/payments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            _kind: "settle_due",
+            id: d.id,
+            paid: newPaid,
+            remaining: newRemaining,
+            status: newStatus,
+            paymentMethod: settleMethod,
+            accountId,
+            accountName,
+          }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to settle due");
+      }
+      setDues((prev) =>
+        prev.map((x) =>
+          x.id === d.id
+            ? { ...x, paid: newPaid, remaining: newRemaining, status: newStatus }
+            : x
+        )
+      );
+      await loadPaymentsData();
+      setSettleDueTarget(null);
+      setSettleAmount("");
+    } catch (err) {
+      setSettleError(
+        err instanceof Error ? err.message : "Failed to settle due"
+      );
+    } finally {
+      setSettlingDue(false);
+    }
+  }
+
+  const emptyAccountForm = { accountName: "", holderName: "", method: "esewa", accountNumber: "", phoneNumber: "", bankName: "", branch: "", openingBalance: "", qrCode: "", notes: "" };
+
+  function openAddAccount() {
+    setAccountForm(emptyAccountForm);
+    setEditingAccount(null);
+    setAccountErrors({});
+    setShowAccountForm(true);
+  }
+
+  function openEditAccount(account: PaymentAccount) {
+    setAccountForm({
+      accountName: account.accountName,
+      holderName: account.holderName,
+      method: account.method,
+      accountNumber: account.accountNumber,
+      phoneNumber: account.phoneNumber || "",
+      bankName: account.bankName || "",
+      branch: account.branch || "",
+      openingBalance: String(account.openingBalance),
+      qrCode: account.qrCode || "",
+      notes: account.notes || "",
+    });
+    setEditingAccount(account);
+    setAccountErrors({});
+    setShowAccountForm(true);
+  }
+
+  async function handleSaveAccount() {
+    const newErrors: Record<string, string> = {};
+    if (!accountForm.accountName.trim()) newErrors.accountName = "Account name is required.";
+    if (!accountForm.holderName.trim()) newErrors.holderName = "Holder name is required.";
+    if (!accountForm.accountNumber.trim()) newErrors.accountNumber = "Account number is required.";
+    if (Object.keys(newErrors).length > 0) { setAccountErrors(newErrors); return; }
+    setAccountErrors({});
+    setSavingAccount(true);
+    try {
+      const url = editingAccount ? `/api/payments/accounts/${editingAccount.id}` : "/api/payments/accounts";
+      const method = editingAccount ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...accountForm, openingBalance: Number(accountForm.openingBalance) || 0 }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to save account");
+      }
+      setShowAccountForm(false);
+      setEditingAccount(null);
+      setAccountForm(emptyAccountForm);
+      setMessage(editingAccount ? "Account updated" : "Account created");
+      setMessageType("success");
+      fetchAccounts();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Failed to save account");
+      setMessageType("error");
+    } finally {
+      setSavingAccount(false);
+    }
+  }
+
+  async function handleDeleteAccount(account: PaymentAccount) {
+    try {
+      const res = await fetch(`/api/payments/accounts/${account.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete account");
+      setMessage("Account deleted");
+      setMessageType("success");
+      fetchAccounts();
+    } catch {
+      setMessage("Failed to delete account");
+      setMessageType("error");
+    }
+  }
+
+  async function toggleAccountStatus(account: PaymentAccount) {
+    const newStatus = account.status === "active" ? "inactive" : "active";
+    try {
+      const res = await fetch(`/api/payments/accounts/${account.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error("Failed to update status");
+      setMessage(`Account ${newStatus === "active" ? "activated" : "deactivated"}`);
+      setMessageType("success");
+      fetchAccounts();
+    } catch {
+      setMessage("Failed to update status");
+      setMessageType("error");
+    }
+  }
+
+  async function handleUploadQr(file: File) {
+    setUploadingQr(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload/qr", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Upload failed");
+      }
+      const data = await res.json();
+      setAccountForm((prev) => ({ ...prev, qrCode: data.url }));
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Failed to upload QR code");
+      setMessageType("error");
+    } finally {
+      setUploadingQr(false);
+    }
+  }
+
+  function fetchAccounts() {
+    fetch("/api/payments/accounts")
+      .then((res) => res.json())
+      .then((data) => setAccounts(data.accounts || []))
+      .catch(() => {});
+  }
+
+  const filteredAccounts = useMemo(() => {
+    const q = accountSearch.toLowerCase();
+    return accounts.filter((a) => !q || a.accountName.toLowerCase().includes(q) || a.holderName.toLowerCase().includes(q) || a.accountNumber.toLowerCase().includes(q));
+  }, [accounts, accountSearch]);
+
+  const methodConfig: Record<string, { label: string; icon: typeof CreditCard; color: string; bg: string }> = {
+    esewa: { label: "eSewa", icon: Smartphone, color: "text-green-700", bg: "bg-green-50" },
+    khalti: { label: "Khalti", icon: Smartphone, color: "text-purple-700", bg: "bg-purple-50" },
+    netbanking: { label: "Net Banking", icon: Building2, color: "text-blue-700", bg: "bg-blue-50" },
+    card: { label: "Card", icon: CreditCard, color: "text-orange-700", bg: "bg-orange-50" },
+  };
+
+  const paginatedTx = useMemo(() => filteredTransactions.slice(0, txPage * PER_PAGE), [filteredTransactions, txPage]);
+  const customerGroups = useMemo(() => aggregateDues(filteredDues.filter((d) => d.role === "customer")), [filteredDues]);
+  const supplierGroups = useMemo(() => aggregateDues(filteredDues.filter((d) => d.role !== "customer")), [filteredDues]);
+  const paginatedReceivables = useMemo(() => customerGroups.slice(0, receivablePage * PER_PAGE), [customerGroups, receivablePage]);
+  const paginatedDues = useMemo(() => supplierGroups.slice(0, duesPage * PER_PAGE), [supplierGroups, duesPage]);
+  const paginatedAccountBalances = useMemo(() => accounts.slice(0, accountBalancesPage * PER_PAGE), [accounts, accountBalancesPage]);
+  const paginatedAccounts = useMemo(() => filteredAccounts.slice(0, accountsPage * PER_PAGE), [filteredAccounts, accountsPage]);
+
+  // const hasMoreTx = paginatedTx.length < filteredTransactions.length;
+  // const hasMoreReceivables = paginatedReceivables.length < customerGroups.length;
+  // const hasMoreDues = paginatedDues.length < supplierGroups.length;
+  // const hasMoreAccountBalances = paginatedAccountBalances.length < accounts.length;
+  // const hasMoreAccounts = paginatedAccounts.length < filteredAccounts.length;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen p-4 sm:p-6 space-y-6">
+      {message ? (
+        <p className={`rounded-xl p-3 text-sm ${messageType === "error" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
+          {message}
+        </p>
+      ) : null}
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Payments</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Manage transactions, dues & financial overview</p>
+        </div>
+        <div className="flex items-center flex-wrap gap-3">
+          <div className="relative">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
+            <input
+              placeholder="Search anything..."
+              className="bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 w-full sm:w-56 transition-all"
+              value={globalSearch}
+              onChange={(e) => { setGlobalSearch(e.target.value); setTxPage(1); setReceivablePage(1); setDuesPage(1); }}
+            />
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-white border rounded-full px-4 py-2">
+            <Clock size={14} />
+            {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+          </div>
+          {can("DOWNLOAD_PAYMENTS") && (
+            <button className=" flex gap-2 rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+              <select onChange={(e) => handleDownload(e.target.value)} className="bg-transparent cursor-pointer">
+                <option className="text-black" value="">Export</option>
+                <option className="text-black" value="pdf">PDF</option>
+                <option className="text-black" value="csv">CSV</option>
+                <option className="text-black" value="excel">Excel</option>
+              </select>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-full sm:w-fit flex-wrap">
+        <button
+          onClick={() => setActiveTab("overview")}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "overview" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => setActiveTab("accounts")}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "accounts" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+        >
+          Payment Accounts
+        </button>
+      </div>
+
+      {activeTab === "overview" && (
+      <>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { title: "Cash Balance", value: analytics.cashBalance, icon: Wallet, color: "from-emerald-500 to-emerald-600", change: "", isPositive: analytics.cashBalance >= 0 },
+          { title: "Bank Balance", value: analytics.bankBalance, icon: Building2, color: "from-blue-500 to-blue-600", change: "", isPositive: analytics.bankBalance >= 0 },
+          { title: "Total Received", value: analytics.totalSales, icon: TrendingUp, color: "from-violet-500 to-violet-600", change: "", isPositive: true },
+          { title: "Pending Due", value: analytics.pendingDue, icon: Clock, color: "from-amber-500 to-amber-600", change: "", isPositive: false },
+        ].map((card, i) => {
+          const Icon = card.icon;
+          return (
+            <motion.div
+              key={card.title}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 }}
+              className="relative bg-white rounded-2xl p-5 border border-gray-100 hover:shadow-lg hover:shadow-gray-200/50 transition-all group"
+            >
+              <div className="flex items-start justify-between">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shadow-lg">
+                  <Icon size={18} className="text-black" />
+                </div>
+                {card.change && (
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${card.isPositive ? "text-emerald-600 bg-emerald-50" : "text-red-600 bg-red-50"}`}>
+                    {card.change}
+                  </span>
+                )}
+              </div>
+              <p className="text-gray-400 text-xs mt-3 font-medium">{card.title}</p>
+              <h2 className="text-xl font-bold mt-0.5 tracking-tight">Rs {card.value.toLocaleString()}</h2>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Secondary Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: "Cash Received", value: analytics.cashReceived, color: "text-emerald-600" },
+          { label: "Online Received", value: analytics.onlineReceived, color: "text-blue-600" },
+          { label: "Expenses", value: analytics.expenses, color: "text-red-600" },
+          { label: "Online Paid", value: analytics.onlinePaid, color: "text-orange-600" },
+        ].map((s) => (
+          <div key={s.label} className="bg-white/60 backdrop-blur-sm rounded-xl px-4 py-3 border border-gray-100">
+            <p className="text-xs text-gray-400">{s.label}</p>
+            <p className={`text-sm font-semibold mt-0.5 ${s.color}`}>Rs {s.value.toLocaleString()}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Daily Balances Section */}
+      <DailyBalancesSection transactions={transactions} />
+
+      {/* Account Balances Section */}
+      {accounts.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.14 }}
+          className="bg-white rounded-2xl border border-gray-100"
+        >
+          <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shadow-md">
+                <Building2 size={16} className="text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Payment Account Balances</h3>
+                <p className="text-xs text-gray-400">{accounts.length} accounts</p>
+              </div>
+            </div>
+            <a href="/dashboard/payment/accounts" className="text-xs font-medium text-orange-600">
+              Manage →
+            </a>
+          </div>
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-50">
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Account</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Method</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Opening</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Received</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Paid</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedAccountBalances.map((a, i) => (
+                  <motion.tr
+                    key={a.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors"
+                  >
+                    <td className="px-5 py-4">
+                      <p className="text-sm font-medium">{a.accountName}</p>
+                      <p className="text-xs text-gray-400">{a.holderName}</p>
+                    </td>
+                    <td className="px-5 py-4 text-sm capitalize text-gray-500">{a.method === "netbanking" ? "Net Banking" : a.method}</td>
+                    <td className="px-5 py-4 text-sm text-right">Rs {Number(a.openingBalance).toLocaleString()}</td>
+                    <td className="px-5 py-4 text-sm text-right text-emerald-600">+ Rs {a.totalReceived.toLocaleString()}</td>
+                    <td className="px-5 py-4 text-sm text-right text-red-600">- Rs {a.totalPaid.toLocaleString()}</td>
+                    <td className={`px-5 py-4 text-sm text-right font-bold ${a.closingBalance >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                      Rs {a.closingBalance.toLocaleString()}
+                    </td>
+                  </motion.tr>
+                ))}
+                {accounts.length === 0 && (
+                  <tr><td colSpan={6} className="text-center text-gray-400 py-8 text-sm">No payment accounts</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="p-4 border-t border-gray-50 flex items-center justify-between">
+            <span className="text-xs text-gray-400">
+              Showing {paginatedAccountBalances.length} of {accounts.length}
+            </span>
+            <Pagination total={accounts.length} perPage={PER_PAGE} page={accountBalancesPage} onPage={setAccountBalancesPage} />
+          </div>
+        </motion.div>
+      )}
+
+      {/* Quick Actions — full width */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+      >
+        {!showForm ? (
+          <button
+            onClick={() => setShowForm(true)}
+            className="w-full bg-linear-to-r from-orange-100 to-orange-200 text-black rounded-2xl p-5 flex items-center justify-between hover:shadow-xl hover:shadow-gray-900/10 transition-all group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Plus size={24} className="text-black" />
+              </div>
+              <div className="text-left ">
+                <p className="font-semibold">Record New Transaction</p>
+                <p className="text-sm text-black">Add cash, online payments, expenses & more</p>
+              </div>
+            </div>
+            <ChevronDown size={20} className="text-black group-hover:translate-x-1 transition-transform" />
+          </button>
+        ) : can("CREATE_PAYMENTS") && (
+          <div className="bg-orange-200 rounded-2xl border border-gray-100 p-5">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-semibold">New Transaction</h3>
+              <button onClick={() => { setShowForm(false); setFormErrors({}); }} className="text-xs text-black hover:text-gray-600">Cancel</button>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div>
+                <select className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all w-full" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as TransactionType })}>
+                  <option value="cash_received">Cash Received</option>
+                  <option value="cash_paid">Cash Paid</option>
+                  <option value="online_received">Online Received</option>
+                  <option value="online_paid">Online Paid</option>
+                  <option value="expense">Expense</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="refund">Refund</option>
+                </select>
+              </div>
+              <div>
+                <input placeholder="Amount *" type="number" className={`bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all w-full ${formErrors.amount ? "border-red-400" : "border-gray-200"}`} value={form.amount} onChange={(e) => { setForm({ ...form, amount: e.target.value }); setFormErrors((prev) => { const next = { ...prev }; delete next.amount; return next; }); }} />
+                {formErrors.amount && <p className="mt-1 text-xs text-red-500">{formErrors.amount}</p>}
+              </div>
+              <div>
+                <input placeholder="Received from / Paid to *" className={`bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all w-full ${formErrors.person ? "border-red-400" : "border-gray-200"}`} value={form.person} onChange={(e) => { setForm({ ...form, person: e.target.value }); setFormErrors((prev) => { const next = { ...prev }; delete next.person; return next; }); }} />
+                {formErrors.person && <p className="mt-1 text-xs text-red-500">{formErrors.person}</p>}
+              </div>
+              <select className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value as PaymentMethod })}>
+                <option>cash</option>
+                <option>bank</option>
+                <option>esewa</option>
+                <option>khalti</option>
+                <option>fonepay</option>
+                <option>card</option>
+              </select>
+              <input placeholder="Transaction ID" className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.txId} onChange={(e) => setForm({ ...form, txId: e.target.value })} />
+              <input placeholder="Notes (optional)" className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            </div>
+            {can("CREATE_PAYMENTS") && (
+              <button onClick={addTransaction} className="mt-4 bg-orange-500 text-black text-sm font-medium px-6 py-2.5 rounded-xl hover:bg-orange-300 transition-all">
+                Add Transaction
+              </button>
+            )}
+          </div>
+        )}
+      </motion.div>
+
+      {/* Quick actions for record new suppliers */}
+      {/* <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+      >
+        {!showSupplierForm ? (
+          <button
+            onClick={() => setShowSupplierForm(true)}
+            className="w-full bg-linear-to-r from-orange-100 to-orange-200 text-black rounded-2xl p-5 flex items-center justify-between hover:shadow-xl hover:shadow-gray-900/10 transition-all group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Plus size={24} className="text-black" />
+              </div>
+              <div className="text-left ">
+                <p className="font-semibold">Record New suppliers</p>
+                <p className="text-sm text-black">Add cash, online payments, expenses & more</p>
+              </div>
+            </div>
+            <ChevronDown size={20} className="text-black group-hover:translate-x-1 transition-transform" />
+          </button>
+        ) : can("CREATE_PAYMENTS") && (
+          <div className="bg-orange-200 rounded-2xl border border-gray-100 p-5">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-semibold">New Supplier Transaction</h3>
+              <button onClick={() => setShowSupplierForm(false)} className="text-xs text-black hover:text-gray-600">Cancel</button>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <select className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as TransactionType })}>
+                <option value="cash_paid">Cash Paid</option>
+                <option value="online_paid">Online Paid</option>
+                <option value="bank_transfer">Bank Transfer</option>
+                <option value="wallet_transfer">Wallet Transfer</option>
+              </select>
+              <input placeholder="Amount" type="number" className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+              <input placeholder="Received from / Paid to" className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.person} onChange={(e) => setForm({ ...form, person: e.target.value })} />
+              <select className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value as PaymentMethod })}>
+                <option>cash</option>
+                <option>bank</option>
+                <option>esewa</option>
+                <option>khalti</option>
+                <option>fonepay</option>
+                <option>card</option>
+              </select>
+              <input placeholder="Transaction ID" className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.txId} onChange={(e) => setForm({ ...form, txId: e.target.value })} />
+              <input placeholder="Notes (optional)" className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            </div>
+            {can("CREATE_PAYMENTS") && (
+              <button onClick={addTransaction} className="mt-4 bg-orange-500 text-black text-sm font-medium px-6 py-2.5 rounded-xl hover:bg-orange-300 transition-all">
+                Add Supplier Transaction
+              </button>
+            )}
+          </div>
+        )}
+      </motion.div> */}
+
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Due from Customers similar vatera comment out gareko */}
+        {/* <div className="lg:col-span-1">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-2xl border border-gray-100 overflow-hidden h-full"
+          >
+            <div className="p-5 border-b border-gray-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-linear-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-md">
+                    <Users size={16} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm">Due from Customers</h3>
+                    <p className="text-xs text-gray-400">{filteredDues.filter((d) => d.role === "customer").length} customers</p>
+                  </div>
+                </div>
+                <span className="text-sm font-bold text-rose-600">Rs {analytics.customerDues.toLocaleString()}</span>
+              </div>
+              <div className="mt-4 bg-rose-50 rounded-xl p-3">
+                <div className="flex items-center justify-between text-xs mb-1.5">
+                  <span className="text-gray-500">Collection Rate</span>
+                  <span className="font-semibold text-rose-700">
+                    {analytics.totalDueAll > 0 ? Math.round((analytics.totalCollected / analytics.totalDueAll) * 100) : 0}%
+                  </span>
+                </div>
+                <div className="h-2 bg-white rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${analytics.totalDueAll > 0 ? (analytics.totalCollected / analytics.totalDueAll) * 100 : 0}%` }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    className="h-full bg-to-r from-rose-400 to-rose-600 rounded-full"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="p-4 space-y-2 max-h-[320px] overflow-y-auto">
+              {filteredDues.filter((d) => d.role === "customer").map((d) => {
+                const progress = d.totalDue > 0 ? Math.round((d.paid / d.totalDue) * 100) : 0;
+                const sc = statusConfig[d.status];
+                return (
+                  <div key={d.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors group">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium truncate">{d.orderId ? `${d.personName} (Order #${d.orderId})` : d.personName}</span>
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${sc.color} ${sc.bg}`}>{sc.label}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full">
+                          <div className="h-full bg-to-r from-rose-400 to-rose-500 rounded-full" style={{ width: `${progress}%` }} />
+                        </div>
+                        <span className="text-xs text-gray-400 font-medium whitespace-nowrap">Rs {d.remaining.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {filteredDues.filter((d) => d.role === "customer").length === 0 && (
+                <p className="text-center text-gray-400 text-sm py-6">No customer dues</p>
+              )}
+            </div>
+            <div className="p-4 pt-0">
+              <button className="w-full text-sm font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl py-2.5 transition-colors">
+                View All Customers
+              </button>
+            </div>
+          </motion.div>
+        </div> */}
+
+        {/* Recent Transactions */}
+        <div className="lg:col-span-3">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="bg-white rounded-2xl border border-gray-100"
+          >
+            <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center shadow-md">
+                  <Banknote size={16} className="text-black" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Recent Transactions</h3>
+                  <p className="text-xs text-gray-400">{filteredTransactions.length} entries</p>
+                </div>
+              </div>
+            </div>
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-50">
+                    <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Type</th>
+                    <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Amount</th>
+                    <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">From / To</th>
+                    <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Method</th>
+                    <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedTx.map((t, i) => {
+                    const Icon = typeConfig[t.type].icon;
+                    const PaymentIcon = paymentIcons[t.paymentMethod];
+                    return (
+                      <motion.tr
+                        key={t.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: i * 0.03 }}
+                        className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors"
+                      >
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                              <Icon size={14} className="text-black" />
+                            </div>
+                            <span className="text-sm font-medium">{typeConfig[t.type].label}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className={`text-sm font-semibold ${t.type.includes("received") || t.type === "refund" ? "text-emerald-600" : "text-red-600"}`}>
+                            {t.type.includes("received") || t.type === "refund" ? "+" : "-"}Rs {t.amount.toLocaleString()}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-sm text-gray-600">{t.receivedFrom || t.paidTo || "-"}</td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-1.5">
+                            <PaymentIcon size={12} className="text-black" />
+                            <span className="text-sm capitalize text-gray-500">{t.paymentMethod}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-sm text-gray-400">{t.createdAt}</td>
+                      </motion.tr>
+                    );
+                  })}
+                  {paginatedTx.length === 0 && (
+                    <tr><td colSpan={5} className="text-center text-gray-400 py-8 text-sm">No transactions yet</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="p-4 border-t border-gray-50 flex items-center justify-between">
+              <span className="text-xs text-gray-400">
+                Showing {paginatedTx.length} of {filteredTransactions.length}
+              </span>
+              <Pagination total={filteredTransactions.length} perPage={PER_PAGE} page={txPage} onPage={setTxPage} />
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Receivables & Dues Split */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Receivables - money owed TO the business */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="bg-white rounded-2xl border border-gray-100"
+        >
+          <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center shadow-md">
+                <TrendingUp size={16} className="text-black" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Receivables</h3>
+                <p className="text-xs text-gray-400">Money owed to you</p>
+              </div>
+            </div>
+            <span className="text-sm font-bold text-emerald-600">
+              Rs {analytics.customerDues.toLocaleString()}
+            </span>
+          </div>
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-50">
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Name</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Total</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Paid</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Remaining</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Status</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedReceivables.map((g, i) => {
+                  const sc = statusConfig[g.status];
+                  const firstActive = g.dues.find((d) => d.remaining > 0) ?? g.dues[0];
+                  return (
+                    <motion.tr
+                      key={g.personName}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                      className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors"
+                    >
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-linear-to-br from-emerald-100 to-emerald-200 flex items-center justify-center text-xs font-bold text-emerald-700">
+                            {g.personName.charAt(0)}
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium">{g.personName}</span>
+                            {g.dues.length > 1 && (
+                              <p className="text-xs text-gray-400">{g.dues.length} orders</p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-sm font-semibold">Rs {g.totalDue.toLocaleString()}</td>
+                      <td className="px-5 py-4 text-sm text-emerald-600 font-medium">Rs {g.totalPaid.toLocaleString()}</td>
+                      <td className="px-5 py-4 text-sm font-semibold">Rs {g.totalRemaining.toLocaleString()}</td>
+                      <td className="px-5 py-4">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${sc.color} ${sc.bg} flex items-center gap-1.5 w-fit`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                          {sc.label}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-right flex items-center justify-end gap-3">
+                        <button
+                          onClick={() => setDetailTarget({ personName: g.personName, dues: dues.filter((x) => x.personName === g.personName) })}
+                          title="View details"
+                          className="text-gray-400 hover:text-orange-600"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        {g.totalRemaining > 0 && can("UPDATE_PAYMENTS") && (
+                          <button
+                            onClick={() => {
+                              setSettleDueTarget(firstActive);
+                              setSettleAmount("");
+                              setSettleSelection("cash");
+                              setSettleError("");
+                            }}
+                            className="text-xs font-semibold text-orange-600 hover:text-orange-700"
+                          >
+                            Settle
+                          </button>
+                        )}
+                      </td>
+                    </motion.tr>
+                  );
+                })}
+                {customerGroups.length === 0 && (
+                  <tr><td colSpan={6} className="text-center text-gray-400 py-8 text-sm">No receivables</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="p-4 border-t border-gray-50 flex items-center justify-between">
+            <span className="text-xs text-gray-400">
+              Showing {paginatedReceivables.length} of {customerGroups.length}
+            </span>
+            <Pagination total={customerGroups.length} perPage={PER_PAGE} page={receivablePage} onPage={setReceivablePage} />
+          </div>
+        </motion.div>
+
+        {/* Dues - money the business owes */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-white rounded-2xl border border-gray-100"
+        >
+          <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center shadow-md">
+                <Clock size={16} className="text-black" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Dues (Payables)</h3>
+                <p className="text-xs text-gray-400">Money you owe</p>
+              </div>
+            </div>
+            <span className="text-sm font-bold text-amber-600">
+              Rs {analytics.supplierDueRemaining.toLocaleString()}
+            </span>
+          </div>
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-50">
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Name</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Total</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Paid</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Remaining</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Status</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedDues.map((g, i) => {
+                  const sc = statusConfig[g.status];
+                  const firstActive = g.dues.find((d) => d.remaining > 0) ?? g.dues[0];
+                  return (
+                    <motion.tr
+                      key={g.personName}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                      className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors"
+                    >
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-linear-to-br from-amber-100 to-amber-200 flex items-center justify-center text-xs font-bold text-amber-700">
+                            {g.personName.charAt(0)}
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium">{g.personName}</span>
+                            {g.dues.length > 1 && (
+                              <p className="text-xs text-gray-400">{g.dues.length} orders</p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-sm font-semibold">Rs {g.totalDue.toLocaleString()}</td>
+                      <td className="px-5 py-4 text-sm text-emerald-600 font-medium">Rs {g.totalPaid.toLocaleString()}</td>
+                      <td className="px-5 py-4 text-sm font-semibold">Rs {g.totalRemaining.toLocaleString()}</td>
+                      <td className="px-5 py-4">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${sc.color} ${sc.bg} flex items-center gap-1.5 w-fit`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                          {sc.label}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-right flex items-center justify-end gap-3">
+                        <button
+                          onClick={() => setDetailTarget({ personName: g.personName, dues: dues.filter((x) => x.personName === g.personName) })}
+                          title="View details"
+                          className="text-gray-400 hover:text-orange-600"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        {g.totalRemaining > 0 && can("UPDATE_PAYMENTS") && (
+                          <button
+                            onClick={() => {
+                              setSettleDueTarget(firstActive);
+                              setSettleAmount("");
+                              setSettleSelection("cash");
+                              setSettleError("");
+                            }}
+                            className="text-xs font-semibold text-orange-600 hover:text-orange-700"
+                          >
+                            Settle
+                          </button>
+                        )}
+                      </td>
+                    </motion.tr>
+                  );
+                })}
+                {supplierGroups.length === 0 && (
+                  <tr><td colSpan={6} className="text-center text-gray-400 py-8 text-sm">No dues</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="p-4 border-t border-gray-50 flex items-center justify-between">
+            <span className="text-xs text-gray-400">
+              Showing {paginatedDues.length} of {supplierGroups.length}
+            </span>
+            <Pagination total={supplierGroups.length} perPage={PER_PAGE} page={duesPage} onPage={setDuesPage} />
+          </div>
+        </motion.div>
+      </div>
+      </>
+      )}
+
+      {/* Accounts Tab */}
+      {activeTab === "accounts" && (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold">Payment Accounts</h2>
+            <p className="text-sm text-gray-500">Manage online payment accounts and track balances</p>
+          </div>
+          {can("CREATE_PAYMENTS") && (
+            <button onClick={openAddAccount} className="flex items-center whitespace-nowrap gap-1 bg-orange-500 text-white px-2 md:px-5 py-2.5 rounded-xl text-[12px] md:text-sm font-semibold hover:bg-orange-600 transition-colors">
+                <Plus size={16} /> Add Account
+            </button>
+          )}
+        </div>
+
+        {/* Account Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-2xl p-5 border border-gray-100">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center mb-3"><Landmark size={18} className="text-blue-600" /></div>
+            <p className="text-gray-400 text-xs font-medium">Total Accounts</p>
+            <h3 className="text-xl font-bold mt-0.5">{accounts.length}</h3>
+          </div>
+          <div className="bg-white rounded-2xl p-5 border border-gray-100">
+            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center mb-3"><Power size={18} className="text-green-600" /></div>
+            <p className="text-gray-400 text-xs font-medium">Active Accounts</p>
+            <h3 className="text-xl font-bold mt-0.5">{accounts.filter((a) => a.status === "active").length}</h3>
+          </div>
+          <div className="bg-white rounded-2xl p-5 border border-gray-100">
+            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center mb-3"><CreditCard size={18} className="text-orange-600" /></div>
+            <p className="text-gray-400 text-xs font-medium">Total Balance</p>
+            <h3 className={`text-xl font-bold mt-0.5 ${accounts.reduce((s, a) => s + a.closingBalance, 0) >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+              Rs {accounts.reduce((s, a) => s + a.closingBalance, 0).toLocaleString()}
+            </h3>
+          </div>
+        </div>
+
+        {/* Account Search */}
+        <div className="relative max-w-sm">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
+          <input placeholder="Search accounts..." className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountSearch} onChange={(e) => { setAccountSearch(e.target.value); setAccountsPage(1); }} />
+        </div>
+
+        {/* Accounts Table */}
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-50">
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Account</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Method</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Account Number</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Opening</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Received</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Closing</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Status</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedAccounts.map((account) => {
+                  const mc = methodConfig[account.method] || methodConfig.esewa;
+                  const Icon = mc.icon;
+                  return (
+                    <tr key={account.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          {account.qrCode && <img src={account.qrCode} alt="QR" className="w-8 h-8 rounded object-contain" />}
+                          <div>
+                            <p className="text-sm font-medium">{account.accountName}</p>
+                            <p className="text-xs text-gray-400">{account.holderName}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${mc.color} ${mc.bg}`}>
+                          <Icon size={12} /> {mc.label}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-sm font-mono text-gray-600">{account.accountNumber}</td>
+                      <td className="px-5 py-4 text-sm text-right">Rs {Number(account.openingBalance).toLocaleString()}</td>
+                      <td className="px-5 py-4 text-sm text-right text-emerald-600 font-medium">+ Rs {account.totalReceived.toLocaleString()}</td>
+                      <td className={`px-5 py-4 text-sm text-right font-bold ${account.closingBalance >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                        Rs {account.closingBalance.toLocaleString()}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${account.status === "active" ? "text-emerald-700 bg-emerald-50" : "text-gray-500 bg-gray-100"}`}>
+                          {account.status === "active" ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => toggleAccountStatus(account)} className="p-1.5 rounded-lg transition-colors" title={account.status === "active" ? "Deactivate" : "Activate"}>
+                            <Power size={14} className={account.status === "active" ? "text-green-600" : "text-gray-400"} />
+                          </button>
+                          {can("UPDATE_PAYMENTS") && (
+                             <button onClick={() => openEditAccount(account)} className="p-1.5 rounded-lg transition-colors" title="Edit">
+                              <Edit size={14} className="text-gray-500" />
+                            </button>
+                          )}
+                           {can("DELETE_PAYMENTS") && (
+                             <button onClick={async () => {
+                               const ok = await confirm({
+                                 title: "Delete Account",
+                                 message: `Are you sure you want to delete ${account.accountName}?`,
+                                 confirmText: "Delete",
+                                 variant: "danger",
+                               });
+                               if (ok) handleDeleteAccount(account);
+                             }} className="p-1.5 rounded-lg transition-colors" title="Delete">
+                              <Trash2 size={14} className="text-red-400" />
+                            </button>
+                           )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredAccounts.length === 0 && (
+                  <tr><td colSpan={8} className="text-center text-gray-400 py-8 text-sm">No payment accounts found</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="p-4 border-t border-gray-50 flex items-center justify-between">
+            <span className="text-xs text-gray-400">
+              Showing {paginatedAccounts.length} of {filteredAccounts.length}
+            </span>
+            <Pagination total={filteredAccounts.length} perPage={PER_PAGE} page={accountsPage} onPage={setAccountsPage} />
+          </div>
+        </div>
+      </div>
+      )}
+
+      {/* Add/Edit Account Modal */}
+      {showAccountForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-[95vw] sm:max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-bold mb-4">{editingAccount ? "Edit Account" : "Add Payment Account"}</h2>
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveAccount(); }} noValidate className="space-y-4">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Account Name *</label>
+                  <input type="text" placeholder="e.g. Ram's eSewa" className={`w-full bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 ${accountErrors.accountName ? "border-red-400" : "border-gray-200"}`} value={accountForm.accountName} onChange={(e) => { setAccountForm({ ...accountForm, accountName: e.target.value }); setAccountErrors((prev) => { const next = { ...prev }; delete next.accountName; return next; }); }} />
+                  {accountErrors.accountName && <p className="mt-1 text-xs text-red-500">{accountErrors.accountName}</p>}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Holder Name *</label>
+                  <input type="text" placeholder="e.g. Ram Shrestha" className={`w-full bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 ${accountErrors.holderName ? "border-red-400" : "border-gray-200"}`} value={accountForm.holderName} onChange={(e) => { setAccountForm({ ...accountForm, holderName: e.target.value }); setAccountErrors((prev) => { const next = { ...prev }; delete next.holderName; return next; }); }} />
+                  {accountErrors.holderName && <p className="mt-1 text-xs text-red-500">{accountErrors.holderName}</p>}
+                </div>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Method *</label>
+                  <select className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.method} onChange={(e) => setAccountForm({ ...accountForm, method: e.target.value })}>
+                    <option value="esewa">eSewa</option>
+                    <option value="khalti">Khalti</option>
+                    <option value="netbanking">Net Banking</option>
+                    <option value="card">Card</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Account Number / ID *</label>
+                  <input type="text" placeholder="Phone or account ID" className={`w-full bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 ${accountErrors.accountNumber ? "border-red-400" : "border-gray-200"}`} value={accountForm.accountNumber} onChange={(e) => { setAccountForm({ ...accountForm, accountNumber: e.target.value }); setAccountErrors((prev) => { const next = { ...prev }; delete next.accountNumber; return next; }); }} />
+                  {accountErrors.accountNumber && <p className="mt-1 text-xs text-red-500">{accountErrors.accountNumber}</p>}
+                </div>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Phone Number</label>
+                  <input type="text" placeholder="Optional" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.phoneNumber} onChange={(e) => setAccountForm({ ...accountForm, phoneNumber: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Opening Balance (Rs)</label>
+                  <input type="number" min="0" step="0.01" placeholder="0" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.openingBalance} onChange={(e) => setAccountForm({ ...accountForm, openingBalance: e.target.value })} />
+                </div>
+              </div>
+              {(accountForm.method === "netbanking" || accountForm.method === "card") && (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Bank Name</label>
+                    <input type="text" placeholder="Optional" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.bankName} onChange={(e) => setAccountForm({ ...accountForm, bankName: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Branch</label>
+                    <input type="text" placeholder="Optional" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.branch} onChange={(e) => setAccountForm({ ...accountForm, branch: e.target.value })} />
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">QR Code</label>
+                {accountForm.qrCode ? (
+                  <div className="relative inline-block">
+                    <img src={accountForm.qrCode} alt="QR Code" className="w-32 h-32 object-contain rounded-xl border border-gray-200" />
+                    <button type="button" onClick={() => setAccountForm({ ...accountForm, qrCode: "" })} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center"><X size={12} /></button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-orange-400 transition-colors">
+                    <Upload size={20} className="text-gray-400 mb-1" />
+                    <span className="text-xs text-gray-400">{uploadingQr ? "Uploading..." : "Upload QR"}</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden" disabled={uploadingQr} onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadQr(file); }} />
+                  </label>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Notes</label>
+                <textarea placeholder="Optional notes" rows={2} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" value={accountForm.notes} onChange={(e) => setAccountForm({ ...accountForm, notes: e.target.value })} />
+              </div>
+            </form>
+            <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
+              <button onClick={() => { setShowAccountForm(false); setEditingAccount(null); setAccountErrors({}); }} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+              <button onClick={handleSaveAccount} disabled={savingAccount} className="rounded-lg bg-orange-500 px-5 py-2 text-sm text-white font-semibold hover:bg-orange-600 disabled:opacity-50">{savingAccount ? "Saving..." : editingAccount ? "Update" : "Create"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {settleDueTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-bold mb-1">Settle Due</h2>
+            <p className="text-xs text-gray-500 mb-4">
+              {settleDueTarget.personName}
+              {settleDueTarget.orderId
+                ? ` (Order #${settleDueTarget.orderId})`
+                : ""}
+            </p>
+            <div className="mb-3 text-sm text-gray-600">
+              Remaining:{" "}
+              <span className="font-semibold text-amber-600">
+                Rs {settleDueTarget.remaining.toLocaleString()}
+              </span>
+            </div>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Amount to settle"
+              className={`w-full bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 ${
+                settleError ? "border-red-400" : "border-gray-200"
+              }`}
+              value={settleAmount}
+              onChange={(e) => {
+                setSettleAmount(e.target.value);
+                setSettleError("");
+              }}
+            />
+            <div className="mt-3">
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Payment Method
+              </label>
+              <select
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                value={settleSelection}
+                onChange={(e) => setSettleSelection(e.target.value)}
+              >
+                {settleOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.value === "cash" ? "Cash" : o.label}
+                  </option>
+                ))}
+              </select>
+              {selectedSettleOption?.value !== "cash" && selectedSettleOption?.qrCode && (
+                <div className="mt-3 flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <img src={selectedSettleOption.qrCode} alt={`${selectedSettleOption.label} QR`} className="h-24 w-24 rounded-lg border border-gray-200 object-contain" />
+                  <div className="text-sm">
+                    <p className="font-medium text-gray-700">{selectedSettleOption.label}</p>
+                    {selectedSettleOption.holderName && (
+                      <p className="text-xs text-gray-500">Holder: {selectedSettleOption.holderName}</p>
+                    )}
+                    <p className="text-xs text-gray-400">Scan to receive payment</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            {settleError && (
+              <p className="mt-1 text-xs text-red-500">{settleError}</p>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setSettleDueTarget(null);
+                  setSettleAmount("");
+                  setSettleSelection("cash");
+                  setSettleError("");
+                }}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => settleDue(settleDueTarget, Number(settleAmount))}
+                disabled={settlingDue}
+                className="rounded-lg bg-orange-500 px-5 py-2 text-sm text-white font-semibold hover:bg-orange-600 disabled:opacity-50"
+              >
+                {settlingDue ? "Settling..." : "Settle"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {detailTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold">{detailTarget.personName}</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Receivable details</p>
+              </div>
+              <button
+                onClick={() => setDetailTarget(null)}
+                className="text-gray-400 hover:text-gray-600"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mb-4 grid grid-cols-3 gap-3">
+              <div className="rounded-xl bg-gray-50 p-3 text-center">
+                <p className="text-xs text-gray-400">Total</p>
+                <p className="text-sm font-bold">Rs {detailTarget.dues.reduce((s, d) => s + d.totalDue, 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-3 text-center">
+                <p className="text-xs text-gray-400">Paid</p>
+                <p className="text-sm font-bold text-emerald-600">Rs {detailTarget.dues.reduce((s, d) => s + d.paid, 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-3 text-center">
+                <p className="text-xs text-gray-400">Left</p>
+                <p className="text-sm font-bold text-amber-600">Rs {detailTarget.dues.reduce((s, d) => s + d.remaining, 0).toLocaleString()}</p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-50 text-left">
+                    <th className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">Order ID</th>
+                    <th className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">Left</th>
+                    <th className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">Paid</th>
+                    <th className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">Date</th>
+                    <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detailTarget.dues.map((d) => {
+                    const sc = statusConfig[d.status];
+                    return (
+                      <tr key={d.id} className="border-b border-gray-50 last:border-0">
+                        <td className="px-3 py-3 text-sm font-medium">{d.orderId ? `#${d.orderId}` : "—"}</td>
+                        <td className="px-3 py-3 text-sm font-semibold text-amber-600">Rs {d.remaining.toLocaleString()}</td>
+                        <td className="px-3 py-3 text-sm text-emerald-600">Rs {d.paid.toLocaleString()}</td>
+                        <td className="px-3 py-3 text-sm text-gray-500">{d.createdAt || "—"}</td>
+                        <td className="px-3 py-3 text-right">
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${sc.color} ${sc.bg}`}>{sc.label}</span>
+                          {d.remaining > 0 && can("UPDATE_PAYMENTS") && (
+                            <button
+                              onClick={() => {
+                                setSettleDueTarget(d);
+                                setSettleAmount("");
+                                setSettleSelection("cash");
+                                setSettleError("");
+                                setDetailTarget(null);
+                              }}
+                              className="block mt-1.5 text-xs font-semibold text-orange-600 hover:text-orange-700"
+                            >
+                              Settle
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}

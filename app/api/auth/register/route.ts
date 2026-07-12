@@ -7,6 +7,7 @@ import { pendingRegistrations } from "@/db/schemas";
 import { eq } from "drizzle-orm";
 import { hashPassword } from "@/lib/auth";
 import { sendOtpEmail } from "@/lib/email";
+import { rateLimit, getClientIdentifier } from "@/lib/rateLimit";
 
 type RegisterPayload = {
   name?: string;
@@ -23,6 +24,17 @@ function clean(value: unknown) {
 }
 
 export async function POST(request: Request) {
+  const limit = rateLimit(getClientIdentifier(request, "register"), {
+    windowMs: 10 * 60 * 1000,
+    max: 5,
+  });
+  if (!limit.success) {
+    return NextResponse.json(
+      { error: "Too many registration attempts. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfter) } },
+    );
+  }
+
   const payload = (await request.json()) as RegisterPayload;
   const name = clean(payload.name);
   const email = clean(payload.email).toLowerCase();

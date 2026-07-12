@@ -13,6 +13,7 @@ import {
 import type { NewCategory } from "@/db/schemas";
 import { createActivityLog } from "@/db/services/activity-logs";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
+import { cacheHeaders } from "@/lib/apiCache";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
     const activeOnly = searchParams.get("active") === "true";
 
     const categories = activeOnly ? await getActiveCategories() : await getCategories();
-    return NextResponse.json({ categories });
+    return NextResponse.json({ categories }, { headers: cacheHeaders() });
   } catch (error) {
     console.error("Failed to load categories", error);
     return NextResponse.json({ error: "Unable to load categories" }, { status: 500 });

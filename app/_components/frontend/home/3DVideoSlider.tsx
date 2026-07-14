@@ -3,54 +3,80 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const cards = [
+const defaultCards = [
   {
     title: "Classic Burger",
     desc: "Juicy beef patty with fresh lettuce, tomato, and our secret sauce.",
     image:
       "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=1200",
+    video: null as string | null,
   },
   {
     title: "Pepperoni Pizza",
     desc: "Loaded with mozzarella and premium pepperoni on a crispy crust.",
     image:
       "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=1200",
+    video: null as string | null,
   },
   {
     title: "Chicken Tacos",
     desc: "Spiced chicken with salsa, guacamole, and sour cream in a warm tortilla.",
     image:
       "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?q=80&w=1200",
+    video: null as string | null,
   },
   {
     title: "Grilled Salmon",
     desc: "Perfectly seared salmon fillet with lemon butter and herbs.",
     image:
       "https://images.unsplash.com/photo-1467003909585-2f8a72700288?q=80&w=1200",
+    video: null as string | null,
   },
   {
     title: "Caesar Salad",
     desc: "Crisp romaine, parmesan, croutons, and creamy Caesar dressing.",
     image:
       "https://images.unsplash.com/photo-1546793665-c74683f339c1?q=80&w=1200",
+    video: null as string | null,
   },
   {
     title: "Chocolate Lava",
     desc: "Warm molten chocolate cake with vanilla ice cream.",
     image:
       "https://images.unsplash.com/photo-1624353365286-3f8d62daad51?q=80&w=1200",
+    video: null as string | null,
   },
   {
     title: "Iced Latte",
     desc: "Rich espresso over chilled milk with a smooth finish.",
     image:
       "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?q=80&w=1200",
+    video: null as string | null,
   },
 ];
 
 export default function Home() {
   const [active, setActive] = useState(2);
   const [isMobile, setIsMobile] = useState(false);
+  const [cards, setCards] = useState(defaultCards);
+
+  useEffect(() => {
+    fetch("/api/site-settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.home3dSliderVideos) && data.home3dSliderVideos.length > 0) {
+          const videoCards = data.home3dSliderVideos.map((v: { url: string; title: string; desc: string }) => ({
+            title: v.title || "Featured Video",
+            desc: v.desc || "",
+            image: "",
+            video: v.url,
+          }));
+          setCards(videoCards);
+          setActive(0);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640);
@@ -99,8 +125,12 @@ export default function Home() {
                 `}
                 onClick={() => setActive(cardIndex)}
               >
-                {/* Background video */}
-                <video src="/burger.mp4" autoPlay loop muted playsInline preload="none" className="absolute inset-0 h-full w-full object-cover" />
+                {/* Background video or image */}
+                {card.video ? (
+                  <video src={card.video} autoPlay loop muted playsInline preload="none" className="absolute inset-0 h-full w-full object-cover" />
+                ) : (
+                  <img src={card.image} alt={card.title} className="absolute inset-0 h-full w-full object-cover" />
+                )}
 
                 {/* Dark overlay */}
                 <div className="absolute inset-0 bg-linear-to-t from-black via-black/50 to-transparent" />

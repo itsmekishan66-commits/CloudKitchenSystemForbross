@@ -5,6 +5,7 @@ import { getUserPermissions } from "@/lib/getUserPermissions";
 import { PermissionsProvider } from "@/lib/permission-context";
 import { ConfirmProvider } from "@/app/_components/ConfirmPopup";
 import { Toaster } from "react-hot-toast";
+import { rolePermissions, type Role } from "@/lib/rbac";
 
 export default async function SuperAdminLayout({
     children,
@@ -17,7 +18,12 @@ export default async function SuperAdminLayout({
         redirect("/login");
     }
 
-    const userPermissions = await getUserPermissions(user.id);
+    let userPermissions = await getUserPermissions(user.id);
+
+    if (userPermissions.length === 0) {
+      const staticPerms = rolePermissions[user.role as Role] ?? [];
+      userPermissions = staticPerms.map(p => String(p));
+    }
 
     return (
         <>

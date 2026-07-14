@@ -77,6 +77,7 @@ async function main() {
 
     const roleId = await getRoleIdByName(user.role);
 
+
     await createUser({
       name: user.name,
       email,

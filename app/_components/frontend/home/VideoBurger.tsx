@@ -1,12 +1,34 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+
+const DEFAULT_VIDEO = "/burger2.mp4";
 
 export default function VideoBurger() {
     const videoRef = useRef<HTMLVideoElement>(null);
+    const [videoSrc, setVideoSrc] = useState(DEFAULT_VIDEO);
+    const [title, setTitle] = useState("");
+    const [desc, setDesc] = useState("");
+
+    useEffect(() => {
+        fetch("/api/site-settings")
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.homeVideoBurger?.url) {
+                    setVideoSrc(data.homeVideoBurger.url);
+                }
+                if (data.homeVideoBurger?.title) {
+                    setTitle(data.homeVideoBurger.title);
+                }
+                if (data.homeVideoBurger?.desc) {
+                    setDesc(data.homeVideoBurger.desc);
+                }
+            })
+            .catch(() => {});
+    }, []);
 
     useEffect(() => {
         if (videoRef.current) videoRef.current.playbackRate = 0.5;
-    }, []);
+    }, [videoSrc]);
 
     return (
         <section className="relative w-full bg-black py-10 overflow-hidden">
@@ -16,11 +38,10 @@ export default function VideoBurger() {
                         Made Fresh
                     </span>
                     <h3 className="text-white text-2xl md:text-3xl lg:text-5xl font-bold leading-tight">
-                        Every ingredient stacked with <br /> love and perfection
+                        {title || "Every ingredient stacked with love and perfection"}
                     </h3>
                     <p className="text-gray-400 text-md max-w-2xl mx-auto">
-                        From farm-fresh produce to artisan buns — each layer is carefully selected
-                        to bring you the ultimate burger experience.
+                        {desc || "From farm-fresh produce to artisan buns — each layer is carefully selected to bring you the ultimate burger experience."}
                     </p>
                 </div>
 
@@ -39,7 +60,7 @@ export default function VideoBurger() {
 
                     <video
                         ref={videoRef}
-                        src="/burger2.mp4"
+                        src={videoSrc}
                         autoPlay
                         loop
                         muted

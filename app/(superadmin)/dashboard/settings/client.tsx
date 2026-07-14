@@ -1,6 +1,6 @@
 "use client";
 // import { CircleArrowDown } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   User,
   Store,
@@ -10,6 +10,7 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { usePermissions } from "@/lib/permission-context";
+import toast from "react-hot-toast";
 
 const cardClass =
   "bg-white rounded-2xl shadow-sm border border-gray-100 p-6";
@@ -17,12 +18,25 @@ const cardClass =
 const inputClass =
   "w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100";
 
+function Msg({ messages, section }: { messages: Record<string, string>; section: string }) {
+  const msg = messages[section];
+  if (!msg) return null;
+  const isError = msg.startsWith("✗");
+  const isNeutral = msg === "No changes";
+  return (
+    <span className={`text-sm ${isError ? "text-red-500" : isNeutral ? "text-gray-400" : "text-green-600"}`}>
+      {msg}
+    </span>
+  );
+}
+
 export default function SettingsClient() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [messages, setMessages] = useState<Record<string, string>>({});
+  const initial = useRef<Record<string, unknown>>({});
 
   // Admin profile
   const [name, setName] = useState("");
@@ -53,6 +67,22 @@ export default function SettingsClient() {
   const [hoursWeekday, setHoursWeekday] = useState("");
   const [hoursSaturday, setHoursSaturday] = useState("");
   const [hoursSunday, setHoursSunday] = useState("");
+
+  // Homepage Videos
+  const [homeVideoBurgerUrl, setHomeVideoBurgerUrl] = useState("");
+  const [homeVideoBurgerTitle, setHomeVideoBurgerTitle] = useState("");
+  const [homeVideoBurgerDesc, setHomeVideoBurgerDesc] = useState("");
+  const [homeVideoBurgerFile, setHomeVideoBurgerFile] = useState<File | null>(null);
+  const [sliderVideos, setSliderVideos] = useState<{ url: string; title: string; desc: string }[]>([
+    { url: "", title: "", desc: "" },
+    { url: "", title: "", desc: "" },
+    { url: "", title: "", desc: "" },
+    { url: "", title: "", desc: "" },
+    { url: "", title: "", desc: "" },
+  ]);
+  const [sliderVideoFiles, setSliderVideoFiles] = useState<(File | null)[]>([
+    null, null, null, null, null,
+  ]);
   
   //to download the file
   // const [open, setOpen] = useState(false);
@@ -67,70 +97,139 @@ export default function SettingsClient() {
     fetch("/api/superadmin/settings")
       .then((res) => res.json())
       .then((data) => {
-        if (!data.error) {
-          setName(data.superAdminName ?? "");
-          setEmail(data.superAdminEmail ?? "");
-          setPhone(data.superAdminPhone ?? "");
-          setAddress(data.superAdminAddress ?? "");
-          setRestaurantName(data.appName ?? "");
-          setLogoPreview(data.logo ?? "");
-          setContactEmail(data.contactEmail ?? "");
-          setContactPhone(data.contactPhone ?? "");
-          setLocation(data.location ?? "");
+        if (data.error) return;
 
-          const ac = data.aboutContent;
-          if (ac) {
-            setHeroBadge(ac.heroBadge || "");
-            setHeroDescription(ac.heroDescription || "");
-            setStoryTitle(ac.storyTitle || "");
-            setStoryParagraphs(
-              Array.isArray(ac.storyParagraphs)
-                ? ac.storyParagraphs.join("\n\n")
-                : ""
-            );
-          }
+        const sv = data.home3dSliderVideos;
+        const padded = Array.isArray(sv) && sv.length > 0
+          ? sv.concat(Array(Math.max(0, 5 - sv.length)).fill({ url: "", title: "", desc: "" })).slice(0, 5)
+          : [{ url: "", title: "", desc: "" }, { url: "", title: "", desc: "" }, { url: "", title: "", desc: "" }, { url: "", title: "", desc: "" }, { url: "", title: "", desc: "" }];
 
-          const cc = data.contactContent;
-          if (cc) {
-            setContactHeroBadge(cc.heroBadge || "");
-            setContactHeroDescription(cc.heroDescription || "");
-            setHoursWeekday(cc.hoursWeekday || "");
-            setHoursSaturday(cc.hoursSaturday || "");
-            setHoursSunday(cc.hoursSunday || "");
-            setDeliveryAreas(
-              Array.isArray(cc.deliveryAreas)
-                ? cc.deliveryAreas.join(", ")
-                : ""
-            );
-          }
+        initial.current = {
+          name: data.superAdminName ?? "",
+          email: data.superAdminEmail ?? "",
+          phone: data.superAdminPhone ?? "",
+          address: data.superAdminAddress ?? "",
+          restaurantName: data.appName ?? "",
+          logoPreview: data.logo ?? "",
+          contactEmail: data.contactEmail ?? "",
+          contactPhone: data.contactPhone ?? "",
+          location: data.location ?? "",
+          deliveryAreas: Array.isArray(data.contactContent?.deliveryAreas) ? data.contactContent.deliveryAreas.join(", ") : "",
+          heroBadge: data.aboutContent?.heroBadge || "",
+          heroDescription: data.aboutContent?.heroDescription || "",
+          storyTitle: data.aboutContent?.storyTitle || "",
+          storyParagraphs: Array.isArray(data.aboutContent?.storyParagraphs) ? data.aboutContent.storyParagraphs.join("\n\n") : "",
+          contactHeroBadge: data.contactContent?.heroBadge || "",
+          contactHeroDescription: data.contactContent?.heroDescription || "",
+          hoursWeekday: data.contactContent?.hoursWeekday || "",
+          hoursSaturday: data.contactContent?.hoursSaturday || "",
+          hoursSunday: data.contactContent?.hoursSunday || "",
+          homeVideoBurgerUrl: data.homeVideoBurger?.url || "",
+          homeVideoBurgerTitle: data.homeVideoBurger?.title || "",
+          homeVideoBurgerDesc: data.homeVideoBurger?.desc || "",
+          sliderVideos: JSON.stringify(padded),
+        };
+
+        setName(data.superAdminName ?? "");
+        setEmail(data.superAdminEmail ?? "");
+        setPhone(data.superAdminPhone ?? "");
+        setAddress(data.superAdminAddress ?? "");
+        setRestaurantName(data.appName ?? "");
+        setLogoPreview(data.logo ?? "");
+        setContactEmail(data.contactEmail ?? "");
+        setContactPhone(data.contactPhone ?? "");
+        setLocation(data.location ?? "");
+
+        const ac = data.aboutContent;
+        if (ac) {
+          setHeroBadge(ac.heroBadge || "");
+          setHeroDescription(ac.heroDescription || "");
+          setStoryTitle(ac.storyTitle || "");
+          setStoryParagraphs(Array.isArray(ac.storyParagraphs) ? ac.storyParagraphs.join("\n\n") : "");
+        }
+
+        const cc = data.contactContent;
+        if (cc) {
+          setContactHeroBadge(cc.heroBadge || "");
+          setContactHeroDescription(cc.heroDescription || "");
+          setHoursWeekday(cc.hoursWeekday || "");
+          setHoursSaturday(cc.hoursSaturday || "");
+          setHoursSunday(cc.hoursSunday || "");
+          setDeliveryAreas(Array.isArray(cc.deliveryAreas) ? cc.deliveryAreas.join(", ") : "");
+        }
+
+        if (data.homeVideoBurger) {
+          setHomeVideoBurgerUrl(data.homeVideoBurger.url || "");
+          setHomeVideoBurgerTitle(data.homeVideoBurger.title || "");
+          setHomeVideoBurgerDesc(data.homeVideoBurger.desc || "");
+        }
+        setHomeVideoBurgerFile(null);
+        if (Array.isArray(sv) && sv.length > 0) {
+          setSliderVideos(padded);
         }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleSave() {
-    setSaving(true);
-    setMessage("");
+  async function saveSection(section: string, body: FormData | object) {
+    setSaving(prev => ({ ...prev, [section]: true }));
+    setMessages(prev => ({ ...prev, [section]: "" }));
 
     try {
-      const formData = new FormData();
+      const isFormData = body instanceof FormData;
+      const res = await fetch("/api/superadmin/settings", {
+        method: "PATCH",
+        ...(isFormData ? { body } : {
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }),
+      });
 
-      formData.append("name", name);
-      formData.append("email", email);
-      formData.append("phone", phone);
-      formData.append("address", address);
-
-      formData.append("restaurantName", restaurantName);
-      formData.append("contactEmail", contactEmail);
-      formData.append("contactPhone", contactPhone);
-      formData.append("location", location);
-
-      if (logo) {
-        formData.append("logo", logo);
+      const data = await res.json();
+      if (data.error) {
+        setMessages(prev => ({ ...prev, [section]: data.error }));
+      } else {
+        setMessages(prev => ({ ...prev, [section]: "✓ Saved" }));
       }
+    } catch {
+      setMessages(prev => ({ ...prev, [section]: "✗ Failed" }));
+    } finally {
+      setSaving(prev => ({ ...prev, [section]: false }));
+    }
+  }
 
-      const aboutContent = {
+  function handleSaveAdmin() {
+    if (!hasChanges("admin")) { setMessages(prev => ({ ...prev, admin: "No changes" })); return; }
+    const fd = new FormData();
+    fd.append("name", name);
+    fd.append("email", email);
+    fd.append("phone", phone);
+    fd.append("address", address);
+    saveSection("admin", fd);
+  }
+
+  function handleSaveRestaurant() {
+    if (!hasChanges("restaurant")) { setMessages(prev => ({ ...prev, restaurant: "No changes" })); return; }
+    const fd = new FormData();
+    fd.append("restaurantName", restaurantName);
+    if (logo) fd.append("logo", logo);
+    saveSection("restaurant", fd);
+  }
+
+  function handleSaveContact() {
+    if (!hasChanges("contact")) { setMessages(prev => ({ ...prev, contact: "No changes" })); return; }
+    const fd = new FormData();
+    fd.append("contactEmail", contactEmail);
+    fd.append("contactPhone", contactPhone);
+    fd.append("location", location);
+    saveSection("contact", fd);
+  }
+
+  function handleSaveAbout() {
+    if (!hasChanges("about")) { setMessages(prev => ({ ...prev, about: "No changes" })); return; }
+    saveSection("about", {
+      aboutContent: {
         heroBadge,
         heroHeading: "Fresh Food.",
         heroHeadingAccent: "Delivered Fast.",
@@ -147,8 +246,7 @@ export default function SettingsClient() {
           .split(/\n\s*\n/)
           .map((s) => s.trim())
           .filter(Boolean),
-        storyImage:
-          "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=1200",
+        storyImage: "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=1200",
         featuresTitle: "Why Customers Love Us",
         featuresSubtitle: "More than just food delivery.",
         features: [
@@ -170,50 +268,62 @@ export default function SettingsClient() {
           { text: "The best cloud kitchen in town. Never been disappointed!", name: "Food Enthusiast", title: "Verified Buyer" },
         ],
         ctaTitle: "Ready to Taste Something Amazing?",
-        ctaDescription:
-          "Join thousands of happy customers ordering delicious meals every day.",
+        ctaDescription: "Join thousands of happy customers ordering delicious meals every day.",
         ctaButtonText: "Order Now",
-      };
+      },
+    });
+  }
 
-      const contactContent = {
+  function handleSaveContactPage() {
+    if (!hasChanges("contactPage")) { setMessages(prev => ({ ...prev, contactPage: "No changes" })); return; }
+    saveSection("contactPage", {
+      contactContent: {
         heroBadge: contactHeroBadge,
         heroHeading: "We'd Love To",
         heroHeadingAccent: "Hear From You",
         heroDescription: contactHeroDescription,
-        deliveryAreas: deliveryAreas
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean),
+        deliveryAreas: deliveryAreas.split(",").map((s) => s.trim()).filter(Boolean),
         hoursWeekday,
         hoursSaturday,
         hoursSunday,
         ctaTitle: "Hungry Right Now?",
-        ctaDescription:
-          "Browse our menu and get delicious meals delivered to your doorstep in minutes.",
+        ctaDescription: "Browse our menu and get delicious meals delivered to your doorstep in minutes.",
         ctaButtonText: "Order Now",
-      };
+      },
+    });
+  }
 
-      formData.append("aboutContent", JSON.stringify(aboutContent));
-      formData.append("contactContent", JSON.stringify(contactContent));
+  function handleSaveVideos() {
+    if (!hasChanges("videos")) { setMessages(prev => ({ ...prev, videos: "No changes" })); return; }
+    const fd = new FormData();
+    if (homeVideoBurgerFile) fd.append("homeVideoBurgerFile", homeVideoBurgerFile);
+    fd.append("homeVideoBurger", JSON.stringify({
+      url: homeVideoBurgerUrl,
+      title: homeVideoBurgerTitle,
+      desc: homeVideoBurgerDesc,
+    }));
+    const activeVideos = sliderVideos.filter((v, i) => v.url.trim() !== "" || sliderVideoFiles[i] !== null);
+    fd.append("home3dSliderVideos", JSON.stringify(activeVideos));
+    sliderVideoFiles.forEach((file, i) => {
+      if (file) fd.append(`sliderVideoFile_${i}`, file);
+    });
+    saveSection("videos", fd);
+  }
 
-      const res = await fetch("/api/superadmin/settings", {
-        method: "PATCH",
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      if (data.error) {
-        setMessage(data.error);
-      } else {
-        setMessage("Settings updated successfully");
-      }
-    } catch {
-      setMessage("Failed to save settings");
-    } finally {
-      setSaving(false);
+  function hasChanges(section: string): boolean {
+    const init = initial.current;
+    switch (section) {
+      case "admin": return init.name !== name || init.email !== email || init.phone !== phone || init.address !== address;
+      case "restaurant": return init.restaurantName !== restaurantName || !!logo;
+      case "contact": return init.contactEmail !== contactEmail || init.contactPhone !== contactPhone || init.location !== location || init.deliveryAreas !== deliveryAreas;
+      case "about": return init.heroBadge !== heroBadge || init.heroDescription !== heroDescription || init.storyTitle !== storyTitle || init.storyParagraphs !== storyParagraphs;
+      case "contactPage": return init.contactHeroBadge !== contactHeroBadge || init.contactHeroDescription !== contactHeroDescription || init.hoursWeekday !== hoursWeekday || init.hoursSaturday !== hoursSaturday || init.hoursSunday !== hoursSunday;
+      case "videos": return init.homeVideoBurgerUrl !== homeVideoBurgerUrl || init.homeVideoBurgerTitle !== homeVideoBurgerTitle || init.homeVideoBurgerDesc !== homeVideoBurgerDesc || !!homeVideoBurgerFile || JSON.stringify(sliderVideos) !== init.sliderVideos || sliderVideoFiles.some(f => f !== null);
+      default: return true;
     }
   }
+
+
 
   if (loading) {
     return (
@@ -246,12 +356,6 @@ export default function SettingsClient() {
           </div>
         </div>
 
-        {message && (
-          <div className="mb-6 rounded-xl bg-green-50 p-4 text-green-700">
-            {message}
-          </div>
-        )}
-
         <div className="grid gap-6">
 
           {/* Admin */}
@@ -266,6 +370,14 @@ export default function SettingsClient() {
               <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
               <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={3} placeholder="Address" className={`${inputClass} md:col-span-1`} disabled={!can("UPDATE_SETTINGS")} />
             </div>
+            {can("UPDATE_SETTINGS") && (
+              <div className="mt-4 flex items-center justify-end gap-3">
+                <button onClick={handleSaveAdmin} disabled={saving["admin"]} className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50">
+                  {saving["admin"] ? "Saving..." : "Save"}
+                </button>
+                <Msg messages={messages} section="admin" />
+              </div>
+            )}
           </div>
 
           {/* Restaurant */}
@@ -289,6 +401,14 @@ export default function SettingsClient() {
                 )}
               </div>
             </div>
+            {can("UPDATE_SETTINGS") && (
+              <div className="mt-4 flex items-center justify-end gap-3">
+                <button onClick={handleSaveRestaurant} disabled={saving["restaurant"]} className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50">
+                  {saving["restaurant"] ? "Saving..." : "Save"}
+                </button>
+                <Msg messages={messages} section="restaurant" />
+              </div>
+            )}
           </div>
 
           {/* Contact */}
@@ -309,6 +429,14 @@ export default function SettingsClient() {
               </div>
               <input value={deliveryAreas} onChange={(e) => setDeliveryAreas(e.target.value)} placeholder="Delivery Areas (comma separated)" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
             </div>
+            {can("UPDATE_SETTINGS") && (
+              <div className="mt-4 flex items-center justify-end gap-3">
+                <button onClick={handleSaveContact} disabled={saving["contact"]} className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50">
+                  {saving["contact"] ? "Saving..." : "Save"}
+                </button>
+                <Msg messages={messages} section="contact" />
+              </div>
+            )}
           </div>
 
           {/* About Page Content */}
@@ -335,6 +463,14 @@ export default function SettingsClient() {
                 <textarea value={storyParagraphs} onChange={(e) => setStoryParagraphs(e.target.value)} rows={4} placeholder="Paragraph 1&#10;&#10;Paragraph 2&#10;&#10;Paragraph 3" className={inputClass} disabled={!can("UPDATE_SETTINGS")} />
               </div>
             </div>
+            {can("UPDATE_SETTINGS") && (
+              <div className="mt-4 flex items-center justify-end gap-3">
+                <button onClick={handleSaveAbout} disabled={saving["about"]} className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50">
+                  {saving["about"] ? "Saving..." : "Save"}
+                </button>
+                <Msg messages={messages} section="about" />
+              </div>
+            )}
           </div>
 
           {/* Contact Page Content */}
@@ -367,22 +503,183 @@ export default function SettingsClient() {
                 </div>
               </div>
             </div>
+            {can("UPDATE_SETTINGS") && (
+              <div className="mt-4 flex items-center justify-end gap-3">
+                <button onClick={handleSaveContactPage} disabled={saving["contactPage"]} className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50">
+                  {saving["contactPage"] ? "Saving..." : "Save"}
+                </button>
+                <Msg messages={messages} section="contactPage" />
+              </div>
+            )}
+          </div>
+
+          {/* Homepage Videos */}
+          <div className={cardClass}>
+            <div className="mb-5">
+              <h2 className="font-bold text-lg">Homepage Videos</h2>
+              <p className="text-sm text-gray-500">Manage videos displayed on the homepage</p>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="font-semibold text-md mb-3 text-gray-700">Featured Video (VideoBurger Section)</h3>
+              <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 items-center">
+                <input
+                  value={homeVideoBurgerUrl}
+                  onChange={(e) => {
+                    if (homeVideoBurgerFile) {
+                      toast.error("Cannot set URL while a file is uploaded");
+                      return;
+                    }
+                    setHomeVideoBurgerUrl(e.target.value);
+                  }}
+                  placeholder="Upload Landscape (e.g., /videos/featured.mp4)"
+                  className={inputClass}
+                  disabled={!can("UPDATE_SETTINGS")}
+                />
+                <input
+                  value={homeVideoBurgerTitle}
+                  onChange={(e) => setHomeVideoBurgerTitle(e.target.value)}
+                  placeholder="Video Title (optional)"
+                  className={inputClass}
+                  disabled={!can("UPDATE_SETTINGS")}
+                />
+                <input
+                  value={homeVideoBurgerDesc}
+                  onChange={(e) => setHomeVideoBurgerDesc(e.target.value)}
+                  placeholder="Video Description (optional)"
+                  className={inputClass}
+                  disabled={!can("UPDATE_SETTINGS")}
+                />
+                <div className="flex flex-col gap-1">
+                  <label className={`flex items-center gap-2 px-3 py-3 rounded-xl border border-dashed border-gray-300 cursor-pointer text-sm text-gray-500 hover:border-orange-400 ${!can("UPDATE_SETTINGS") ? "opacity-50 pointer-events-none" : ""}`}>
+                    <input
+                      type="file"
+                      accept="video/mp4,video/webm,video/quicktime"
+                      className="hidden"
+                      disabled={!can("UPDATE_SETTINGS")}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (file) {
+                          const validTypes = ["video/mp4", "video/webm", "video/quicktime"];
+                          if (!validTypes.includes(file.type)) {
+                            alert("Only MP4, WebM, and MOV files are supported.");
+                            e.target.value = "";
+                            return;
+                          }
+                          if (file.size > 50 * 1024 * 1024) {
+                            alert("File size must be under 50MB.");
+                            e.target.value = "";
+                            return;
+                          }
+                        }
+                        if (homeVideoBurgerUrl) {
+                          toast.error("Cannot upload when a URL is set");
+                          e.target.value = "";
+                          return;
+                        }
+                        setHomeVideoBurgerFile(file);
+                      }}
+                    />
+                    {homeVideoBurgerFile?.name || "Upload"}
+                  </label>
+                  <span className="text-xs text-gray-400 ml-1">MP4, WebM, MOV · max 50MB</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-md mb-3 text-gray-700">3D Slider Videos (up to 5)</h3>
+              <div className="grid gap-3">
+                {sliderVideos.map((video, index) => (
+                  <div key={index} className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 items-center">
+                    <input
+                      value={video.url}
+                      onChange={(e) => {
+                        if (sliderVideoFiles[index]) {
+                          toast.error(`Cannot set URL for Video ${index + 1} while a file is uploaded`);
+                          return;
+                        }
+                        const updated = [...sliderVideos];
+                        updated[index] = { ...updated[index], url: e.target.value };
+                        setSliderVideos(updated);
+                      }}
+                      placeholder={`Video ${index + 1} URL`}
+                      className={inputClass}
+                      disabled={!can("UPDATE_SETTINGS")}
+                    />
+                    <input
+                      value={video.title}
+                      onChange={(e) => {
+                        const updated = [...sliderVideos];
+                        updated[index] = { ...updated[index], title: e.target.value };
+                        setSliderVideos(updated);
+                      }}
+                      placeholder={`Title ${index + 1} (optional)`}
+                      className={inputClass}
+                      disabled={!can("UPDATE_SETTINGS")}
+                    />
+                    <input
+                      value={video.desc}
+                      onChange={(e) => {
+                        const updated = [...sliderVideos];
+                        updated[index] = { ...updated[index], desc: e.target.value };
+                        setSliderVideos(updated);
+                      }}
+                      placeholder={`Desc ${index + 1} (optional)`}
+                      className={inputClass}
+                      disabled={!can("UPDATE_SETTINGS")}
+                    />
+                    <div className="flex flex-col gap-1">
+                      <label className={`flex items-center gap-2 px-3 py-3 rounded-xl border border-gray-200 cursor-pointer text-sm text-gray-500 hover:border-orange-400 ${!can("UPDATE_SETTINGS") ? "opacity-50 pointer-events-none" : ""}`}>
+                        <input
+                          type="file"
+                          accept="video/mp4,video/webm,video/quicktime"
+                          className="hidden"
+                          disabled={!can("UPDATE_SETTINGS")}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            if (file) {
+                              const validTypes = ["video/mp4", "video/webm", "video/quicktime"];
+                              if (!validTypes.includes(file.type)) {
+                                alert("Only MP4, WebM, and MOV files are supported.");
+                                e.target.value = "";
+                                return;
+                              }
+                              if (file.size > 50 * 1024 * 1024) {
+                                alert("File size must be under 50MB.");
+                                e.target.value = "";
+                                return;
+                              }
+                            }
+                            if (sliderVideos[index].url) {
+                              toast.error(`Cannot upload Video ${index + 1} when a URL is set`);
+                              e.target.value = "";
+                              return;
+                            }
+                            const files = [...sliderVideoFiles];
+                            files[index] = file;
+                            setSliderVideoFiles(files);
+                          }}
+                        />
+                        {sliderVideoFiles[index]?.name || "Upload"}
+                      </label>
+                      <span className="text-xs text-gray-400 ml-1">MP4, WebM, MOV · max 50MB</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {can("UPDATE_SETTINGS") && (
+              <div className="mt-4 flex items-center justify-end gap-3">
+                <button onClick={handleSaveVideos} disabled={saving["videos"]} className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50">
+                  {saving["videos"] ? "Saving..." : "Save"}
+                </button>
+                <Msg messages={messages} section="videos" />
+              </div>
+            )}
           </div>
 
         </div>
-
-        {/* Sticky Save Button */}
-        {can("UPDATE_SETTINGS") && (
-        <div className="sticky bottom-5 mt-8 flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-xl bg-orange-500 px-8 py-4 font-semibold text-white shadow-lg transition hover:bg-orange-600 disabled:opacity-50"
-          >
-            {saving ? "Saving..." : "Save All Changes"}
-          </button>
-        </div>
-        )}
 
       </div>
     </>

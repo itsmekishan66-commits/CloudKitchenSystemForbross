@@ -1108,7 +1108,7 @@ export default function MenuClient() {
                   )}
 
                   {/* Menu Item selector */}
-                   <div>
+                  <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">Menu Item</label>
                     <select value={recipeForm.menuItemId ?? ""} onChange={(e) => updateRecipeForm("menuItemId", e.target.value ? Number(e.target.value) : null)}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-green-500 focus:ring-4 focus:ring-green-100"

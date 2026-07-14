@@ -24,13 +24,13 @@ export async function GET(request: Request) {
         }
     }
 
-    // Admin endpoint - return all zones
+    // Admin endpoint - return all zones (no cache)
     try {
         const user = await apiRequirePermissions(PERMISSIONS.UPDATE_SETTINGS);
         if (user instanceof NextResponse) return user;
 
         const zones = await getAllZones();
-        return NextResponse.json({ zones }, { headers: cacheHeaders() });
+        return NextResponse.json({ zones });
     } catch (error) {
         console.error("Failed to load delivery zones", error);
         return NextResponse.json(

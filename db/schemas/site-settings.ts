@@ -16,6 +16,8 @@ export const siteSettings = mysqlTable("site_settings", {
   location: varchar("location", { length: 255 }),
   aboutContent: json("about_content"),
   contactContent: json("contact_content"),
+  homeVideoBurger: json("home_video_burger"),
+  home3dSliderVideos: json("home_3d_slider_videos"),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
 });
 

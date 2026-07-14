@@ -8,6 +8,7 @@ import { useConfirm } from "@/app/_components/ConfirmPopup";
 
 import toast from "react-hot-toast";
 import { usePermissions } from "@/lib/permission-context";
+import { rolePermissions, type Role } from "@/lib/rbac";
 
 interface User {
   id: number;
@@ -202,7 +203,17 @@ export default function RolesClient() {
   // loads current permissions of the selected user's role when edit modal opens
   useEffect(() => {
     if (!editUser || !editUser.roleId) return;
-    getRolePermissionsAction(editUser.roleId).then(setEditSelectedPermissions).catch(console.error);
+    getRolePermissionsAction(editUser.roleId)
+      .then((perms) => {
+        if (perms.length > 0) {
+          setEditSelectedPermissions(perms);
+        } else if (editUser.role && editUser.role in rolePermissions) {
+          // DB has no permissions for this role — fall back to static/legacy RBAC
+          const staticPerms = rolePermissions[editUser.role as Role] ?? [];
+          setEditSelectedPermissions(staticPerms as string[]);
+        }
+      })
+      .catch(console.error);
   }, [editUser]);
 
   // updates a user's role via PATCH API and refreshes the list
@@ -289,7 +300,7 @@ export default function RolesClient() {
                   <td className="p-4 font-medium">{user.name}</td>
                   <td className="p-4 text-gray-500">{user.email}</td>
                   <td className="p-4">
-                    <span className={`w-full rounded-full px-2 py-2 md:px-5 md:py-3 whitespace-nowrap  text-[12px] md:text-sm ${roleColors[user.role] ?? "bg-gray-200"}`}>
+                    <span className={`w-full rounded-full px-2 py-1 md:px-4 whitespace-nowrap  text-[12px] md:text-sm ${roleColors[user.role] ?? "bg-gray-200"}`}>
                       {user.role}
                     </span>
                   </td>

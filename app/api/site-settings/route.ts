@@ -18,6 +18,8 @@ export async function GET() {
         location: null,
         aboutContent: null,
         contactContent: null,
+        homeVideoBurger: null,
+        home3dSliderVideos: null,
         updatedAt: new Date(),
       };
     }

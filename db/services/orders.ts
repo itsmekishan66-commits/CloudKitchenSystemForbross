@@ -2,14 +2,13 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  inventoryItems,
+  cookedFoodStock,
   orderItems,
   orders,
   roles,
   type NewOrder,
   type NewOrderItem,
   menuItems,
-  supplierProducts,
   users,
 } from "@/db/schemas";
 import { recordOrderSale } from "@/db/services/accounting";
@@ -56,6 +55,7 @@ export async function getOrdersWithDetails() {
     orderIds.length > 0
       ? await db.select().from(orderItems).where(inArray(orderItems.orderId, orderIds))
       : [];
+
   const itemsByOrder = new Map<number, (typeof allItems)[number][]>();
   for (const item of allItems) {
     const list = itemsByOrder.get(item.orderId) ?? [];
@@ -194,6 +194,30 @@ export async function createOrder({ items, ...order }: CreateOrderInput) {
       );
     }
 
+    for (const item of items) {
+      if (!item.menuItemId) continue;
+      const [stock] = await tx
+        .select()
+        .from(cookedFoodStock)
+        .where(eq(cookedFoodStock.menuItemId, item.menuItemId))
+        .limit(1);
+
+      if (!stock) {
+        throw new Error(`No cooked stock found for menu item #${item.menuItemId}`);
+      }
+
+      const current = Number(stock.quantity);
+      const needed = Number(item.quantity) || 0;
+      if (current < needed) {
+        throw new Error(`Insufficient cooked stock for "${item.title}": have ${current}, need ${needed}`);
+      }
+
+      await tx
+        .update(cookedFoodStock)
+        .set({ quantity: String(current - needed) })
+        .where(eq(cookedFoodStock.id, stock.id));
+    }
+
     return orderId;
   });
 }
@@ -209,48 +233,26 @@ export async function updateOrderStatus(
       throw new Error("Order not found");
     }
 
-    if (status === "Delivered" && existingOrder.status !== "Delivered") {
+    if (status === "Cancelled" && existingOrder.status !== "Cancelled") {
       const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, id));
 
       for (const item of items) {
         const menuItemId = item.menuItemId ?? null;
         if (!menuItemId) continue;
 
-        const [linkedProduct] = await tx
+        const [cookedStock] = await tx
           .select()
-          .from(supplierProducts)
-          .where(and(eq(supplierProducts.menuItemId, menuItemId), eq(supplierProducts.productType, "direct_sellable")))
+          .from(cookedFoodStock)
+          .where(eq(cookedFoodStock.menuItemId, menuItemId))
           .limit(1);
 
-        if (!linkedProduct || !linkedProduct.inventoryItemId) continue;
+        if (!cookedStock) continue;
 
-        const [inventoryItem] = await tx
-          .select()
-          .from(inventoryItems)
-          .where(eq(inventoryItems.id, linkedProduct.inventoryItemId))
-          .limit(1);
-
-        if (!inventoryItem) continue;
-
-        const soldQuantity = Number(item.quantity) || 0;
-        const currentStock = Number(inventoryItem.quantity) || 0;
-        if (currentStock < soldQuantity) {
-          throw new Error(`Insufficient stock for ${linkedProduct.name}`);
-        }
-
-        const unitsPerPack = Number(linkedProduct.unitsPerPack) || 1;
-        const remainingSupplierStock = Math.max(0, Number(linkedProduct.quantity || 0) - soldQuantity / unitsPerPack);
-        const remainingInventoryStock = currentStock - soldQuantity;
-
+        const restoreQuantity = Number(item.quantity) || 0;
         await tx
-          .update(supplierProducts)
-          .set({ quantity: remainingSupplierStock.toFixed(2) })
-          .where(eq(supplierProducts.id, linkedProduct.id));
-
-        await tx
-          .update(inventoryItems)
-          .set({ quantity: remainingInventoryStock.toFixed(2) })
-          .where(eq(inventoryItems.id, linkedProduct.inventoryItemId));
+          .update(cookedFoodStock)
+          .set({ quantity: String(Number(cookedStock.quantity) + restoreQuantity) })
+          .where(eq(cookedFoodStock.id, cookedStock.id));
       }
     }
 

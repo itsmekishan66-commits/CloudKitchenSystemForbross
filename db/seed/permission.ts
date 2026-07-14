@@ -88,6 +88,9 @@ const defaultPermissions = [
     { name: "VIEW_MESSAGES", description: "View messages" },
     { name: "DELETE_MESSAGES", description: "Delete messages" },
 
+    { name: "VIEW_RECIPES", description: "View recipes" },
+
+
     { name: "VIEW_ACCOUNTING", description: "View accounting" },
     { name: "CREATE_ACCOUNTING", description: "Create accounting entries" },
     { name: "UPDATE_ACCOUNTING", description: "Update accounting entries" },

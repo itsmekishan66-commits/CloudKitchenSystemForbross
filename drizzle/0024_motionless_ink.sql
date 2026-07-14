@@ -1,0 +1,1 @@
+ALTER TABLE `cooked_food_stock` ADD `min_stock_level` decimal(10,2) DEFAULT '0' NOT NULL;

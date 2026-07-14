@@ -14,3 +14,4 @@ export * from "./payments";
 export * from "./suppliers";
 // this is the code for menu recipe - recipe service
 export * from "./recipes";
+export * from "./cooked-food-stock";

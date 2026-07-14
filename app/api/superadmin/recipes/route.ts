@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await apiRequirePermissions(PERMISSIONS.CREATE_RECIPES);
+    const user = await apiRequirePermissions(PERMISSIONS.VIEW_RECIPES);
     if (user instanceof NextResponse) return user;
 
     const body = await request.json();
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const user = await apiRequirePermissions(PERMISSIONS.UPDATE_RECIPES);
+    const user = await apiRequirePermissions(PERMISSIONS.VIEW_RECIPES);
     if (user instanceof NextResponse) return user;
 
     const body = await request.json();
@@ -155,7 +155,7 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const user = await apiRequirePermissions(PERMISSIONS.DELETE_RECIPES);
+    const user = await apiRequirePermissions(PERMISSIONS.VIEW_RECIPES);
     if (user instanceof NextResponse) return user;
 
     const { searchParams } = new URL(request.url);

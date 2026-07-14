@@ -493,9 +493,10 @@ export default function RolesClient() {
                             key={label}
                             className={`rounded-full p-3 flex items-center gap-2 text-sm ${moduleChechboxColors[module]}`}
                           >
-                            <input
+                             <input
                               type="checkbox"
                               className="accent-orange-500"
+                              checked={selectedPermissions.includes(`${permPrefix}_${dbModule}`)}
                               onChange={(e) => {
                                 const permName = `${permPrefix}_${dbModule}`
                                 if (e.target.checked) {
@@ -509,8 +510,24 @@ export default function RolesClient() {
                           </label>
 
                         ))}
-                        {/* just to check or test ko lagi hai */}
-                        {/* <div className="mt-4 text-xs text-gray-500">{JSON.stringify(selectedPermissions)}</div> */}
+                        {module === "Menu" && (
+                          <label className="rounded-full p-3 flex items-center gap-2 text-sm bg-green-100 text-green-700">
+                            <input
+                              type="checkbox"
+                              className="accent-orange-500"
+                              checked={selectedPermissions.includes("VIEW_RECIPES")}
+                              onChange={(e) => {
+                                const permName = "VIEW_RECIPES";
+                                if (e.target.checked) {
+                                  setSelectedPermissions((prev) => [...prev, permName]);
+                                } else {
+                                  setSelectedPermissions((prev) => prev.filter((p) => p !== permName));
+                                }
+                              }}
+                            />
+                            View Recipe
+                          </label>
+                        )}
 
                       </div>
                     </div>
@@ -637,6 +654,24 @@ export default function RolesClient() {
                             </label>
                           );
                         })}
+                        {module === "Menu" && (
+                          <label className="rounded-full p-3 flex items-center gap-2 text-sm bg-green-100 text-green-700">
+                            <input
+                              type="checkbox"
+                              className="accent-orange-500"
+                              checked={editSelectedPermissions.includes("VIEW_RECIPES")}
+                              onChange={(e) => {
+                                const permName = "VIEW_RECIPES";
+                                if (e.target.checked) {
+                                  setEditSelectedPermissions((prev) => [...prev, permName]);
+                                } else {
+                                  setEditSelectedPermissions((prev) => prev.filter((p) => p !== permName));
+                                }
+                              }}
+                            />
+                            View Recipe
+                          </label>
+                        )}
                       </div>
                     </div>
                   ))}

@@ -92,6 +92,9 @@ const adminPermissions: Permission[] = [
     PERMISSIONS.VIEW_MESSAGES,
     PERMISSIONS.DELETE_MESSAGES,
 
+    // Recipes
+    PERMISSIONS.VIEW_RECIPES,
+
     // Suppliers
     PERMISSIONS.VIEW_SUPPLIERS,
     PERMISSIONS.CREATE_SUPPLIERS,

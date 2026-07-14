@@ -3,6 +3,7 @@ import { Edit, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
+import toast from "react-hot-toast";
 
 interface MenuItem {
   id: number;
@@ -140,8 +141,12 @@ export default function MenuClient() {
   const [recipeMessage, setRecipeMessage] = useState("");
   const [recipeErrors, setRecipeErrors] = useState<Record<string, string>>({});
   const [inventoryOptions, setInventoryOptions] = useState<InventoryOption[]>([]);
-  const [recipeUploading, setRecipeUploading] = useState(false);
-  const recipeFileInputRef = useRef<HTMLInputElement>(null);
+
+
+  // this is for cooking from recipe
+  const [cookModal, setCookModal] = useState<{ recipeId: number; recipeTitle: string; menuItemId: number } | null>(null);
+  const [cookBatchCount, setCookBatchCount] = useState(1);
+  const [cooking, setCooking] = useState(false);
 
   //to download the file
   // const [open, setOpen] = useState(false);
@@ -191,6 +196,53 @@ export default function MenuClient() {
     setForm(emptyForm);
     setErrors({});
     setShowModal(true);
+  }
+
+  async function handleCookFromRecipe() {
+    if (!cookModal) return;
+    const batchCount = Math.max(1, cookBatchCount);
+    setCooking(true);
+    try {
+      const res = await fetch("/api/superadmin/cooked-items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipeId: cookModal.recipeId,
+          quantity: batchCount,
+          batchCount,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) { toast.error(data.error); return; }
+      toast.success(`Cooked ${data.quantityProduced} servings from recipe!`);
+      setCookModal(null);
+      setCookBatchCount(1);
+      void loadRecipes(cookModal.menuItemId);
+    } catch {
+      toast.error("Failed to cook recipe");
+    } finally {
+      setCooking(false);
+    }
+  }
+
+  async function handleCookMenuItem(menuItemId: number, menuItemTitle: string) {
+    try {
+      const res = await fetch(`/api/superadmin/recipes?menuItemId=${menuItemId}`);
+      const data = await res.json();
+      const recipesList = data.recipes ?? [];
+      if (recipesList.length === 0) {
+        toast.error(`No recipe defined for "${menuItemTitle}"`);
+        return;
+      }
+      if (recipesList.length === 1) {
+        setCookModal({ recipeId: recipesList[0].id, recipeTitle: recipesList[0].title, menuItemId });
+        setCookBatchCount(1);
+        return;
+      }
+      openRecipeList(menuItemId, menuItemTitle);
+    } catch {
+      toast.error("Failed to load recipes");
+    }
   }
 
   // this is the code for menu recipe - open recipe list
@@ -250,27 +302,6 @@ export default function MenuClient() {
       }
     } catch {
       // silent
-    }
-  }
-
-  // this is the code for menu recipe - handle image upload
-  async function handleRecipeUpload(file: File) {
-    if (file.size > 5 * 1024 * 1024) {
-      setRecipeErrors((prev) => ({ ...prev, image: "Image must be 5 MB or less." }));
-      return;
-    }
-    setRecipeUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/images", { method: "POST", body: formData });
-      const data = await res.json();
-      if (data.error) { console.error(data.error); return; }
-      updateRecipeForm("image", data.path);
-    } catch (err) {
-      console.error("Upload failed", err);
-    } finally {
-      setRecipeUploading(false);
     }
   }
 
@@ -446,7 +477,6 @@ export default function MenuClient() {
     if (!recipeForm.prepTime.trim()) next.prepTime = "This field is required.";
     if (!recipeForm.cookTime.trim()) next.cookTime = "This field is required.";
     if (!(Number(recipeForm.servings) > 0)) next.servings = "Servings must be greater than 0.";
-    if (!recipeForm.image.trim()) next.image = "This field is required.";
     if (!recipeForm.instructions.trim()) next.instructions = "This field is required.";
     if (recipeForm.ingredients.filter((i) => i.inventoryItemId && i.quantity).length === 0) {
       next.ingredients = "Add at least one ingredient.";
@@ -584,6 +614,7 @@ export default function MenuClient() {
               <option className="text-black" value="excel">Excel</option>
             </select>
           </button> */}
+
           {can("CREATE_MENUS") && <button onClick={openCreate} className="rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-orange-600">+ Add Item</button>}
 
           {can("VIEW_RECIPES") && <button onClick={() => { setEditingRecipeId(null); setRecipeForm(emptyRecipeForm); setRecipeView("form"); setShowRecipeModal(true); void loadInventoryOptions(); }} className="rounded-xl bg-green-600 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-green-700">+ Add menu recipe</button>}
@@ -628,7 +659,8 @@ export default function MenuClient() {
                   <td className="flex p-4 gap-4">
                     {can("UPDATE_MENUS") && <button onClick={() => openEdit(item)} className="rounded text-blue-500 text-sm"><Edit size={22} /></button>}
                     {can("DELETE_MENUS") && <button onClick={() => handleDelete(item.id)} className="rounded text-red-500 text-sm"><Trash2 size={22} /></button>}
-                    {can("VIEW_RECIPES") && <button onClick={() => openRecipeList(item.id, item.title)} className="mr-2 rounded bg-green-600 px-3 py-1 text-white text-sm">Recipes</button>}
+                    {can("VIEW_RECIPES") && <button onClick={() => handleCookMenuItem(item.id, item.title)} className="rounded bg-orange-500 px-3 py-1 text-white text-sm hover:bg-orange-600">Cook</button>}
+                    {can("VIEW_RECIPES") && <button onClick={() => openRecipeList(item.id, item.title)} className="rounded bg-green-600 px-3 py-1 text-white text-sm">Recipes</button>}
                   </td>
                 </tr>
               ))
@@ -1053,14 +1085,21 @@ export default function MenuClient() {
                                   >
                                     View
                                   </button>
-                                  {can("UPDATE_RECIPES") && (
+                                  {can("VIEW_RECIPES") && (
                                     <button onClick={() => { openRecipeEdit(recipe); void loadInventoryOptions(); }}
                                       className="rounded-lg bg-blue-500 px-3 py-1.5 text-white text-sm"
                                     >
                                       Edit
                                     </button>
                                   )}
-                                  {can("DELETE_RECIPES") && (
+                                  {can("VIEW_RECIPES") && (
+                                    <button onClick={() => { setCookModal({ recipeId: recipe.id, recipeTitle: recipe.title, menuItemId: recipe.menuItemId }); setCookBatchCount(1); }}
+                                      className="rounded-lg bg-orange-500 px-3 py-1.5 text-white text-sm hover:bg-orange-600"
+                                    >
+                                      Cook
+                                    </button>
+                                  )}
+                                  {can("VIEW_RECIPES") && (
                                     <button onClick={() => handleRecipeDelete(recipe.id)}
                                       className="rounded-lg bg-red-500 px-3 py-1.5 text-white text-sm"
                                     >
@@ -1156,34 +1195,6 @@ export default function MenuClient() {
                       />
                       {recipeErrors.servings && <p className="mt-1 text-sm text-red-500">{recipeErrors.servings}</p>}
                     </div>
-                  </div>
-
-                  {/* Image */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-semibold text-slate-700">
-                        Image
-                      </label>
-                      <button type="button" onClick={() => recipeFileInputRef.current?.click()} disabled={recipeUploading}
-                        className="text-sm text-green-600 hover:text-green-700 font-medium disabled:opacity-50"
-                      >
-                        {recipeUploading ? "Uploading..." : "Upload Image"}
-                      </button>
-                      <input ref={recipeFileInputRef} type="file" accept="image/*"
-                        onChange={(e) => { const file = e.target.files?.[0]; if (file) handleRecipeUpload(file); e.target.value = ""; }}
-                        className="hidden"
-                      />
-                    </div>
-                    <input type="text" value={recipeForm.image} onChange={(e) => updateRecipeForm("image", e.target.value)}
-                      placeholder="https://example.com/recipe.jpg"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-green-500"
-                    />
-                    {recipeErrors.image && <p className="mt-1 text-sm text-red-500">{recipeErrors.image}</p>}
-                    {recipeForm.image && (
-                      <div className="mt-4">
-                        <img src={recipeForm.image} alt="Recipe preview" className="h-40 w-full rounded-2xl object-cover border" />
-                      </div>
-                    )}
                   </div>
 
                   {/* Description */}
@@ -1427,6 +1438,41 @@ export default function MenuClient() {
               </>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* Cook from Recipe Modal */}
+      {cookModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setCookModal(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="border-b px-6 py-4">
+              <h2 className="text-xl font-bold text-slate-800">Cook Recipe</h2>
+            </div>
+            <div className="px-6 py-6 space-y-4">
+              <p className="text-sm text-slate-600">
+                Cooking: <span className="font-semibold text-slate-800">{cookModal.recipeTitle}</span>
+              </p>
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-slate-700">Batch Count</label>
+                <input type="number" min={1} value={cookBatchCount} onChange={(e) => setCookBatchCount(Math.max(1, Number(e.target.value)))}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
+                />
+                <p className="mt-1 text-xs text-slate-400">Each batch produces the recipe&apos;s serving size.</p>
+              </div>
+            </div>
+            <div className="border-t px-6 py-4 flex justify-end gap-3">
+              <button onClick={() => { setCookModal(null); setCookBatchCount(1); }}
+                className="rounded-xl border border-slate-300 px-5 py-2.5 font-medium hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button onClick={handleCookFromRecipe} disabled={cooking}
+                className="flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-white font-semibold hover:bg-orange-600 disabled:opacity-50"
+              >
+                {cooking ? "Cooking..." : "Cook Now"}
+              </button>
+            </div>
           </div>
         </div>
       )}

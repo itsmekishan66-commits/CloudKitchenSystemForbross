@@ -3,6 +3,7 @@ import { CircleArrowDown, Package, Truck, AlertTriangle, Edit, Trash2 } from "lu
 import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
+import toast from "react-hot-toast";
 
 interface InventoryItem {
   id: number;
@@ -23,6 +24,16 @@ interface SupplierStockItem {
   quantity: string;
   minStockLevel: string;
   unitsPerPack: string;
+}
+
+interface CookedStockItem {
+  id: number;
+  foodName: string;
+  menuItemId: number;
+  quantity: string;
+  minStockLevel: string;
+  description: string | null;
+  createdAt?: string;
 }
 
 interface InventoryForm {
@@ -50,7 +61,7 @@ export default function InventoryClient() {
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"inventory" | "supplier-stock" | "inventory-stock">("inventory");
+  const [activeTab, setActiveTab] = useState<"inventory" | "supplier-stock" | "inventory-stock" | "cooked-stock">("inventory");
   const [page, setPage] = useState(1);
   const perPage = 20;
 
@@ -65,6 +76,8 @@ export default function InventoryClient() {
   const [supplierStock, setSupplierStock] = useState<SupplierStockItem[]>([]);
   const [stockLoading, setStockLoading] = useState(false);
   const [categories, setCategories] = useState<{ id: number; name: string; slug: string }[]>([]);
+  const [cookedStock, setCookedStock] = useState<CookedStockItem[]>([]);
+  const [cookedLoading, setCookedLoading] = useState(false);
 
   //to download the file
    const handleDownload = (type: string) => {
@@ -123,14 +136,30 @@ export default function InventoryClient() {
       .catch(() => {});
   }, []);
 
+  async function loadCookedStock() {
+    setCookedLoading(true);
+    try {
+      const res = await fetch("/api/superadmin/cooked-items");
+      const data = await res.json();
+      if (!data.error) setCookedStock(data.items ?? []);
+    } catch {
+      console.error("Failed to load cooked stock");
+    } finally {
+      setCookedLoading(false);
+    }
+  }
+
   useEffect(() => {
-    // Avoid synchronous setState during render/effect by deferring calls
     if (activeTab === "supplier-stock") {
       const t = setTimeout(() => { void loadSupplierStock(); }, 0);
       return () => clearTimeout(t);
     }
     if (activeTab === "inventory-stock") {
       const t = setTimeout(() => { void loadItems(); }, 0);
+      return () => clearTimeout(t);
+    }
+    if (activeTab === "cooked-stock") {
+      const t = setTimeout(() => { void loadCookedStock(); }, 0);
       return () => clearTimeout(t);
     }
   }, [activeTab]);
@@ -273,6 +302,9 @@ export default function InventoryClient() {
         <button onClick={() => setActiveTab("inventory-stock")} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${activeTab === "inventory-stock" ? "bg-orange-500 text-white shadow-md" : "bg-white text-gray-600 border hover:bg-gray-50"}`}>
           <Package size={16} /> Inventory Stock
         </button>
+        <button onClick={() => setActiveTab("cooked-stock")} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${activeTab === "cooked-stock" ? "bg-orange-500 text-white shadow-md" : "bg-white text-gray-600 border hover:bg-gray-50"}`}>
+          <Package size={16} /> Cooked Food Stock
+        </button>
       </div>
 
       {activeTab === "inventory" && lowStockItems.length > 0 && (
@@ -371,6 +403,10 @@ export default function InventoryClient() {
 
       {activeTab === "inventory-stock" && (
         <InventoryStockView items={items} loading={loading} />
+      )}
+
+      {activeTab === "cooked-stock" && (
+        <CookedFoodStockView items={cookedStock} loading={cookedLoading} onRefresh={loadCookedStock} />
       )}
 
       {showModal && (
@@ -481,14 +517,14 @@ function SupplierStockView({ data, loading }: { data: SupplierStockItem[]; loadi
         />
       </div>
 
-      <div className="rounded-xl bg-white shadow overflow-hidden">
+      <div className="rounded-xl bg-white shadow overflow-x-auto no-scrollbar">
         <table className="w-full">
           <thead className="bg-gray-100">
             <tr>
               <th className="p-4 text-left">Supplier</th>
               <th className="p-4 text-left">Product</th>
               <th className="p-4 text-left">Pack</th>
-              <th className="p-4 text-left">Remaining Stock (packs)</th>
+              <th className="p-4 text-left">Stock (packs)</th>
               <th className="p-4 text-left">Total Units</th>
               <th className="p-4 text-left">Min Stock</th>
               <th className="p-4 text-left">Status</th>
@@ -532,6 +568,190 @@ function SupplierStockView({ data, loading }: { data: SupplierStockItem[]; loadi
           Showing {filtered.length} product{filtered.length !== 1 ? "s" : ""} from suppliers
         </div>
       </div>
+    </div>
+  );
+}
+
+function CookedFoodStockView({ items, loading, onRefresh }: { items: CookedStockItem[]; loading: boolean; onRefresh: () => void }) {
+  const confirm = useConfirm();
+  const [search, setSearch] = useState("");
+  const [editingCooked, setEditingCooked] = useState<CookedStockItem | null>(null);
+  const [showCookedModal, setShowCookedModal] = useState(false);
+  const [cookedForm, setCookedForm] = useState({ menuItemId: "", quantity: "", minStockLevel: "", description: "" });
+  const [savingCooked, setSavingCooked] = useState(false);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return items;
+    const q = search.toLowerCase();
+    return items.filter((i) =>
+      (i.foodName ?? "").toLowerCase().includes(q)
+    );
+  }, [items, search]);
+
+  const lowStockItems = filtered.filter((i) => Number(i.quantity) <= Number(i.minStockLevel));
+
+  function openEditCooked(item: CookedStockItem) {
+    setEditingCooked(item);
+    setCookedForm({
+      menuItemId: String(item.menuItemId),
+      quantity: item.quantity,
+      minStockLevel: item.minStockLevel ?? "0",
+      description: item.description ?? "",
+    });
+    setShowCookedModal(true);
+  }
+
+  async function handleCookedUpdate() {
+    if (!editingCooked) return;
+    if (cookedForm.quantity === "") { toast.error("Please enter quantity"); return; }
+    setSavingCooked(true);
+    try {
+      const res = await fetch("/api/superadmin/cooked-items", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingCooked.id,
+          quantity: cookedForm.quantity,
+          minStockLevel: cookedForm.minStockLevel || "0",
+          description: cookedForm.description || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) { toast.error(data.error); return; }
+      toast.success("Cooked food stock updated!");
+      setShowCookedModal(false);
+      setEditingCooked(null);
+      onRefresh();
+    } catch {
+      toast.error("Failed to update");
+    } finally {
+      setSavingCooked(false);
+    }
+  }
+
+  async function handleDeleteCooked(id: number) {
+    if (!await confirm("Are you sure you want to delete this cooked food stock item?")) return;
+    try {
+      const res = await fetch(`/api/superadmin/cooked-items?id=${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.error) { toast.error(data.error); return; }
+      toast.success("Cooked food stock item deleted!");
+      onRefresh();
+    } catch {
+      toast.error("Failed to delete");
+    }
+  }
+
+  if (loading) {
+    return <div className="rounded-xl bg-white p-10 text-center text-gray-400 shadow">Loading cooked food stock...</div>;
+  }
+
+  return (
+    <div>
+      {lowStockItems.length > 0 && (
+        <div className="mb-4 rounded-xl bg-red-50 p-4 border border-red-200">
+          <h3 className="font-bold text-red-700 flex items-center gap-2">
+            <AlertTriangle size={16} /> Low Stock Alert ({lowStockItems.length} items)
+          </h3>
+          <ul className="mt-2 space-y-1">
+            {lowStockItems.map((item) => (
+              <li key={item.id} className="text-sm text-red-600">
+                {item.foodName} — {item.quantity} left (min: {item.minStockLevel})
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="mb-4">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by food name..."
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+        />
+      </div>
+
+      <div className="rounded-xl bg-white shadow overflow-x-auto no-scrollbar">
+        <table className="w-full">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="p-4 text-left">Food Name</th>
+              <th className="p-4 text-left">Quantity</th>
+              <th className="p-4 text-left">Min Stock</th>
+              <th className="p-4 text-left">Status</th>
+              <th className="p-4 text-left">Description</th>
+                  <th className="p-4 text-left">Updated At</th>
+          <th className="p-4 text-left">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr><td colSpan={7} className="p-8 text-center text-gray-400">No cooked food stock found</td></tr>
+            ) : (
+              filtered.map((item) => {
+                const isLow = Number(item.quantity) <= Number(item.minStockLevel);
+                return (
+                  <tr key={item.id} className={`border-t ${isLow ? "bg-red-50" : ""}`}>
+                    <td className="p-4 font-medium">{item.foodName ?? `Item #${item.menuItemId}`}</td>
+                    <td className={`p-4 ${isLow ? "text-red-600 font-semibold" : ""}`}>{item.quantity}</td>
+                    <td className="p-4 text-gray-500">{item.minStockLevel ?? "0"}</td>
+                    <td className="p-4">
+                      {isLow ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                          <AlertTriangle size={12} /> Low
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
+                          In Stock
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-4 text-gray-500 max-w-xs truncate">{item.description || "-"}</td>
+                        <td className="p-4 text-sm text-gray-400">{item.createdAt ? new Date(item.createdAt.endsWith("Z") || item.createdAt.includes("+") ? item.createdAt : item.createdAt + "Z").toLocaleString() : "-"}</td>
+                <td className="flex p-4 gap-4">
+                      <button onClick={() => openEditCooked(item)} className="rounded text-blue-500 text-sm"><Edit size={22} /></button>
+                      <button onClick={() => handleDeleteCooked(item.id)} className="rounded text-red-500 text-sm"><Trash2 size={22} /></button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+        <div className="p-3 text-xs text-gray-400 border-t bg-gray-50">
+          Showing {filtered.length} item{filtered.length !== 1 ? "s" : ""}
+        </div>
+      </div>
+
+      {showCookedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-[95vw] sm:max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="mb-4 text-xl font-bold">Edit Cooked Food Stock</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Quantity</label>
+                <input type="number" value={cookedForm.quantity} onChange={(e) => setCookedForm({ ...cookedForm, quantity: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Min Stock Level</label>
+                <input type="number" value={cookedForm.minStockLevel} onChange={(e) => setCookedForm({ ...cookedForm, minStockLevel: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Description</label>
+                <textarea rows={3} value={cookedForm.description} onChange={(e) => setCookedForm({ ...cookedForm, description: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+              </div>
+            </div>
+            <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
+              <button onClick={() => { setShowCookedModal(false); setEditingCooked(null); }} className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50">Cancel</button>
+              <button onClick={handleCookedUpdate} disabled={savingCooked} className="rounded-lg bg-orange-500 px-4 py-2 text-white hover:bg-orange-600 disabled:opacity-50">
+                {savingCooked ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -581,13 +801,13 @@ function InventoryStockView({ items, loading }: { items: InventoryItem[]; loadin
         />
       </div>
 
-      <div className="rounded-xl bg-white shadow overflow-hidden">
+      <div className="rounded-xl bg-white shadow overflow-x-auto no-scrollbar">
         <table className="w-full">
           <thead className="bg-gray-100">
             <tr>
               <th className="p-4 text-left">Name</th>
               <th className="p-4 text-left">Category</th>
-              <th className="p-4 text-left">Remaining Stock</th>
+              <th className="p-4 text-left">Stock</th>
               <th className="p-4 text-left">Unit</th>
               <th className="p-4 text-left">Min Stock</th>
               <th className="p-4 text-left">Status</th>

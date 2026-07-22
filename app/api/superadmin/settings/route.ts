@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { updateUser } from "@/db/services/users";
 import { upsertSiteSettings, getSiteSettings } from "@/db/services/site-settings";
 import type { NewSiteSettings } from "@/db/schemas/site-settings";
@@ -59,6 +61,7 @@ export async function PATCH(request: Request) {
 
       if (Object.keys(updateData).length > 0) {
         await upsertSiteSettings(updateData);
+        revalidateTag(CACHE_TAGS.SITE_SETTINGS, "max");
       }
 
       return NextResponse.json({ ok: true });
@@ -173,6 +176,7 @@ export async function PATCH(request: Request) {
 
     if (Object.keys(updateData).length > 0) {
       await upsertSiteSettings(updateData);
+      revalidateTag(CACHE_TAGS.SITE_SETTINGS, "max");
     }
 
     return NextResponse.json({ ok: true });

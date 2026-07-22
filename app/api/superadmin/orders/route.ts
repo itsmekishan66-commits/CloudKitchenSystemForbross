@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { createOrder } from "@/db/services/orders";
 import { createUser } from "@/db/services/users";
 import { getZoneById } from "@/db/services/delivery-zones";
@@ -7,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { users } from "@/db/schemas";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 
 export const dynamic = "force-dynamic";
 
@@ -184,6 +186,10 @@ export async function POST(request: Request) {
       }
     }
 
+    revalidateTag(CACHE_TAGS.ORDERS, "max");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "max");
+    revalidateTag(CACHE_TAGS.REPORTS, "max");
+    revalidateTag(CACHE_TAGS.USER_STATS, "max");
     return NextResponse.json({ orderId, total: total.toFixed(2) }, { status: 201 });
   } catch (error) {
     console.error("Failed to create order", error);

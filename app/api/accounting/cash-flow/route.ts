@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { getCashFlowStatement } from "@/db/services/accounting";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +21,13 @@ export async function GET(request: Request) {
     const endDate =
       searchParams.get("endDate") || new Date().toISOString().substring(0, 10);
 
-    const statement = await getCashFlowStatement(startDate, endDate);
+    const getCachedStatement = unstable_cache(
+      (start: string, end: string) => getCashFlowStatement(start, end),
+      [CACHE_TAGS.CASH_FLOW, startDate, endDate],
+      { revalidate: 120, tags: [CACHE_TAGS.CASH_FLOW] }
+    );
+
+    const statement = await getCachedStatement(startDate, endDate);
     return NextResponse.json(statement);
   } catch (error) {
     console.error("Failed to generate cash flow statement:", error);

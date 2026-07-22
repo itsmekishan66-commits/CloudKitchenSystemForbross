@@ -1,5 +1,5 @@
 "use client";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, Star } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
@@ -44,9 +44,11 @@ interface MenuForm {
   isAvailable: boolean;
   discountPercent: string;
   addons: AddonRow[];
+  rating: string;
+  reviews: string;
 }
 
-const emptyForm: MenuForm = { title: "", slug: "", categoryId: null, price: "", image: "", description: "", badge: "", isAvailable: true, discountPercent: "", addons: [] };
+const emptyForm: MenuForm = { title: "", slug: "", categoryId: null, price: "", image: "", description: "", badge: "", isAvailable: true, discountPercent: "", addons: [], rating: "", reviews: "" };
 
 // this is the code for menu recipe - types
 interface RecipeWithCost {
@@ -147,6 +149,13 @@ export default function MenuClient() {
   const [cookModal, setCookModal] = useState<{ recipeId: number; recipeTitle: string; menuItemId: number } | null>(null);
   const [cookBatchCount, setCookBatchCount] = useState(1);
   const [cooking, setCooking] = useState(false);
+
+  // this is for admin reviews
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewForm, setReviewForm] = useState({ menuItemId: 0, userName: "", rating: "5", userAvatar: "" });
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewAvatarUploading, setReviewAvatarUploading] = useState(false);
+  const [reviewHovered, setReviewHovered] = useState(0);
 
   //to download the file
   // const [open, setOpen] = useState(false);
@@ -331,6 +340,8 @@ export default function MenuClient() {
       isAvailable: item.isAvailable,
       discountPercent: item.discountPercent ?? "",
       addons: existingAddons,
+      rating: item.rating ?? "",
+      reviews: String(item.reviews ?? ""),
     });
     setShowModal(true);
   }
@@ -373,6 +384,8 @@ export default function MenuClient() {
         (form.badge || "") === (editing.badge ?? "") &&
         form.isAvailable === editing.isAvailable &&
         (form.discountPercent || "") === (editing.discountPercent ?? "") &&
+        (form.rating || "") === (editing.rating ?? "") &&
+        (form.reviews || "") === String(editing.reviews ?? "") &&
         JSON.stringify(formAddons) === JSON.stringify(editAddons);
       if (unchanged) {
         setMessage("Nothing to update.");
@@ -389,6 +402,8 @@ export default function MenuClient() {
       description: form.description || null,
       badge: form.badge || null,
       discountPercent: form.discountPercent || null,
+      rating: form.rating || null,
+      reviews: form.reviews ? Number(form.reviews) : 0,
       addons: form.addons.filter((a) => a.name.trim()),
     };
 
@@ -593,6 +608,57 @@ export default function MenuClient() {
     };
   }
 
+  // this is for admin reviews
+
+  async function handleReviewAvatarUpload(file: File) {
+    const formData = new FormData();
+    formData.append("files", file);
+    setReviewAvatarUploading(true);
+    try {
+      const res = await fetch("/api/images", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.error) { toast.error(data.error); return; }
+      const url = data.urls?.[0];
+      if (url) {
+        setReviewForm((prev) => ({ ...prev, userAvatar: url }));
+        toast.success("Avatar uploaded");
+      }
+    } catch {
+      toast.error("Failed to upload avatar");
+    } finally {
+      setReviewAvatarUploading(false);
+    }
+  }
+
+  async function handleCreateReview() {
+    if (!reviewForm.menuItemId || !reviewForm.userName.trim()) {
+      toast.error("Select a menu item and enter customer name");
+      return;
+    }
+    setReviewSaving(true);
+    try {
+      const res = await fetch("/api/superadmin/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          menuItemId: reviewForm.menuItemId,
+          userName: reviewForm.userName.trim(),
+          rating: Number(reviewForm.rating),
+          userAvatar: reviewForm.userAvatar || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) { toast.error(data.error); return; }
+      toast.success("Review added");
+      setReviewForm({ menuItemId: 0, userName: "", rating: "5", userAvatar: "" });
+      void loadData();
+    } catch {
+      toast.error("Failed to add review");
+    } finally {
+      setReviewSaving(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -618,6 +684,8 @@ export default function MenuClient() {
           {can("CREATE_MENUS") && <button onClick={openCreate} className="rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-orange-600">+ Add Item</button>}
 
           {can("VIEW_RECIPES") && <button onClick={() => { setEditingRecipeId(null); setRecipeForm(emptyRecipeForm); setRecipeView("form"); setShowRecipeModal(true); void loadInventoryOptions(); }} className="rounded-xl bg-green-600 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-green-700">+ Add menu recipe</button>}
+
+          {can("CREATE_MENUS") && <button onClick={() => { setShowReviewModal(true); }} className="rounded-xl bg-yellow-500 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-yellow-600">+ Add Review</button>}
         </div>
       </div>
 
@@ -845,6 +913,30 @@ export default function MenuClient() {
                   placeholder="e.g. 20"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
                 />
+              </div>
+
+              {/* Rating + Reviews */}
+              <div className="grid md:grid-cols-2 gap-5">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Rating <span className="text-gray-400 font-normal">(0 - 5)</span>
+                  </label>
+                  <input type="number" step="0.5" min="0" max="5" value={form.rating}
+                    onChange={(e) => setForm({ ...form, rating: e.target.value })}
+                    placeholder="e.g. 4.5"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Reviews <span className="text-gray-400 font-normal">(count)</span>
+                  </label>
+                  <input type="number" min="0" value={form.reviews}
+                    onChange={(e) => setForm({ ...form, reviews: e.target.value })}
+                    placeholder="e.g. 120"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
+                  />
+                </div>
               </div>
 
               {/* Badge */}
@@ -1471,6 +1563,116 @@ export default function MenuClient() {
                 className="flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-white font-semibold hover:bg-orange-600 disabled:opacity-50"
               >
                 {cooking ? "Cooking..." : "Cook Now"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col">
+            <div className="border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Add Review</h2>
+              <button onClick={() => { setShowReviewModal(false); setReviewForm({ menuItemId: 0, userName: "", rating: "5", userAvatar: "" }); setReviewHovered(0); }}
+                className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div className="px-6 py-5 space-y-4 overflow-y-auto">
+              <div>
+                <label className="mb-1 block text-sm font-medium">Menu Item *</label>
+                <select value={reviewForm.menuItemId || ""}
+                  onChange={(e) => setReviewForm((p) => ({ ...p, menuItemId: Number(e.target.value) }))}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-100">
+                  <option value="">Select menu item</option>
+                  {items.map((it) => <option key={it.id} value={it.id}>{it.title}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Customer Name *</label>
+                <input value={reviewForm.userName}
+                  onChange={(e) => setReviewForm((p) => ({ ...p, userName: e.target.value }))}
+                  placeholder="Enter customer name"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-100" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Avatar</label>
+                <div className="flex items-center gap-3">
+                  {reviewForm.userAvatar ? (
+                    <img src={reviewForm.userAvatar} alt="Avatar" className="h-12 w-12 rounded-full object-cover border" />
+                  ) : (
+                    <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-lg">
+                      {reviewForm.userName?.[0]?.toUpperCase() || "?"}
+                    </div>
+                  )}
+                  <label className="cursor-pointer">
+                    <span className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50 inline-block">
+                      {reviewAvatarUploading ? "Uploading..." : "Upload Image"}
+                    </span>
+                    <input type="file" accept="image/*" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleReviewAvatarUpload(f); }} />
+                  </label>
+                  {reviewForm.userAvatar && (
+                    <button type="button" onClick={() => setReviewForm((p) => ({ ...p, userAvatar: "" }))}
+                      className="text-sm text-red-500 hover:underline">Remove</button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Rating *</label>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const activeVal = reviewHovered || Number(reviewForm.rating);
+                    const isFull = activeVal >= star;
+                    const isHalf = !isFull && activeVal >= star - 0.5;
+                    return (
+                      <div key={star} className="relative w-7 h-7">
+                        {/* Left half click zone for x.5 */}
+                        <button
+                          type="button"
+                          onMouseEnter={() => setReviewHovered(star - 0.5)}
+                          onMouseLeave={() => setReviewHovered(0)}
+                          onClick={() => setReviewForm((p) => ({ ...p, rating: String(star - 0.5) }))}
+                          className="absolute left-0 top-0 w-1/2 h-full z-20 cursor-pointer"
+                        />
+                        {/* Right half click zone for full star */}
+                        <button
+                          type="button"
+                          onMouseEnter={() => setReviewHovered(star)}
+                          onMouseLeave={() => setReviewHovered(0)}
+                          onClick={() => setReviewForm((p) => ({ ...p, rating: String(star) }))}
+                          className="absolute right-0 top-0 w-1/2 h-full z-20 cursor-pointer"
+                        />
+                        {/* Empty star background */}
+                        <Star size={28} className="absolute inset-0 text-gray-300" />
+                        {/* Full filled star */}
+                        {isFull && (
+                          <Star size={28} className="absolute inset-0 fill-amber-400 text-amber-400" />
+                        )}
+                        {/* Half filled star */}
+                        {isHalf && (
+                          <span className="absolute inset-0 overflow-hidden w-[50%]">
+                            <Star size={28} className="fill-amber-400 text-amber-400" />
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {Number(reviewForm.rating) > 0 && (
+                    <span className="ml-2 text-sm font-medium text-gray-600">
+                      {reviewForm.rating}/5
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="border-t px-6 py-4 flex justify-end gap-3">
+              <button onClick={() => { setShowReviewModal(false); setReviewForm({ menuItemId: 0, userName: "", rating: "5", userAvatar: "" }); setReviewHovered(0); }}
+                className="rounded-xl border border-slate-300 px-5 py-2.5 font-medium hover:bg-slate-50">
+                Cancel
+              </button>
+              <button onClick={handleCreateReview} disabled={reviewSaving}
+                className="flex items-center gap-2 rounded-xl bg-yellow-500 px-5 py-2.5 text-white font-semibold hover:bg-yellow-600 disabled:opacity-50">
+                {reviewSaving ? "Saving..." : "Add Review"}
               </button>
             </div>
           </div>

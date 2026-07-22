@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 import { PERMISSIONS } from "@/lib/permissions";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import {
   getMenuItems,
   getAvailableMenuItems,
@@ -11,7 +13,6 @@ import {
 } from "@/db/services/menu-items";
 import type { NewMenuItem } from "@/db/schemas";
 import { createActivityLog } from "@/db/services/activity-logs";
-import { cacheHeaders } from "@/lib/apiCache";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
     const available = searchParams.get("available");
 
     const items = available === "true" ? await getAvailableMenuItems() : await getMenuItems();
-    return NextResponse.json({ items }, { headers: cacheHeaders() });
+    return NextResponse.json({ items });
   } catch (error) {
     console.error("Failed to load menu items", error);
     return NextResponse.json({ error: "Unable to load menu items" }, { status: 500 });
@@ -68,6 +69,9 @@ export async function POST(request: Request) {
       entityId: menuItemId,
     });
 
+    revalidateTag(CACHE_TAGS.MENU_ITEMS, "max");
+    revalidateTag(CACHE_TAGS.REPORTS, "max");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "max");
     return NextResponse.json({ menuItemId }, { status: 201 });
   } catch (error) {
     console.error("Failed to create menu item", error);
@@ -100,6 +104,10 @@ export async function PATCH(request: Request) {
       image: cleanText(body.image) || null,
       badge: cleanText(body.badge) || null,
     });
+
+    revalidateTag(CACHE_TAGS.MENU_ITEMS, "max");
+    revalidateTag(CACHE_TAGS.REPORTS, "max");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "max");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to update menu item", error);
@@ -127,6 +135,9 @@ export async function DELETE(request: Request) {
     }
 
     await deleteMenuItem(id);
+    revalidateTag(CACHE_TAGS.MENU_ITEMS, "max");
+    revalidateTag(CACHE_TAGS.REPORTS, "max");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "max");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to delete menu item", error);

@@ -58,7 +58,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
   const router = useRouter();
   const confirm = useConfirm();
   const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState<"success" | "error">("success");
+  const [messageType, setMessageType] = useState<"success" | "error" | "warning">("success");
   const [localOrders, setLocalOrders] = useState(orders);
   const [addItemOrder, setAddItemOrder] = useState<Order | null>(null);
 
@@ -94,8 +94,9 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status }),
     });
+    const data = await response.json();
     if (!response.ok) {
-      setMessage("Unable to update order status.");
+      setMessage(data.error || "Unable to update order status.");
       setMessageType("error");
       return;
     }
@@ -104,6 +105,9 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
     );
     if (status === "Delivered" && prevOrder) {
       setSettleOrder({ ...prevOrder, status: "Delivered" });
+    } else if (data.warnings && data.warnings.length > 0) {
+      setMessage(`Stock warnings: ${data.warnings.join("; ")}`);
+      setMessageType("warning");
     } else {
       setMessage("Order status updated.");
       setMessageType("success");
@@ -215,7 +219,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
   return (
     <>
       {message ? (
-        <p className={`mb-4 rounded-xl p-3 text-sm ${messageType === "error" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
+        <p className={`mb-4 rounded-xl p-3 text-sm ${messageType === "error" ? "bg-red-50 text-red-700" : messageType === "warning" ? "bg-amber-50 text-amber-700" : "bg-green-50 text-green-700"}`}>
           {message}
         </p>
       ) : null}
@@ -263,7 +267,18 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                     value={order.status}
                     onChange={async (event) => {
                       const newStatus = event.target.value;
-                      if ((newStatus === "Delivered" || newStatus === "Cancelled") && order.status !== newStatus) {
+                      if (newStatus === "Out For Delivery" && order.status !== newStatus) {
+                        const ok = await confirm({
+                          title: "Send Out for Delivery?",
+                          message: "Cooked stock will be deducted for this order. This action cannot be undone.",
+                          confirmText: "Yes, deduct stock & send",
+                          variant: "warning",
+                        });
+                        if (!ok) {
+                          (event.target as HTMLSelectElement).value = order.status;
+                          return;
+                        }
+                      } else if ((newStatus === "Delivered" || newStatus === "Cancelled") && order.status !== newStatus) {
                         const ok = await confirm({
                           title: `Mark as ${newStatus}?`,
                           message: `This action cannot be undone. Are you sure you want to mark this order as "${newStatus}"?`,

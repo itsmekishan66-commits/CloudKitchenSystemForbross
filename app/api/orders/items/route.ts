@@ -5,7 +5,6 @@ import { db } from "@/db";
 import { getAvailableMenuItems } from "@/db/services/menu-items";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
-import { deductCookedStock, restoreCookedStock } from "@/db/services/cooked-food-stock";
 import { orders, orderItems } from "@/db/schemas";
 import { getAllZones } from "@/db/services/delivery-zones";
 
@@ -58,15 +57,6 @@ export async function PATCH(request: Request) {
 
     await db.update(orderItems).set({ quantity: newQty }).where(eq(orderItems.id, itemId));
 
-    const diff = newQty - item.quantity;
-    if (diff !== 0 && item.menuItemId) {
-      if (diff > 0) {
-        await deductCookedStock(item.menuItemId, diff);
-      } else {
-        await restoreCookedStock(item.menuItemId, Math.abs(diff));
-      }
-    }
-
     const [order] = await db.select().from(orders).where(eq(orders.id, item.orderId)).limit(1);
     const allItems = await db.select().from(orderItems).where(eq(orderItems.orderId, item.orderId));
     const itemsSubtotal = allItems.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
@@ -101,10 +91,6 @@ export async function DELETE(request: Request) {
     }
 
     await db.delete(orderItems).where(eq(orderItems.id, itemId));
-
-    if (item.menuItemId) {
-      await restoreCookedStock(item.menuItemId, item.quantity);
-    }
 
     const [order] = await db.select().from(orders).where(eq(orders.id, item.orderId)).limit(1);
 
@@ -173,10 +159,6 @@ export async function POST(request: Request) {
       price: price.toFixed(2),
       meta: body.meta || null,
     });
-
-    if (body.menuItemId) {
-      await deductCookedStock(Number(body.menuItemId), quantity);
-    }
 
     const allItems = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
     const itemsSubtotal = allItems.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);

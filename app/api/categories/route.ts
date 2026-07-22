@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 // import { getCurrentUser } from "@/lib/auth";
 // import { hasPermission } from "@/lib/rbac";
 import { PERMISSIONS } from "@/lib/permissions";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import {
   getCategories,
   getActiveCategories,
@@ -13,7 +15,6 @@ import {
 import type { NewCategory } from "@/db/schemas";
 import { createActivityLog } from "@/db/services/activity-logs";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
-import { cacheHeaders } from "@/lib/apiCache";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
     const activeOnly = searchParams.get("active") === "true";
 
     const categories = activeOnly ? await getActiveCategories() : await getCategories();
-    return NextResponse.json({ categories }, { headers: cacheHeaders() });
+    return NextResponse.json({ categories });
   } catch (error) {
     console.error("Failed to load categories", error);
     return NextResponse.json({ error: "Unable to load categories" }, { status: 500 });
@@ -68,6 +69,9 @@ export async function POST(request: Request) {
       entityId: categoryId,
     });
 
+    revalidateTag(CACHE_TAGS.CATEGORIES, "max");
+    revalidateTag(CACHE_TAGS.REPORTS, "max");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "max");
     return NextResponse.json({ categoryId }, { status: 201 });
   } catch (error) {
     console.error("Failed to create category", error);
@@ -101,6 +105,9 @@ export async function PATCH(request: Request) {
       isActive: body.isActive,
     });
 
+    revalidateTag(CACHE_TAGS.CATEGORIES, "max");
+    revalidateTag(CACHE_TAGS.REPORTS, "max");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "max");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to update category", error);
@@ -128,6 +135,9 @@ export async function DELETE(request: Request) {
     }
 
     await deleteCategory(id);
+    revalidateTag(CACHE_TAGS.CATEGORIES, "max");
+    revalidateTag(CACHE_TAGS.REPORTS, "max");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "max");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to delete category", error);

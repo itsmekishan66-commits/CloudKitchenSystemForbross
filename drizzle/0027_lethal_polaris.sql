@@ -1,0 +1,1 @@
+ALTER TABLE `reviews` MODIFY COLUMN `rating` decimal(2,1) NOT NULL;

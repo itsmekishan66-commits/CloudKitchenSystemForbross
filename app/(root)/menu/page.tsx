@@ -7,6 +7,7 @@ import { FaPlusCircle, FaStar, FaStarHalfAlt } from "react-icons/fa";
 import { safeImageUrl } from "@/lib/image";
 import toast from "react-hot-toast";
 import Checkbox from "@/app/_components/Checkbox";
+import ReviewsPanel from "@/app/_components/ReviewsPanel";
 
 type AddonItem = { name: string; price: number };
 
@@ -85,6 +86,7 @@ function MenuContent() {
   const [loading, setLoading] = useState(true);
   const [addonModalFood, setAddonModalFood] = useState<Food | null>(null);
   const [selectedAddons, setSelectedAddons] = useState<AddonItem[]>([]);
+  const [selectedMenuItemId, setSelectedMenuItemId] = useState<number | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -282,10 +284,13 @@ function MenuContent() {
                     </svg>
                   </div>
                 )}
-                <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-gray-900/90 backdrop-blur-sm rounded-full px-2.5 py-1 shadow-sm">
+                <button
+                  onClick={() => setSelectedMenuItemId(food.id)}
+                  className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-gray-900/90 backdrop-blur-sm rounded-full px-2.5 py-1 shadow-sm cursor-pointer hover:bg-gray-800 transition-colors"
+                >
                   <StarRating rating={food.rating} />
                   <span className="text-[11px] font-semibold text-gray-300 ml-0.5">{food.rating}</span>
-                </div>
+                </button>
               </div>
               <div className="p-5">
                 <div className="flex items-start justify-between gap-3 mb-2">
@@ -307,7 +312,7 @@ function MenuContent() {
                   {food.description}
                 </p>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-gray-200">
                     {food.reviews} reviews
                   </span>
                   <button
@@ -422,6 +427,14 @@ function MenuContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {selectedMenuItemId && (
+        <ReviewsPanel
+          menuItemId={selectedMenuItemId}
+          menuTitle={foods.find((f) => f.id === selectedMenuItemId)?.name}
+          onClose={() => setSelectedMenuItemId(null)}
+        />
       )}
     </div>
   );

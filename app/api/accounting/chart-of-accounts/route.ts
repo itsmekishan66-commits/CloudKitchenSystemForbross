@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import {
   getChartOfAccounts,
   createAccount,
@@ -80,6 +82,9 @@ export async function POST(request: Request) {
       openingBalance: openingBalance || "0",
     });
 
+    revalidateTag(CACHE_TAGS.CHART_OF_ACCOUNTS, "max");
+    revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
+    revalidateTag(CACHE_TAGS.TRIAL_BALANCE, "max");
     return NextResponse.json({ account }, { status: 201 });
   } catch (error) {
     console.error("Failed to create account:", error);

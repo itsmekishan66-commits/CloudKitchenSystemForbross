@@ -22,3 +22,6 @@ export * from "./recipes";
 export * from "./recipe-ingredients";
 export * from "./accounting";
 export * from "./cooked-food-stock";
+
+// for reviews schema
+export * from "./reviews";

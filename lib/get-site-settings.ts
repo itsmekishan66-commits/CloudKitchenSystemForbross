@@ -1,9 +1,10 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import { getSiteSettings as getSiteSettingsFromDb } from "@/db/services/site-settings";
 import { DEFAULT_ABOUT_CONTENT, DEFAULT_CONTACT_CONTENT } from "./site-defaults";
 
-export async function getSiteSettings() {
+async function fetchSiteSettings() {
   const settings = await getSiteSettingsFromDb();
 
   return {
@@ -15,4 +16,13 @@ export async function getSiteSettings() {
     aboutContent: settings?.aboutContent ?? DEFAULT_ABOUT_CONTENT,
     contactContent: settings?.contactContent ?? DEFAULT_CONTACT_CONTENT,
   };
+}
+
+export function getSiteSettings() {
+  const getCached = unstable_cache(
+    fetchSiteSettings,
+    ["site-settings"],
+    { revalidate: 300, tags: ["site-settings"] }
+  );
+  return getCached();
 }

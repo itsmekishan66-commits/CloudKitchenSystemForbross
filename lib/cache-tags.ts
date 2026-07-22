@@ -1,0 +1,18 @@
+export const CACHE_TAGS = {
+  DASHBOARD_STATS: "dashboard-stats",
+  REPORTS: "reports",
+  ACCOUNTING_OVERVIEW: "accounting-overview",
+  TRIAL_BALANCE: "trial-balance",
+  INCOME_STATEMENT: "income-statement",
+  BALANCE_SHEET: "balance-sheet",
+  CASH_FLOW: "cash-flow",
+  CHART_OF_ACCOUNTS: "chart-of-accounts",
+  JOURNAL_ENTRIES: "journal-entries",
+  ORDERS: "orders",
+  USERS: "users",
+  USER_STATS: "user-stats",
+  MENU_ITEMS: "menu-items",
+  CATEGORIES: "categories",
+  KITCHENS: "kitchens",
+  SITE_SETTINGS: "site-settings",
+} as const;

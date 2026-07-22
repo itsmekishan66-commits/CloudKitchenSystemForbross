@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 // import { and, eq, sql } from "drizzle-orm";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { hashPassword } from "@/lib/auth";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { users, roles } from "@/db/schemas";
 import { createUser, getRoleIdByName, getUserByEmailIncludingDeleted } from "@/db/services";
 
@@ -53,6 +55,8 @@ export async function POST(request: Request) {
       address: address || null,
     });
 
+    revalidateTag(CACHE_TAGS.USERS, "max");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "max");
     return NextResponse.json({ ok: true, userId });
   } catch (error) {
     console.error("Failed to create user", error);
@@ -72,25 +76,34 @@ export async function GET(request: Request) {
     const isGuest = searchParams.get("isGuest");
     const emailFilter = searchParams.get("email");
 
-    const query = db
-      .select({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        phone: users.phone,
-        address: users.address,
-        roleId: users.roleId,
-        isGuest: users.isGuest,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-        role: roles.name,
-      })
-      .from(users)
-      .leftJoin(roles, eq(users.roleId, roles.id))
-      .where(eq(users.deleted, false))
-      .orderBy(users.name);
+    const fetchAllUsers = async () => {
+      return db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          phone: users.phone,
+          address: users.address,
+          roleId: users.roleId,
+          isGuest: users.isGuest,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+          role: roles.name,
+        })
+        .from(users)
+        .leftJoin(roles, eq(users.roleId, roles.id))
+        .where(eq(users.deleted, false))
+        .orderBy(users.name);
+    };
 
-    let filtered = await query;
+    const getCachedUsers = unstable_cache(
+      fetchAllUsers,
+      [CACHE_TAGS.USERS],
+      { revalidate: 60, tags: [CACHE_TAGS.USERS] }
+    );
+
+    let filtered = await getCachedUsers();
+
     if (roleFilter) {
       filtered = filtered.filter((u) => u.role === roleFilter);
     }

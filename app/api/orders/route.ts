@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { createOrder, getOrdersWithDetails, updateOrderStatus, getOrderById } from "@/db/services/orders";
 import { getActivePromotionByCode, incrementPromotionUsage } from "@/db/services/promotions";
 import { createUser } from "@/db/services/users";
@@ -9,6 +10,7 @@ import type { NewOrder } from "@/db/schemas";
 import { getCurrentUser } from "@/lib/auth";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import type { CartItem } from "@/store/cartStore";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +59,13 @@ export async function GET() {
       return user;
     }
 
-    const orders = await getOrdersWithDetails();
+    const getCachedOrders = unstable_cache(
+      () => getOrdersWithDetails(),
+      [CACHE_TAGS.ORDERS],
+      { revalidate: 30, tags: [CACHE_TAGS.ORDERS] }
+    );
+
+    const orders = await getCachedOrders();
     return NextResponse.json({ orders });
   } catch (error) {
     console.error("Failed to load orders", error);
@@ -317,8 +325,12 @@ export async function PATCH(request: Request) {
       );
     }
 
-    await updateOrderStatus(id, status);
-    return NextResponse.json({ ok: true });
+    const warnings = await updateOrderStatus(id, status);
+    revalidateTag(CACHE_TAGS.ORDERS, "max");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "max");
+    revalidateTag(CACHE_TAGS.REPORTS, "max");
+    revalidateTag(CACHE_TAGS.USER_STATS, "max");
+    return NextResponse.json({ ok: true, warnings });
   } catch (error) {
     console.error("Failed to update order status", error);
     return NextResponse.json(

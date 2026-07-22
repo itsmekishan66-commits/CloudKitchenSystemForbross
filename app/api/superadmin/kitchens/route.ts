@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import {
   getKitchens,
   getKitchenById,
@@ -85,6 +87,8 @@ export async function POST(request: Request) {
       details: { name, slug },
     });
 
+    revalidateTag(CACHE_TAGS.KITCHENS, "max");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "max");
     return NextResponse.json({ kitchenId }, { status: 201 });
   } catch (error) {
     console.error("Failed to create kitchen", error);
@@ -129,6 +133,8 @@ export async function PATCH(request: Request) {
       details: body,
     });
 
+    revalidateTag(CACHE_TAGS.KITCHENS, "max");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "max");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to update kitchen", error);
@@ -164,6 +170,8 @@ export async function DELETE(request: Request) {
       entityId: id,
     });
 
+    revalidateTag(CACHE_TAGS.KITCHENS, "max");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "max");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to delete kitchen", error);

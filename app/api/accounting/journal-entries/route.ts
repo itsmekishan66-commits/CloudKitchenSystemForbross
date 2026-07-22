@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import {
   getJournalEntries,
   createJournalEntry,
@@ -102,6 +104,12 @@ export async function POST(request: Request) {
       ),
     });
 
+    revalidateTag(CACHE_TAGS.JOURNAL_ENTRIES, "max");
+    revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
+    revalidateTag(CACHE_TAGS.TRIAL_BALANCE, "max");
+    revalidateTag(CACHE_TAGS.INCOME_STATEMENT, "max");
+    revalidateTag(CACHE_TAGS.BALANCE_SHEET, "max");
+    revalidateTag(CACHE_TAGS.CASH_FLOW, "max");
     return NextResponse.json({ entry }, { status: 201 });
   } catch (error) {
     console.error("Failed to create journal entry:", error);

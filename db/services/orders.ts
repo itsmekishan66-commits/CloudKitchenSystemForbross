@@ -10,6 +10,8 @@ import {
   type NewOrderItem,
   menuItems,
   users,
+  supplierProducts,
+  inventoryItems,
 } from "@/db/schemas";
 import { recordOrderSale } from "@/db/services/accounting";
 
@@ -194,30 +196,6 @@ export async function createOrder({ items, ...order }: CreateOrderInput) {
       );
     }
 
-    for (const item of items) {
-      if (!item.menuItemId) continue;
-      const [stock] = await tx
-        .select()
-        .from(cookedFoodStock)
-        .where(eq(cookedFoodStock.menuItemId, item.menuItemId))
-        .limit(1);
-
-      if (!stock) {
-        throw new Error(`No cooked stock found for menu item #${item.menuItemId}`);
-      }
-
-      const current = Number(stock.quantity);
-      const needed = Number(item.quantity) || 0;
-      if (current < needed) {
-        throw new Error(`Insufficient cooked stock for "${item.title}": have ${current}, need ${needed}`);
-      }
-
-      await tx
-        .update(cookedFoodStock)
-        .set({ quantity: String(current - needed) })
-        .where(eq(cookedFoodStock.id, stock.id));
-    }
-
     return orderId;
   });
 }
@@ -226,6 +204,8 @@ export async function updateOrderStatus(
   id: number,
   status: NewOrder["status"],
 ) {
+  const warnings: string[] = [];
+
   await db.transaction(async (tx) => {
     const [existingOrder] = await tx.select().from(orders).where(eq(orders.id, id)).limit(1);
 
@@ -233,26 +213,126 @@ export async function updateOrderStatus(
       throw new Error("Order not found");
     }
 
-    if (status === "Cancelled" && existingOrder.status !== "Cancelled") {
+    if (status === "Out For Delivery" && existingOrder.status !== "Out For Delivery") {
+      const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, id));
+
+      for (const item of items) {
+        if (!item.menuItemId) continue;
+        const needed = Number(item.quantity) || 0;
+        if (needed <= 0) continue;
+
+        const [supplierProd] = await tx
+          .select()
+          .from(supplierProducts)
+          .where(and(eq(supplierProducts.menuItemId, item.menuItemId), eq(supplierProducts.productType, "direct_sellable")))
+          .limit(1);
+
+        if (supplierProd && supplierProd.inventoryItemId) {
+          const [invItem] = await tx
+            .select()
+            .from(inventoryItems)
+            .where(eq(inventoryItems.id, supplierProd.inventoryItemId))
+            .limit(1);
+
+          if (!invItem) {
+            warnings.push(`No inventory item for direct_sellable "${item.title}". Order sent without stock deduction.`);
+            continue;
+          }
+
+          const current = Number(invItem.quantity);
+          if (current < needed) {
+            warnings.push(`Insufficient inventory for "${item.title}": have ${current}, need ${needed}. Order sent without stock deduction.`);
+            continue;
+          }
+
+          await tx
+            .update(inventoryItems)
+            .set({ quantity: String(current - needed) })
+            .where(eq(inventoryItems.id, supplierProd.inventoryItemId));
+
+          const unitsPerPack = Number(supplierProd.unitsPerPack) || 1;
+          const currentPacks = Number(supplierProd.quantity) || 0;
+          const packsDeducted = needed / unitsPerPack;
+          await tx
+            .update(supplierProducts)
+            .set({ quantity: String(Math.max(0, currentPacks - packsDeducted)) })
+            .where(eq(supplierProducts.id, supplierProd.id));
+        } else {
+          const [stock] = await tx
+            .select()
+            .from(cookedFoodStock)
+            .where(eq(cookedFoodStock.menuItemId, item.menuItemId))
+            .limit(1);
+
+          if (!stock) {
+            warnings.push(`No cooked stock for "${item.title}" (menu item #${item.menuItemId}). Order sent without stock deduction.`);
+            continue;
+          }
+
+          const current = Number(stock.quantity);
+          if (current < needed) {
+            warnings.push(`Insufficient cooked stock for "${item.title}": have ${current}, need ${needed}. Order sent without stock deduction.`);
+            continue;
+          }
+
+          await tx
+            .update(cookedFoodStock)
+            .set({ quantity: String(current - needed) })
+            .where(eq(cookedFoodStock.id, stock.id));
+        }
+      }
+    }
+
+    if (status === "Cancelled" && existingOrder.status !== "Cancelled" && existingOrder.status !== "Out For Delivery") {
       const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, id));
 
       for (const item of items) {
         const menuItemId = item.menuItemId ?? null;
         if (!menuItemId) continue;
+        const restoreQuantity = Number(item.quantity) || 0;
+        if (restoreQuantity <= 0) continue;
 
-        const [cookedStock] = await tx
+        const [supplierProd] = await tx
           .select()
-          .from(cookedFoodStock)
-          .where(eq(cookedFoodStock.menuItemId, menuItemId))
+          .from(supplierProducts)
+          .where(and(eq(supplierProducts.menuItemId, menuItemId), eq(supplierProducts.productType, "direct_sellable")))
           .limit(1);
 
-        if (!cookedStock) continue;
+        if (supplierProd && supplierProd.inventoryItemId) {
+          const [invItem] = await tx
+            .select()
+            .from(inventoryItems)
+            .where(eq(inventoryItems.id, supplierProd.inventoryItemId))
+            .limit(1);
 
-        const restoreQuantity = Number(item.quantity) || 0;
-        await tx
-          .update(cookedFoodStock)
-          .set({ quantity: String(Number(cookedStock.quantity) + restoreQuantity) })
-          .where(eq(cookedFoodStock.id, cookedStock.id));
+          if (invItem) {
+            await tx
+              .update(inventoryItems)
+              .set({ quantity: String(Number(invItem.quantity) + restoreQuantity) })
+              .where(eq(inventoryItems.id, supplierProd.inventoryItemId));
+          }
+
+          const unitsPerPack = Number(supplierProd.unitsPerPack) || 1;
+          const currentPacks = Number(supplierProd.quantity) || 0;
+          const packsRestored = restoreQuantity / unitsPerPack;
+          await tx
+            .update(supplierProducts)
+            .set({ quantity: String(currentPacks + packsRestored) })
+            .where(eq(supplierProducts.id, supplierProd.id));
+        } else {
+          const [cookedStock] = await tx
+            .select()
+            .from(cookedFoodStock)
+            .where(eq(cookedFoodStock.menuItemId, menuItemId))
+            .limit(1);
+
+          if (cookedStock) {
+            await tx
+              .update(cookedFoodStock)
+              .set({ quantity: String(Number(cookedStock.quantity) + restoreQuantity) })
+              .where(eq(cookedFoodStock.id, cookedStock.id));
+          }
+        }
       }
     }
 
@@ -277,6 +357,8 @@ export async function updateOrderStatus(
       console.error("Failed to record accounting entry for order", id, err);
     }
   }
+
+  return warnings;
 }
 
 export async function updateOrderPaymentStatus(id: number, settled: boolean, dueAmount?: string | number) {

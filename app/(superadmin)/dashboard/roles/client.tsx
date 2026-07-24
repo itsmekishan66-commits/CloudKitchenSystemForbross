@@ -99,15 +99,12 @@ export default function RolesClient() {
     toast.success("Role & user created successfully");
   }
 
-  // filters out customers — only management roles shown in the table
-  const managementUsers = users.filter((u) => u.role !== "customer");
-
   const displayedUsers = searchQuery
-    ? managementUsers.filter((u) =>
+    ? users.filter((u) =>
       u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.email?.toLowerCase().includes(searchQuery.toLowerCase())
     )
-    : managementUsers;
+    : users;
 
   const totalPages = Math.ceil(displayedUsers.length / perPage);
   const start = (page - 1) * perPage;

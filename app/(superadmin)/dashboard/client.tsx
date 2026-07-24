@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ShoppingBag, IndianRupee, Users, UtensilsCrossed, ClipboardList, Package, CreditCard, LifeBuoy, BarChart3,
+  ShoppingBag, Users, UtensilsCrossed, ClipboardList, Package, CreditCard, LifeBuoy, BarChart3,
   Megaphone, Settings, ShieldCheck, Tags, MessageSquare,
 } from "lucide-react";
+import { GiReceiveMoney } from "react-icons/gi";
 
 interface DashboardStats {
   totalOrders: number;
@@ -59,7 +60,7 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
   const statCards = stats
     ? [
       { title: "Total Orders", value: stats.totalOrders.toLocaleString(), growth: `${stats.pendingOrders} pending`, icon: ShoppingBag, module: "/dashboard/orders" },
-      { title: "Revenue", value: `Rs.${(stats.revenue / 1000).toFixed(1)}K`, growth: "Total revenue", icon: IndianRupee, module: "/dashboard/payment" },
+      { title: "Revenue", value: `Rs.${(stats.revenue / 1000).toFixed(1)}K`, growth: "Total revenue", icon: GiReceiveMoney, module: "/dashboard/payment" },
       { title: "Customers", value: stats.totalCustomers.toLocaleString(), growth: "Registered users", icon: Users, module: "/dashboard/customers" },
       { title: "Active Kitchens", value: stats.activeKitchens.toString(), growth: "Currently active", icon: UtensilsCrossed, module: "/dashboard/kitchen" },
     ]

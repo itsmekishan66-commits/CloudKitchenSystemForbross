@@ -47,7 +47,8 @@ async function fetchData(source: string): Promise<NextResponse | Record<string, 
                     totalRevenue: sql<string>`coalesce(sum(${orders.total}),0)`,
                     avgOrderValue: sql<string>`coalesce(avg(${orders.total}),0)`,
                 })
-                .from(orders);
+                .from(orders)
+                .where(eq(orders.status, "Delivered"));
 
             const [customerStats] = await db
                 .select({ count: sql<number>`count(*)` })

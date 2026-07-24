@@ -22,7 +22,7 @@ export async function GET() {
       return user;
     }
 
-    const allUsers = await getUsers();
+    const allUsers = await getUsers({ excludeRole: "customer", excludeGuests: true });
     return NextResponse.json({ users: allUsers });
   } catch (error) {
     console.error("Failed to load users", error);

@@ -1,4 +1,4 @@
-import { and, asc, eq, gte } from "drizzle-orm";
+import { and, asc, eq, gte, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { roles, users, type NewUser } from "@/db/schemas";
 
@@ -38,7 +38,18 @@ export async function getUserByEmailIncludingDeleted(email: string) {
   return user ?? null;
 }
 
-export async function getUsers() {
+// getUsers returns all non-deleted users with their role name.
+// Use options to filter at DB level: { excludeRole: "customer", excludeGuests: true }
+export async function getUsers(options?: { excludeRole?: string; excludeGuests?: boolean }) {
+  const filters = [eq(users.deleted, false)];
+
+  if (options?.excludeRole) {
+    filters.push(ne(roles.name, options.excludeRole));
+  }
+  if (options?.excludeGuests) {
+    filters.push(eq(users.isGuest, false));
+  }
+
   const result = await db
     .select({
       id: users.id,
@@ -54,7 +65,7 @@ export async function getUsers() {
     })
     .from(users)
     .leftJoin(roles, eq(users.roleId, roles.id))
-    .where(eq(users.deleted, false))
+    .where(and(...filters))
     .orderBy(asc(users.name));
   return result;
 }

@@ -25,7 +25,8 @@ const fetchDashboardStats = async () => {
         totalOrders: sql<number>`count(*)`,
         revenue: sql<string>`coalesce(sum(${orders.total}), 0)`,
       })
-      .from(orders),
+      .from(orders)
+      .where(eq(orders.status, "Delivered")),
     db
       .select({ count: sql<number>`count(*)` })
       .from(users)

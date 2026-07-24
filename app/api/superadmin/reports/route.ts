@@ -54,7 +54,7 @@ const fetchReports = async (days: number, customStart: string | null, customEnd:
       totalRevenue: sql<string>`coalesce(sum(${orders.total}),0)`,
       avgOrderValue: sql<string>`coalesce(avg(${orders.total}),0)`,
     }).from(orders)
-      .where(dateFilter), [{ totalOrders: 0, totalRevenue: "0", avgOrderValue: "0" }]),
+      .where(and(eq(orders.status, "Delivered"), dateFilter)), [{ totalOrders: 0, totalRevenue: "0", avgOrderValue: "0" }]),
 
     run(() => db.select({ count: sql<number>`count(*)` }).from(users)
       .leftJoin(roles, eq(users.roleId, roles.id))
@@ -69,7 +69,7 @@ const fetchReports = async (days: number, customStart: string | null, customEnd:
       date: sql<string>`date(${orders.createdAt})`,
       revenue: sql<string>`coalesce(sum(${orders.total}),0)`,
     }).from(orders)
-      .where(dateFilter)
+      .where(and(eq(orders.status, "Delivered"), dateFilter))
       .groupBy(sql`date(${orders.createdAt})`)
       .orderBy(sql`date(${orders.createdAt})`), []),
 
@@ -94,7 +94,7 @@ const fetchReports = async (days: number, customStart: string | null, customEnd:
       orders: sql<number>`count(*)`,
       revenue: sql<string>`coalesce(sum(${orders.total}),0)`,
     }).from(orders)
-      .where(dateFilter)
+      .where(and(eq(orders.status, "Delivered"), dateFilter))
       .groupBy(sql`hour(${orders.createdAt})`)
       .orderBy(sql`hour(${orders.createdAt})`), []),
 
@@ -103,7 +103,7 @@ const fetchReports = async (days: number, customStart: string | null, customEnd:
       orders: sql<number>`count(*)`,
       revenue: sql<string>`coalesce(sum(${orders.total}),0)`,
     }).from(orders)
-      .where(dateFilter)
+      .where(and(eq(orders.status, "Delivered"), dateFilter))
       .groupBy(sql`dayname(${orders.createdAt})`)
       .orderBy(sql`dayofweek(${orders.createdAt})`), []),
 

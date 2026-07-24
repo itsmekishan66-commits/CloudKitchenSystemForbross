@@ -490,7 +490,8 @@ export async function getDashboardStats() {
       totalOrders: sql<number>`count(*)`,
       revenue: sql<string>`coalesce(sum(${orders.total}), 0)`,
     })
-    .from(orders);
+    .from(orders)
+    .where(eq(orders.status, "Delivered"));
 
   const [customerStats] = await db
     .select({

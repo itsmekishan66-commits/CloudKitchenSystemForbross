@@ -2,7 +2,6 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useCart } from "../../_components/frontend/cart/CartContext";
-import Image from "next/image";
 import { FaPlusCircle, FaStar, FaStarHalfAlt } from "react-icons/fa";
 import { safeImageUrl } from "@/lib/image";
 import toast from "react-hot-toast";
@@ -219,11 +218,10 @@ function MenuContent() {
               className="group bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-gray-700"
             >
               <div className="relative h-52 overflow-hidden">
-                <Image
+                <img
                   src={safeImageUrl(food.image)}
                   alt={food.name}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-500"
+                  className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent" />
                 {food.badge && (

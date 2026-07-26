@@ -675,8 +675,10 @@ export default function OrdersClient() {
                 {addMenuItemId && (() => {
                   const item = menuItems.find((m) => m.id.toString() === addMenuItemId);
                   if (!item?.addons?.length) return null;
-                  const addonTotal = selectedAddons.reduce((s, a) => s + Number(a.price), 0);
+                  const dp = item.discountPercent ? Number(item.discountPercent) : 0;
                   const basePrice = Number(item.price);
+                  const discountedBase = dp > 0 ? basePrice - (basePrice * dp) / 100 : basePrice;
+                  const addonTotal = selectedAddons.reduce((s, a) => s + Number(a.price), 0);
                   return (
                     <div className="mb-3">
                       <label className="block text-sm font-medium text-gray-700 mb-2">Add-ons / Extras</label>
@@ -689,10 +691,10 @@ export default function OrdersClient() {
                                 const extra = Number(addon.price);
                                 if (e.target.checked) {
                                   setSelectedAddons((prev) => [...prev, addon]);
-                                  setAddItemPrice(((basePrice + addonTotal + extra) || 0).toFixed(2));
+                                  setAddItemPrice(((discountedBase + addonTotal + extra) || 0).toFixed(2));
                                 } else {
                                   setSelectedAddons((prev) => prev.filter((a) => a.name !== addon.name));
-                                  setAddItemPrice(((basePrice + addonTotal - extra) || 0).toFixed(2));
+                                  setAddItemPrice(((discountedBase + addonTotal - extra) || 0).toFixed(2));
                                 }
                               }}
                             />
@@ -723,7 +725,20 @@ export default function OrdersClient() {
                       <tbody>
                         {form.items.map((it, index) => (
                           <tr key={index} className="border-t">
-                            <td className="p-2">{it.title}</td>
+                            <td className="p-2">
+                              <span>{it.title}</span>
+                              {it.meta?.addons && it.meta.addons.length > 0 && (
+                                <div className="text-xs text-gray-500 mt-0.5 space-y-0.5">
+                                  {it.meta.addons.map((a, i) => (
+                                    <div key={i} className="flex gap-1">
+                                      <span className="text-orange-400">+</span>
+                                      <span>{a.name}</span>
+                                      <span className="text-gray-500">(Rs.{Number(a.price).toFixed(2)})</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
                             <td className="p-2 text-right">
                               <input
                                 type="number"

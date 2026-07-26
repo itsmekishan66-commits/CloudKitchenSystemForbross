@@ -1378,7 +1378,7 @@ export default function PaymentPage() {
                           title="View details"
                           className="text-gray-400 hover:text-orange-600"
                         >
-                          <Eye size={16} />
+                          <Eye size={20} />
                         </button>
                         {g.totalRemaining > 0 && can("UPDATE_PAYMENTS") && (
                           <button

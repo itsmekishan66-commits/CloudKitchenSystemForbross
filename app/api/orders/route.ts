@@ -129,11 +129,14 @@ export async function POST(request: Request) {
 
   const itemsSubtotal = items.reduce((sum, item) => {
     const id = Number(item.id);
-    const authoritative =
+    const basePrice =
       Number.isInteger(id) && priceMap.has(id)
         ? (priceMap.get(id) as number)
         : Number(item.price);
-    return sum + authoritative * item.quantity;
+    const addonTotal = (item.addons ?? []).reduce((s, a) => s + Number(a.price), 0);
+    const dp = item.discountPercent ? Number(item.discountPercent) : 0;
+    const effectivePrice = dp > 0 ? (basePrice + addonTotal) * (1 - dp / 100) : basePrice + addonTotal;
+    return sum + effectivePrice * item.quantity;
   }, 0);
 
   // Delivery charge is validated server-side from the selected zone.
@@ -237,22 +240,28 @@ export async function POST(request: Request) {
       discountAmount: appliedCouponDiscount > 0 ? appliedCouponDiscount.toFixed(2) : "0.00",
       items: items.map((item) => {
         const id = Number(item.id);
-        const authoritative =
+        const basePrice =
           Number.isInteger(id) && priceMap.has(id)
             ? (priceMap.get(id) as number)
             : Number(item.price);
+        const addonTotal = (item.addons ?? []).reduce((s, a) => s + Number(a.price), 0);
+        const dp = item.discountPercent ? Number(item.discountPercent) : 0;
+        const withAddons = basePrice + addonTotal;
+        const finalPrice = dp > 0 ? withAddons - (withAddons * dp) / 100 : withAddons;
         const meta: Record<string, unknown> = {
           image: item.image,
           clientId: item.id,
         };
         if (item.addons && item.addons.length > 0) meta.addons = item.addons;
-        if (item.originalPrice) meta.originalPrice = item.originalPrice;
-        if (item.discountPercent) meta.discountPercent = item.discountPercent;
+        if (dp > 0) {
+          meta.originalPrice = withAddons;
+          meta.discountPercent = dp;
+        }
         return {
           menuItemId: Number.isInteger(id) ? id : null,
           title: item.title,
           quantity: item.quantity,
-          price: authoritative.toFixed(2),
+          price: finalPrice.toFixed(2),
           meta,
         };
       }),

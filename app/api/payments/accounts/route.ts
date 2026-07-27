@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 // import { getPaymentAccounts, createPaymentAccount, getAccountBalances } from "@/db/services/payments";
 import { createPaymentAccount, getAccountBalances } from "@/db/services/payments";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
 
@@ -48,6 +50,8 @@ export async function POST(request: Request) {
       status: "active",
     });
 
+    revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
+    revalidateTag(CACHE_TAGS.BALANCE_SHEET, "max");
     return NextResponse.json({ ok: true, id }, { status: 201 });
   } catch (error) {
     console.error("Failed to create payment account", error);

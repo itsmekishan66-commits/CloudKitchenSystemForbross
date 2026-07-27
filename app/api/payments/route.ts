@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 import { getTransactions, createTransaction, getDues, createDue, updateDue, getDueById, getPaymentAccountById } from "@/db/services/payments";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { markOrderPaymentSettled } from "@/db/services/orders";
 import { getSupplierByName, createSupplierSettlement } from "@/db/services/suppliers";
 import type { NewTransaction, NewDue } from "@/db/schemas";
@@ -49,6 +51,7 @@ export async function POST(request: Request) {
                 notes: payload.notes || null,
             };
             await createTransaction(data);
+            revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
             return NextResponse.json({ ok: true }, { status: 201 });
         }
 
@@ -75,6 +78,7 @@ export async function POST(request: Request) {
                 status: payload.status || "pending",
             };
             await createDue(data);
+            revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
             return NextResponse.json({ ok: true }, { status: 201 });
         }
 
@@ -145,6 +149,11 @@ export async function PATCH(request: Request) {
                 }
             }
 
+            revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
+            revalidateTag(CACHE_TAGS.TRIAL_BALANCE, "max");
+            revalidateTag(CACHE_TAGS.INCOME_STATEMENT, "max");
+            revalidateTag(CACHE_TAGS.BALANCE_SHEET, "max");
+            revalidateTag(CACHE_TAGS.CASH_FLOW, "max");
             return NextResponse.json({ ok: true });
         }
 

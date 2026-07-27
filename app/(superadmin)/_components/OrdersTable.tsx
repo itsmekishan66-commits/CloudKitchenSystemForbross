@@ -185,27 +185,69 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
       meta.discountPercent = discountPct;
     }
 
-    const res = await fetch("/api/orders/items", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderId: addItemOrder.id,
-        menuItemId: item.id,
-        title: item.title,
-        price: finalPrice,
-        quantity: addQty,
-        meta: Object.keys(meta).length > 0 ? meta : undefined,
-        discountPercent: discountPct > 0 ? discountPct : undefined,
-      }),
-    });
-    const data = await res.json();
-    if (data.error) { setMessage(data.error); setMessageType("error"); setAdding(false); return; }
-    setAddItemOrder(null);
+    const orderId = addItemOrder.id;
+    const tempId = -Date.now();
+
+    const optimisticItem: OrderItem = {
+      id: tempId,
+      title: item.title,
+      quantity: addQty,
+      price: finalPrice.toFixed(2),
+      meta: Object.keys(meta).length > 0 ? (meta as OrderItem["meta"]) : undefined,
+    };
+
+    // Optimistic UI: show the new item immediately, before the server responds.
     setLocalOrders((prev) =>
-      prev.map((o) => (o.id === addItemOrder.id ? { ...o, total: data.total } : o))
+      prev.map((o) =>
+        o.id === orderId ? { ...o, items: [...o.items, optimisticItem] } : o
+      )
     );
-    setMessage("Item added to order");
-    setMessageType("success");
+
+    try {
+      const res = await fetch("/api/orders/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          menuItemId: item.id,
+          title: item.title,
+          price: finalPrice,
+          quantity: addQty,
+          meta: Object.keys(meta).length > 0 ? meta : undefined,
+          discountPercent: discountPct > 0 ? discountPct : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Unable to add item");
+
+      // Confirm with server data (real id + recalculated total/delivery charge).
+      setAddItemOrder(null);
+      setLocalOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId
+            ? {
+                ...o,
+                total: data.total,
+                deliveryCharge: data.deliveryCharge ?? o.deliveryCharge,
+                items: o.items.map((i) => (i.id === tempId ? (data.item as OrderItem) : i)),
+              }
+            : o
+        )
+      );
+      setMessage("Item added to order");
+      setMessageType("success");
+    } catch (err) {
+      // Roll back the optimistic insert on failure.
+      setLocalOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId ? { ...o, items: o.items.filter((i) => i.id !== tempId) } : o
+        )
+      );
+      setMessage(err instanceof Error ? err.message : "Unable to add item");
+      setMessageType("error");
+    } finally {
+      setAdding(false);
+    }
   }
 
   if (orders.length === 0) {

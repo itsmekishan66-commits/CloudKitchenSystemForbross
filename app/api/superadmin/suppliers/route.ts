@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import {
   getSuppliers,
   getSupplierById,
@@ -198,6 +200,7 @@ export async function POST(request: Request) {
         entityId: productId,
       });
 
+      revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
       return NextResponse.json({ productId }, { status: 201 });
     }
 
@@ -240,6 +243,11 @@ export async function POST(request: Request) {
         entityId: settlementId,
       });
 
+      revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
+      revalidateTag(CACHE_TAGS.TRIAL_BALANCE, "max");
+      revalidateTag(CACHE_TAGS.INCOME_STATEMENT, "max");
+      revalidateTag(CACHE_TAGS.BALANCE_SHEET, "max");
+      revalidateTag(CACHE_TAGS.CASH_FLOW, "max");
       return NextResponse.json({ settlementId }, { status: 201 });
     }
 
@@ -266,6 +274,7 @@ export async function POST(request: Request) {
       entityId: supplierIdResult,
     });
 
+    revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
     return NextResponse.json({ supplierId: supplierIdResult }, { status: 201 });
   } catch (error) {
     console.error("Failed to create", error);
@@ -290,7 +299,7 @@ export async function PATCH(request: Request) {
       const unitsPerPack = Number(body.unitsPerPack) || Number(existing.unitsPerPack) || 1;
       const costPricePerPack = Number(body.costPrice) || Number(existing.costPrice) || 0;
       const costPerPiece = costPricePerPack / unitsPerPack;
-      const marginPercent = Number(body.margin) ?? Number(existing.margin) ?? 0;
+      const marginPercent = Number(body.margin) || Number(existing.margin) || 0;
       const sellingPricePerPiece = costPerPiece * (1 + marginPercent / 100);
 
       await updateSupplierProduct(Number(id), {
@@ -326,6 +335,7 @@ export async function PATCH(request: Request) {
         });
       }
 
+      revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
       return NextResponse.json({ ok: true });
     }
 
@@ -337,16 +347,19 @@ export async function PATCH(request: Request) {
       if (body.notes !== undefined) updates.notes = cleanText(body.notes) || null;
       if (body.settlementType) updates.type = body.settlementType;
 
-      await updateSupplierSettlement(Number(id), updates);
-
-      // Find supplierId to resync dues
-      // const existingSettlements = await getSupplierSettlements(0); 
-      await getSupplierSettlements(0); // we need a dedicated getter
-      // Instead, get supplierId from the request
-      if (body.supplierId) {
-        await syncSupplierDue(Number(body.supplierId));
+      const supplierId = body.supplierId;
+      if (!supplierId) {
+        return NextResponse.json({ error: "supplierId is required for settlement updates" }, { status: 400 });
       }
 
+      await updateSupplierSettlement(Number(id), updates);
+      await syncSupplierDue(Number(supplierId));
+
+      revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
+      revalidateTag(CACHE_TAGS.TRIAL_BALANCE, "max");
+      revalidateTag(CACHE_TAGS.INCOME_STATEMENT, "max");
+      revalidateTag(CACHE_TAGS.BALANCE_SHEET, "max");
+      revalidateTag(CACHE_TAGS.CASH_FLOW, "max");
       return NextResponse.json({ ok: true });
     }
 
@@ -362,6 +375,7 @@ export async function PATCH(request: Request) {
       notes: body.notes,
     });
 
+    revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to update", error);
@@ -389,6 +403,7 @@ export async function DELETE(request: Request) {
         if (existing.inventoryItemId) await deleteInventoryItem(existing.inventoryItemId);
         await deleteSupplierProduct(id);
       }
+      revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
       return NextResponse.json({ ok: true });
     }
 
@@ -398,6 +413,11 @@ export async function DELETE(request: Request) {
       if (Number.isInteger(settlementSupplierId)) {
         await syncSupplierDue(settlementSupplierId);
       }
+      revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
+      revalidateTag(CACHE_TAGS.TRIAL_BALANCE, "max");
+      revalidateTag(CACHE_TAGS.INCOME_STATEMENT, "max");
+      revalidateTag(CACHE_TAGS.BALANCE_SHEET, "max");
+      revalidateTag(CACHE_TAGS.CASH_FLOW, "max");
       return NextResponse.json({ ok: true });
     }
 
@@ -408,6 +428,7 @@ export async function DELETE(request: Request) {
       const dueRecord = existingDues.find((d) => d.role === "supplier");
       if (dueRecord) await db.delete(dues).where(eq(dues.id, dueRecord.id));
     }
+    revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to delete", error);

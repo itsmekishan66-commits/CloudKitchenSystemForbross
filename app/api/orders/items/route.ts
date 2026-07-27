@@ -151,14 +151,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    await db.insert(orderItems).values({
-      orderId,
-      menuItemId: body.menuItemId || null,
-      title,
-      quantity,
-      price: price.toFixed(2),
-      meta: body.meta || null,
-    });
+    const [inserted] = await db
+      .insert(orderItems)
+      .values({
+        orderId,
+        menuItemId: body.menuItemId || null,
+        title,
+        quantity,
+        price: price.toFixed(2),
+        meta: body.meta || null,
+      })
+      .$returningId();
+
+    const [created] = await db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.id, Number(inserted.id)))
+      .limit(1);
 
     const allItems = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
     const itemsSubtotal = allItems.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
@@ -168,7 +177,10 @@ export async function POST(request: Request) {
     const newTotal = Math.max(0, itemsSubtotal + deliveryCharge - discountAmount).toFixed(2);
     await db.update(orders).set({ total: newTotal, deliveryCharge: deliveryCharge.toFixed(2) }).where(eq(orders.id, orderId));
 
-    return NextResponse.json({ ok: true, total: newTotal }, { status: 201 });
+    return NextResponse.json(
+      { ok: true, total: newTotal, deliveryCharge: deliveryCharge.toFixed(2), item: created },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("Failed to add item", error);
     return NextResponse.json({ error: "Unable to add item" }, { status: 500 });

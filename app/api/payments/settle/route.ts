@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -9,6 +10,7 @@ import { orders, users } from "@/db/schemas";
 import type { NewTransaction, NewDue } from "@/db/schemas";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 
 export const dynamic = "force-dynamic";
 
@@ -135,6 +137,14 @@ export async function POST(request: Request) {
         }
       }
     }
+
+    revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
+    revalidateTag(CACHE_TAGS.TRIAL_BALANCE, "max");
+    revalidateTag(CACHE_TAGS.INCOME_STATEMENT, "max");
+    revalidateTag(CACHE_TAGS.BALANCE_SHEET, "max");
+    revalidateTag(CACHE_TAGS.CASH_FLOW, "max");
+    revalidateTag(CACHE_TAGS.ORDERS, "max");
+    revalidateTag(CACHE_TAGS.USER_STATS, "max");
 
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {

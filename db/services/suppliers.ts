@@ -8,7 +8,7 @@ import {
   type NewSupplierProduct,
   type NewSupplierSettlement,
 } from "@/db/schemas";
-import { recordSupplierSettlement } from "@/db/services/accounting";
+import { recordSupplierSettlement, recordSettlementAdjustment } from "@/db/services/accounting";
 
 // ---- Suppliers ----
 export async function getSuppliers() {
@@ -74,6 +74,15 @@ export async function getSupplierSettlements(supplierId: number) {
     .orderBy(desc(supplierSettlements.settlementDate));
 }
 
+export async function getSupplierSettlementById(id: number) {
+  const items = await db
+    .select()
+    .from(supplierSettlements)
+    .where(eq(supplierSettlements.id, id))
+    .limit(1);
+  return items[0] ?? null;
+}
+
 export async function createSupplierSettlement(data: NewSupplierSettlement) {
   const result = await db.insert(supplierSettlements).values(data);
   const id = result[0].insertId;
@@ -90,11 +99,37 @@ export async function createSupplierSettlement(data: NewSupplierSettlement) {
 }
 
 export async function updateSupplierSettlement(id: number, data: Partial<NewSupplierSettlement>) {
+  const existing = await getSupplierSettlementById(id);
   await db.update(supplierSettlements).set(data).where(eq(supplierSettlements.id, id));
+  if (existing && data.amount && existing.amount !== data.amount) {
+    try {
+      await recordSettlementAdjustment({
+        id,
+        type: existing.type as "purchase" | "payment",
+        oldAmount: existing.amount,
+        newAmount: data.amount,
+      });
+    } catch (err) {
+      console.error("Failed to record accounting rectification for settlement", id, err);
+    }
+  }
 }
 
 export async function deleteSupplierSettlement(id: number) {
+  const existing = await getSupplierSettlementById(id);
   await db.delete(supplierSettlements).where(eq(supplierSettlements.id, id));
+  if (existing) {
+    try {
+      await recordSettlementAdjustment({
+        id,
+        type: existing.type as "purchase" | "payment",
+        oldAmount: existing.amount,
+        newAmount: "0",
+      });
+    } catch (err) {
+      console.error("Failed to record accounting reversal for deleted settlement", id, err);
+    }
+  }
 }
 
 // ---- All supplier products with supplier name (for stock view) ----

@@ -339,6 +339,15 @@ export async function PATCH(request: Request) {
     revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "max");
     revalidateTag(CACHE_TAGS.REPORTS, "max");
     revalidateTag(CACHE_TAGS.USER_STATS, "max");
+
+    if (status === "Delivered") {
+      revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
+      revalidateTag(CACHE_TAGS.TRIAL_BALANCE, "max");
+      revalidateTag(CACHE_TAGS.INCOME_STATEMENT, "max");
+      revalidateTag(CACHE_TAGS.BALANCE_SHEET, "max");
+      revalidateTag(CACHE_TAGS.CASH_FLOW, "max");
+    }
+
     return NextResponse.json({ ok: true, warnings });
   } catch (error) {
     console.error("Failed to update order status", error);

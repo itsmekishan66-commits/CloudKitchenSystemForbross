@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 import { getPaymentAccountById, updatePaymentAccount, deletePaymentAccount } from "@/db/services/payments";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
 
@@ -57,6 +59,8 @@ export async function PATCH(
       status: status ?? existing.status,
     });
 
+    revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
+    revalidateTag(CACHE_TAGS.BALANCE_SHEET, "max");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to update payment account", error);
@@ -79,6 +83,8 @@ export async function DELETE(
     }
 
     await deletePaymentAccount(id);
+    revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
+    revalidateTag(CACHE_TAGS.BALANCE_SHEET, "max");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to delete payment account", error);

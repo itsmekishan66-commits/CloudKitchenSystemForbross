@@ -6,6 +6,11 @@ import {
   journalEntryLines,
   accountBalances,
   supplierProducts,
+  suppliers,
+  supplierSettlements,
+  recipes,
+  recipeIngredients,
+  inventoryItems,
   type NewChartOfAccount,
 } from "@/db/schemas";
 
@@ -1156,6 +1161,7 @@ export async function recordOrderSale(order: {
   );
 
   let cogs = 0;
+
   for (const item of order.items) {
     if (!item.menuItemId) continue;
     const linked = productByMenuItem.get(item.menuItemId);
@@ -1163,6 +1169,54 @@ export async function recordOrderSale(order: {
       const costPerUnit =
         Number(linked.costPrice) / (Number(linked.unitsPerPack) || 1);
       cogs += costPerUnit * Number(item.quantity);
+    }
+  }
+
+  const menuItemIdsWithoutLink = order.items
+    .filter((i) => i.menuItemId && !productByMenuItem.has(i.menuItemId))
+    .map((i) => i.menuItemId as number);
+
+  if (menuItemIdsWithoutLink.length > 0) {
+    const recipeRows = await db
+      .select({ id: recipes.id, menuItemId: recipes.menuItemId })
+      .from(recipes)
+      .where(inArray(recipes.menuItemId, menuItemIdsWithoutLink));
+
+    const recipeIds = recipeRows.map((r) => r.id);
+    const recipeByMenuItem = new Map(
+      recipeRows.map((r) => [r.menuItemId, r.id])
+    );
+
+    if (recipeIds.length > 0) {
+      const ingredients = await db
+        .select({
+          recipeId: recipeIngredients.recipeId,
+          qty: recipeIngredients.quantity,
+          pricePerUnit: inventoryItems.pricePerUnit,
+        })
+        .from(recipeIngredients)
+        .innerJoin(
+          inventoryItems,
+          eq(recipeIngredients.inventoryItemId, inventoryItems.id)
+        )
+        .where(inArray(recipeIngredients.recipeId, recipeIds));
+
+      const costByRecipe = new Map<number, number>();
+      for (const ing of ingredients) {
+        const current = costByRecipe.get(ing.recipeId) || 0;
+        costByRecipe.set(
+          ing.recipeId,
+          current + Number(ing.qty) * Number(ing.pricePerUnit)
+        );
+      }
+
+      for (const item of order.items) {
+        if (!item.menuItemId) continue;
+        const recipeId = recipeByMenuItem.get(item.menuItemId);
+        if (!recipeId) continue;
+        const costPerServing = costByRecipe.get(recipeId) || 0;
+        cogs += costPerServing * Number(item.quantity);
+      }
     }
   }
 
@@ -1197,22 +1251,115 @@ export async function recordSupplierSettlement(settlement: {
   await ensureStandardAccounts();
   const amount = Number(settlement.amount) || 0;
 
+  const [row] = await db
+    .select({ name: suppliers.name })
+    .from(supplierSettlements)
+    .innerJoin(suppliers, eq(supplierSettlements.supplierId, suppliers.id))
+    .where(eq(supplierSettlements.id, settlement.id))
+    .limit(1);
+
+  const supplierName = row?.name || `Supplier #${settlement.id}`;
+
   const lines: AutoLine[] =
     settlement.type === "purchase"
       ? [
-          { accountId: "1300", debit: amount, credit: 0, description: "Inventory purchased" },
-          { accountId: "2000", debit: 0, credit: amount, description: "Accounts payable" },
+          { accountId: "1300", debit: amount, credit: 0, description: `Inventory purchased from ${supplierName}` },
+          { accountId: "2000", debit: 0, credit: amount, description: `Accounts payable - ${supplierName}` },
         ]
       : [
-          { accountId: "2000", debit: amount, credit: 0, description: "Accounts payable cleared" },
-          { accountId: "1000", debit: 0, credit: amount, description: "Cash paid to supplier" },
+          { accountId: "2000", debit: amount, credit: 0, description: `AP cleared - ${supplierName}` },
+          { accountId: "1000", debit: 0, credit: amount, description: `Cash paid to ${supplierName}` },
         ];
 
   return postAutoEntry({
     date: new Date().toISOString().slice(0, 10),
-    description: `Supplier ${settlement.type} #${settlement.id}`,
+    description: `${settlement.type === "purchase" ? "Purchase from" : "Payment to"} ${supplierName}`,
     referenceType: `supplier_${settlement.type}`,
     referenceId: String(settlement.id),
+    lines,
+  });
+}
+
+// Create a rectification entry when an existing supplier settlement amount is changed
+// or when a settlement is deleted (newAmount = "0").
+// The original journal entry stays untouched for audit trail purposes.
+// Every rectification line references the original entry ID for full traceability.
+export async function recordSettlementAdjustment(settlement: {
+  id: number;
+  type: "purchase" | "payment";
+  oldAmount: string;
+  newAmount: string;
+}) {
+  await ensureStandardAccounts();
+  const oldAmt = Number(settlement.oldAmount) || 0;
+  const newAmt = Number(settlement.newAmount) || 0;
+  const delta = newAmt - oldAmt;
+  if (Math.abs(delta) < 0.01) return null;
+
+  const [originalEntry] = await db
+    .select({ id: journalEntries.id, entryNumber: journalEntries.entryNumber })
+    .from(journalEntries)
+    .where(
+      and(
+        eq(journalEntries.referenceType, `supplier_${settlement.type}`),
+        eq(journalEntries.referenceId, String(settlement.id))
+      )
+    )
+    .limit(1);
+
+  const originalRef = originalEntry
+    ? `${originalEntry.entryNumber} (${originalEntry.id})`
+    : "unknown";
+
+  const [supplierRow] = await db
+    .select({ name: suppliers.name })
+    .from(supplierSettlements)
+    .innerJoin(suppliers, eq(supplierSettlements.supplierId, suppliers.id))
+    .where(eq(supplierSettlements.id, settlement.id))
+    .limit(1);
+
+  const supplierName = supplierRow?.name || `Supplier #${settlement.id}`;
+  const typeLabel = settlement.type === "purchase" ? "Purchase from" : "Payment to";
+
+  const isIncrease = delta > 0;
+  const absDelta = Math.abs(delta);
+
+  const lines: AutoLine[] =
+    settlement.type === "purchase"
+      ? [
+          {
+            accountId: "1300",
+            debit: isIncrease ? absDelta : 0,
+            credit: isIncrease ? 0 : absDelta,
+            description: `Inventory ${isIncrease ? "increase" : "decrease"} rectifying ${originalRef} (${supplierName})`,
+          },
+          {
+            accountId: "2000",
+            debit: isIncrease ? 0 : absDelta,
+            credit: isIncrease ? absDelta : 0,
+            description: `AP ${isIncrease ? "increase" : "decrease"} rectifying ${originalRef} (${supplierName})`,
+          },
+        ]
+      : [
+          {
+            accountId: "2000",
+            debit: isIncrease ? absDelta : 0,
+            credit: isIncrease ? 0 : absDelta,
+            description: `AP ${isIncrease ? "increase" : "decrease"} rectifying ${originalRef} (${supplierName})`,
+          },
+          {
+            accountId: "1000",
+            debit: isIncrease ? 0 : absDelta,
+            credit: isIncrease ? absDelta : 0,
+            description: `Cash ${isIncrease ? "decrease" : "increase"} rectifying ${originalRef} (${supplierName})`,
+          },
+        ];
+
+  return postAutoEntry({
+    date: new Date().toISOString().slice(0, 10),
+    description: `Rectification - ${typeLabel} ${supplierName} (${oldAmt} → ${newAmt}) corrects ${originalRef}`,
+    referenceType: `supplier_settlement_rect_${settlement.type}`,
+    referenceId: `${settlement.id}-${Date.now()}`,
     lines,
   });
 }

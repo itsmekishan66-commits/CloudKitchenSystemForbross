@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import {
   getAccountById,
   updateAccount,
@@ -52,6 +54,14 @@ export async function PATCH(
     }
 
     const account = await updateAccount(id, body);
+
+    revalidateTag(CACHE_TAGS.CHART_OF_ACCOUNTS, "max");
+    revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
+    revalidateTag(CACHE_TAGS.TRIAL_BALANCE, "max");
+    revalidateTag(CACHE_TAGS.INCOME_STATEMENT, "max");
+    revalidateTag(CACHE_TAGS.BALANCE_SHEET, "max");
+    revalidateTag(CACHE_TAGS.CASH_FLOW, "max");
+
     return NextResponse.json({ account });
   } catch (error) {
     console.error("Failed to update account:", error);
@@ -80,6 +90,11 @@ export async function DELETE(
     }
 
     await deleteAccount(id);
+
+    revalidateTag(CACHE_TAGS.CHART_OF_ACCOUNTS, "max");
+    revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
+    revalidateTag(CACHE_TAGS.TRIAL_BALANCE, "max");
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to delete account:", error);

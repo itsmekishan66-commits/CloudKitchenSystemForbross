@@ -35,6 +35,8 @@ interface SupplierProduct {
   unit: string | null;
   minStockLevel: string | null;
   inventoryItemId: number | null;
+  conversionUnit: string | null;
+  conversionValue: string | null;
 }
 
 interface SupplierSettlement {
@@ -73,17 +75,24 @@ const sellUnitOptions = [
   "Dozen",
 ] as const;
 
+const smallUnitOptions = [
+  "Piece", "Gram", "Kg", "ml", "Litre", "Pack", "Box", "Carton",
+  "Bottle", "Tin", "Jar", "Bucket", "Crate", "Dozen",
+] as const;
+
 const emptyProductForm: {
   name: string; category: string; productType: "direct_sellable" | "inventory";
   purchaseUnit: string; unitsPerPack: string; sellUnit: string;
   costPrice: string; margin: string; sellingPrice: string;
   quantity: string; unit: string; minStockLevel: string;
+  conversionUnit: string; conversionValue: string;
   errors: Record<string, string>;
 } = {
   name: "", category: "", productType: "direct_sellable",
   purchaseUnit: "", unitsPerPack: "", sellUnit: "",
   costPrice: "", margin: "", sellingPrice: "0",
   quantity: "", unit: "", minStockLevel: "",
+  conversionUnit: "", conversionValue: "",
   errors: {},
 };
 
@@ -276,6 +285,7 @@ export default function SuppliersClient() {
       purchaseUnit: p.purchaseUnit ?? "", unitsPerPack: (p.unitsPerPack ?? 1).toString(), sellUnit: p.sellUnit ?? "",
       costPrice: p.costPrice ?? "", margin: p.margin ?? "", sellingPrice: p.sellingPrice ?? "0",
       quantity: p.quantity ?? "", unit: p.unit ?? "", minStockLevel: p.minStockLevel ?? "",
+      conversionUnit: p.conversionUnit ?? "", conversionValue: p.conversionValue ?? "",
       errors: {},
     });
     setMessage("");
@@ -321,7 +331,9 @@ export default function SuppliersClient() {
         productForm.costPrice === (editingProduct.costPrice ?? "") &&
         productForm.margin === (editingProduct.margin ?? "") &&
         productForm.quantity === (editingProduct.quantity ?? "") &&
-        productForm.minStockLevel === (editingProduct.minStockLevel ?? "");
+        productForm.minStockLevel === (editingProduct.minStockLevel ?? "") &&
+        productForm.conversionUnit === (editingProduct.conversionUnit ?? "") &&
+        productForm.conversionValue === (editingProduct.conversionValue ?? "");
       if (noChange) {
         setMessage("Nothing to update.");
         return;
@@ -772,6 +784,41 @@ export default function SuppliersClient() {
                   </div>
                   <p className="text-xs text-gray-400 mt-2">e.g. <strong>Carton × 10 Piece</strong> or <strong>Sack × 25 Kg</strong></p>
                 </div>
+
+                {productForm.productType === "inventory" && (
+                <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                  <p className="text-sm font-semibold text-purple-700 mb-1">Conversion Unit <span className="text-xs font-normal text-purple-500">(optional)</span></p>
+                  <p className="text-xs text-purple-500 mb-3">Track inventory in a smaller unit for precise stock deduction. e.g. 1 Carton = 1000 Grams</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">Smallest Unit</label>
+                      <select
+                        value={productForm.conversionUnit}
+                        onChange={(e) => setProductForm({ ...productForm, conversionUnit: e.target.value, errors: { ...productForm.errors, conversionUnit: "" } })}
+                        className={`mt-1 w-full rounded-lg border p-2.5 text-sm ${productForm.errors?.conversionUnit ? "border-red-400" : ""}`}
+                      >
+                        <option value="">-- None --</option>
+                        {smallUnitOptions.map((u) => (
+                          <option key={u} value={u}>{u}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">Value per 1 {productForm.purchaseUnit || "Unit"}</label>
+                      <input type="number" step="0.01" min="0" value={productForm.conversionValue}
+                        onChange={(e) => setProductForm({ ...productForm, conversionValue: e.target.value, errors: { ...productForm.errors, conversionValue: "" } })}
+                        placeholder="e.g. 1000"
+                        className={`mt-1 w-full rounded-lg border p-2.5 text-sm ${productForm.errors?.conversionValue ? "border-red-400" : ""}`}
+                      />
+                    </div>
+                  </div>
+                  {productForm.conversionUnit && productForm.conversionValue && (
+                    <p className="text-xs text-purple-600 mt-2">
+                      1 {productForm.purchaseUnit || "Unit"} = {productForm.conversionValue} {productForm.conversionUnit}
+                    </p>
+                  )}
+                </div>
+                )}
 
                 {/* Cost & Pricing */}
                 <div className="bg-gray-50 rounded-lg p-4 border">

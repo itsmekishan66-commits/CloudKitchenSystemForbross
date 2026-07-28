@@ -33,6 +33,8 @@ export const supplierProducts = mysqlTable("supplier_products", {
   quantity: decimal("quantity", { precision: 10, scale: 2 }).default("0"),
   unit: varchar("unit", { length: 40 }).default("pcs"),
   minStockLevel: decimal("min_stock_level", { precision: 10, scale: 2 }).default("0"),
+  conversionUnit: varchar("conversion_unit", { length: 40 }),
+  conversionValue: decimal("conversion_value", { precision: 10, scale: 2 }).default("1"),
   inventoryItemId: int("inventory_item_id").references(() => inventoryItems.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),

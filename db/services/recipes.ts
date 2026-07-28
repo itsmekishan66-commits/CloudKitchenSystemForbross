@@ -205,6 +205,8 @@ export async function getInventoryItemsForSelect() {
       name: inventoryItems.name,
       unit: inventoryItems.unit,
       pricePerUnit: inventoryItems.pricePerUnit,
+      conversionUnit: inventoryItems.conversionUnit,
+      conversionValue: inventoryItems.conversionValue,
     })
     .from(inventoryItems)
     .orderBy(asc(inventoryItems.name));

@@ -82,7 +82,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ itemId }, { status: 201 });
   } catch (error) {
     console.error("Failed to create cooked food stock", error);
-    return NextResponse.json({ error: "Unable to create cooked food stock" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Unable to create cooked food stock";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

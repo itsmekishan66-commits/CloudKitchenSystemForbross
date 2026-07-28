@@ -133,8 +133,31 @@ export async function POST(request: Request) {
       const marginPercent = Number(data.margin) || 0;
       const sellingPricePerPiece = costPerPiece * (1 + marginPercent / 100);
 
+      const conversionUnit = cleanText(data.conversionUnit);
+      const conversionValue = Number(data.conversionValue) || 1;
+
       let menuItemId: number | null = null;
       let inventoryItemId: number | null = null;
+
+      const createInvItem = (qtyPacks: number) => {
+        const totalPieces = qtyPacks * unitsPerPack;
+        const useConversion = conversionUnit && conversionValue > 0;
+        const invUnit = useConversion ? conversionUnit : (cleanText(data.sellUnit) || "pcs");
+        const invQuantity = useConversion ? (totalPieces * conversionValue) : totalPieces;
+        const minPacks = Number(data.minStockLevel) || 0;
+        const minInv = useConversion ? (minPacks * unitsPerPack * conversionValue) : (minPacks * unitsPerPack);
+        return {
+          name,
+          category: cleanText(data.category) || "Supplier",
+          quantity: invQuantity.toString(),
+          unit: invUnit,
+          minStockLevel: minInv.toString(),
+          pricePerUnit: useConversion ? (costPerPiece / conversionValue).toFixed(4) : costPerPiece.toFixed(2),
+          conversionUnit: useConversion ? conversionUnit : null,
+          conversionValue: useConversion ? conversionValue.toString() : null,
+          kitchenId: null,
+        };
+      };
 
       if (data.productType === "direct_sellable") {
         const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now();
@@ -146,33 +169,13 @@ export async function POST(request: Request) {
           description: `Supplied by supplier #${supplierId} | ${cleanText(data.purchaseUnit) || "Carton"} × ${unitsPerPack} ${cleanText(data.sellUnit) || "Piece"}(s) | Cost/Pack: Rs.${costPricePerPack.toFixed(2)}`,
           isAvailable: true,
         });
-        const minPacksDir = Number(data.minStockLevel) || 0;
         const qtyPacks = Number(data.quantity) || 0;
-        const totalPieces = qtyPacks * unitsPerPack;
-        inventoryItemId = await createInventoryItem({
-          name,
-          category: cleanText(data.category) || "Supplier",
-          quantity: totalPieces.toString(),
-          unit: cleanText(data.sellUnit) || "pcs",
-          minStockLevel: (minPacksDir * unitsPerPack).toString(),
-          pricePerUnit: costPerPiece.toFixed(2),
-          kitchenId: null,
-        });
+        inventoryItemId = await createInventoryItem(createInvItem(qtyPacks));
       }
 
       if (data.productType === "inventory") {
         const qtyPacks = Number(data.quantity) || 0;
-        const totalPieces = qtyPacks * unitsPerPack;
-        const minPacks = Number(data.minStockLevel) || 0;
-        inventoryItemId = await createInventoryItem({
-          name,
-          category: cleanText(data.category) || "Supplier",
-          quantity: totalPieces.toString(),
-          unit: cleanText(data.sellUnit) || "pcs",
-          minStockLevel: (minPacks * unitsPerPack).toString(),
-          pricePerUnit: costPerPiece.toFixed(2),
-          kitchenId: null,
-        });
+        inventoryItemId = await createInventoryItem(createInvItem(qtyPacks));
       }
 
       const productId = await createSupplierProduct({
@@ -190,6 +193,8 @@ export async function POST(request: Request) {
         quantity: data.quantity?.toString() || "0",
         unit: cleanText(data.unit) || "pcs",
         minStockLevel: data.minStockLevel?.toString() || "0",
+        conversionUnit: conversionUnit || null,
+        conversionValue: conversionValue > 0 ? conversionValue.toString() : "1",
         inventoryItemId: inventoryItemId ?? undefined,
       });
 
@@ -302,6 +307,9 @@ export async function PATCH(request: Request) {
       const marginPercent = Number(body.margin) || Number(existing.margin) || 0;
       const sellingPricePerPiece = costPerPiece * (1 + marginPercent / 100);
 
+      const conversionUnit = body.conversionUnit ?? existing.conversionUnit;
+      const conversionValue = Number(body.conversionValue ?? existing.conversionValue) || 1;
+
       await updateSupplierProduct(Number(id), {
         name: body.name,
         category: body.category,
@@ -314,6 +322,8 @@ export async function PATCH(request: Request) {
         quantity: body.quantity?.toString(),
         unit: body.unit,
         minStockLevel: body.minStockLevel?.toString(),
+        conversionUnit: conversionUnit || null,
+        conversionValue: conversionValue > 0 ? conversionValue.toString() : "1",
       });
 
       if (existing.menuItemId) {
@@ -324,14 +334,20 @@ export async function PATCH(request: Request) {
       }
 
       if (existing.inventoryItemId) {
-        const qtyPacks = Number(body.quantity) || 0;
-        const minPacks = Number(body.minStockLevel) || 0;
+        const qtyPacks = Number(body.quantity) || Number(existing.quantity) || 0;
+        const minPacks = Number(body.minStockLevel) || Number(existing.minStockLevel) || 0;
+        const useConversion = conversionUnit && conversionValue > 0;
+        const invUnit = useConversion ? conversionUnit : (body.sellUnit || existing.sellUnit || "pcs");
+        const invQuantity = useConversion ? (qtyPacks * unitsPerPack * conversionValue) : (qtyPacks * unitsPerPack);
+        const minInv = useConversion ? (minPacks * unitsPerPack * conversionValue) : (minPacks * unitsPerPack);
         await updateInventoryItem(existing.inventoryItemId, {
           name: body.name,
-          quantity: (qtyPacks * unitsPerPack).toString(),
-          unit: body.sellUnit || "pcs",
-          minStockLevel: (minPacks * unitsPerPack).toString(),
-          pricePerUnit: costPerPiece.toFixed(2),
+          quantity: invQuantity.toString(),
+          unit: invUnit,
+          minStockLevel: minInv.toString(),
+          pricePerUnit: useConversion ? (costPerPiece / conversionValue).toFixed(4) : costPerPiece.toFixed(2),
+          conversionUnit: useConversion ? conversionUnit : null,
+          conversionValue: useConversion ? conversionValue.toString() : null,
         });
       }
 

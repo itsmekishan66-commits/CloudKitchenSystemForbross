@@ -66,11 +66,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
+    const conversionUnit = cleanText(body.conversionUnit);
+    const conversionValue = body.conversionValue ? String(body.conversionValue) : null;
+
     const itemId = await createInventoryItem({
       ...body,
       name,
       category: cleanText(body.category) || "Other",
       unit: cleanText(body.unit) || "pcs",
+      conversionUnit: conversionUnit || null,
+      conversionValue: conversionValue || null,
     });
 
     await createActivityLog({
@@ -106,6 +111,9 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Valid id is required" }, { status: 400 });
     }
 
+    const conversionUnit = body.conversionUnit ? cleanText(body.conversionUnit) : undefined;
+    const conversionValue = body.conversionValue ? String(body.conversionValue) : undefined;
+
     await updateInventoryItem(id, {
       name: body.name,
       category: body.category,
@@ -114,6 +122,8 @@ export async function PATCH(request: Request) {
       minStockLevel: body.minStockLevel,
       pricePerUnit: body.pricePerUnit,
       kitchenId: body.kitchenId,
+      conversionUnit,
+      conversionValue,
     });
 
     return NextResponse.json({ ok: true });

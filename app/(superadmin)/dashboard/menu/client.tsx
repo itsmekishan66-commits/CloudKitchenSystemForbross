@@ -103,6 +103,8 @@ type InventoryOption = {
   name: string;
   unit: string;
   pricePerUnit: string;
+  conversionUnit: string | null;
+  conversionValue: string | null;
 };
 
 const emptyRecipeForm: RecipeForm = {
@@ -149,6 +151,7 @@ export default function MenuClient() {
   const [cookModal, setCookModal] = useState<{ recipeId: number; recipeTitle: string; menuItemId: number } | null>(null);
   const [cookBatchCount, setCookBatchCount] = useState(1);
   const [cooking, setCooking] = useState(false);
+  const [cookError, setCookError] = useState("");
 
   // this is for admin reviews
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -211,6 +214,7 @@ export default function MenuClient() {
     if (!cookModal) return;
     const batchCount = Math.max(1, cookBatchCount);
     setCooking(true);
+    setCookError("");
     try {
       const res = await fetch("/api/superadmin/cooked-items", {
         method: "POST",
@@ -222,13 +226,13 @@ export default function MenuClient() {
         }),
       });
       const data = await res.json();
-      if (data.error) { toast.error(data.error); return; }
+      if (data.error) { toast.error(data.error); setCookError(data.error); return; }
       toast.success(`Cooked ${data.quantityProduced} servings from recipe!`);
       setCookModal(null);
       setCookBatchCount(1);
       void loadRecipes(cookModal.menuItemId);
     } catch {
-      toast.error("Failed to cook recipe");
+      toast.error("Failed to cook recipe"); setCookError("Failed to cook recipe");
     } finally {
       setCooking(false);
     }
@@ -1329,20 +1333,24 @@ export default function MenuClient() {
                               const invId = Number(e.target.value);
                               const option = inventoryOptions.find((o) => o.id === invId);
                               const updated = [...recipeForm.ingredients];
+                              const smallestUnit = option?.conversionUnit || option?.unit || "";
                               updated[idx] = {
                                 ...updated[idx],
                                 inventoryItemId: invId,
                                 inventoryItemName: option?.name ?? "",
-                                unit: option?.unit ?? "",
+                                unit: smallestUnit,
                               };
                               setRecipeForm({ ...recipeForm, ingredients: updated });
                             }}
                             className="flex-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-green-500"
                           >
                             <option value="">-- Select --</option>
-                            {inventoryOptions.map((opt) => (
-                              <option key={opt.id} value={opt.id}>{opt.name} ({opt.unit})</option>
-                            ))}
+                            {inventoryOptions.map((opt) => {
+                              const labelUnit = opt.conversionUnit || opt.unit;
+                              return (
+                                <option key={opt.id} value={opt.id}>{opt.name} ({labelUnit})</option>
+                              );
+                            })}
                           </select>
                           <input type="number" step="0.01" min="0" value={ing.quantity}
                             onChange={(e) => {
@@ -1536,11 +1544,16 @@ export default function MenuClient() {
 
       {/* Cook from Recipe Modal */}
       {cookModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setCookModal(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => { setCookModal(null); setCookError(""); }}>
           <div className="w-full max-w-md rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="border-b px-6 py-4">
               <h2 className="text-xl font-bold text-slate-800">Cook Recipe</h2>
             </div>
+            {cookError && (
+              <div className="mx-6 mt-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+                {cookError}
+              </div>
+            )}
             <div className="px-6 py-6 space-y-4">
               <p className="text-sm text-slate-600">
                 Cooking: <span className="font-semibold text-slate-800">{cookModal.recipeTitle}</span>

@@ -14,6 +14,8 @@ interface InventoryItem {
   minStockLevel: string;
   pricePerUnit: string;
   kitchenId: number | null;
+  conversionUnit: string | null;
+  conversionValue: string | null;
 }
 
 interface SupplierStockItem {
@@ -36,6 +38,11 @@ interface CookedStockItem {
   createdAt?: string;
 }
 
+const smallUnitOptions = [
+  "Piece", "Gram", "Kg", "ml", "Litre", "Pack", "Box", "Carton",
+  "Bottle", "Tin", "Jar", "Bucket", "Crate", "Dozen",
+] as const;
+
 interface InventoryForm {
   name: string;
   category: string;
@@ -44,9 +51,11 @@ interface InventoryForm {
   minStockLevel: string;
   pricePerUnit: string;
   kitchenId: number | null;
+  conversionUnit: string;
+  conversionValue: string;
 }
 
-const emptyForm: InventoryForm = { name: "", category: "", quantity: "", unit: "", minStockLevel: "", pricePerUnit: "", kitchenId: null };
+const emptyForm: InventoryForm = { name: "", category: "", quantity: "", unit: "", minStockLevel: "", pricePerUnit: "", kitchenId: null, conversionUnit: "", conversionValue: "" };
 
 export default function InventoryClient() {
   const permissions = usePermissions();
@@ -182,6 +191,8 @@ export default function InventoryClient() {
       minStockLevel: item.minStockLevel,
       pricePerUnit: item.pricePerUnit,
       kitchenId: item.kitchenId,
+      conversionUnit: item.conversionUnit ?? "",
+      conversionValue: item.conversionValue ?? "",
     });
     setErrors({});
     setMessage("");
@@ -352,12 +363,13 @@ export default function InventoryClient() {
               ) : (
                 visibleItems.map((item) => {
                   const isLow = Number(item.quantity) <= Number(item.minStockLevel);
+                  const displayUnit = item.conversionUnit || item.unit;
                   return (
                     <tr key={item.id} className={`border-t ${isLow ? "bg-red-50" : ""}`}>
                       <td className="p-4 font-medium">{item.name}</td>
                       <td className="p-4 text-gray-500">{item.category}</td>
-                      <td className={`p-4 ${isLow ? "text-red-600 font-semibold" : ""}`}>{item.quantity} {item.unit}</td>
-                      <td className="p-4 text-gray-500">{item.minStockLevel} {item.unit}</td>
+                      <td className={`p-4 ${isLow ? "text-red-600 font-semibold" : ""}`}>{item.quantity} {displayUnit}</td>
+                      <td className="p-4 text-gray-500">{item.minStockLevel} {displayUnit}</td>
                       <td className="p-4">Rs.{item.pricePerUnit}</td>
                       <td className="flex p-4 gap-4">
                         {can("UPDATE_INVENTORY") && <button onClick={() => openEdit(item)} className="rounded text-blue-500 text-sm"><Edit size={22} /></button>}
@@ -442,6 +454,28 @@ export default function InventoryClient() {
                   <input type="text" value={form.unit} onChange={(e) => updateForm("unit", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
                   {errors.unit && <p className="mt-1 text-sm text-red-500">{errors.unit}</p>}
                 </div>
+              </div>
+              <div className="rounded-lg bg-purple-50 border border-purple-200 p-4">
+                <p className="text-sm font-semibold text-purple-700 mb-1">Conversion Unit <span className="text-xs font-normal text-purple-500">(optional)</span></p>
+                <p className="text-xs text-purple-500 mb-3">Track in a smaller unit for precise stock deduction.</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Smallest Unit</label>
+                    <select value={form.conversionUnit} onChange={(e) => updateForm("conversionUnit", e.target.value)} className="mt-1 w-full rounded-lg border p-3">
+                      <option value="">-- None --</option>
+                      {smallUnitOptions.map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Value per 1 {form.unit || "Unit"}</label>
+                    <input type="number" step="0.01" min="0" value={form.conversionValue} onChange={(e) => updateForm("conversionValue", e.target.value)} placeholder="e.g. 1000" className="mt-1 w-full rounded-lg border p-3" />
+                  </div>
+                </div>
+                {form.conversionUnit && form.conversionValue && (
+                  <p className="text-xs text-purple-600 mt-2">1 {form.unit || "Unit"} = {form.conversionValue} {form.conversionUnit}</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

@@ -152,6 +152,8 @@ export async function getAllSupplierProductsWithSupplier() {
       sellingPrice: supplierProducts.sellingPrice,
       menuItemId: supplierProducts.menuItemId,
       inventoryItemId: supplierProducts.inventoryItemId,
+      conversionUnit: supplierProducts.conversionUnit,
+      conversionValue: supplierProducts.conversionValue,
     })
     .from(supplierProducts)
     .leftJoin(suppliers, eq(supplierProducts.supplierId, suppliers.id))

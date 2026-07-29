@@ -63,7 +63,11 @@ export default function CartItem({
           >
             <Plus size={16} />
           </button>
+
         </div>
+        <span className="text-sm text-gray-300 space-y-1">
+          Total {item.price} x {item.quantity} = {`${item.price * item.quantity}`}
+        </span>
       </div>
 
       <button

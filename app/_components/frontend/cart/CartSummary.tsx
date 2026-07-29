@@ -17,7 +17,7 @@ export default function CartSummary({
   const grandTotal = totalPrice + deliveryCharge;
 
   return (
-    <div className="border-t pt-5">
+    <div className="border-t pt-5 mb-12 md:mb-0">
       <div className="flex justify-between items-center mb-3">
         <span className="text-gray-600">Subtotal</span>
 
@@ -43,21 +43,23 @@ export default function CartSummary({
         <span className="text-white">Rs. {grandTotal.toFixed(2)}</span>
       </div>
 
-      {totalPrice > 0 ? (
-        <Link
-          href="/checkout"
-          className="block w-full mt-5 bg-red-900 text-white text-center py-3 rounded-xl"
-        >
-          Proceed to Checkout
-        </Link>
-      ) : (
-        <button
-          disabled
-          className="w-full mt-5 bg-gray-300 text-gray-500 py-3 rounded-xl cursor-not-allowed"
-        >
-          Cart is Empty
-        </button>
-      )}
+      <div className="overflow-y-auto">
+        {totalPrice > 0 ? (
+          <Link
+            href="/checkout"
+            className="block w-full mt-5 bg-red-900 text-white text-center py-3 rounded-xl"
+          >
+            Proceed to Checkout
+          </Link>
+        ) : (
+          <button
+            disabled
+            className="w-full mt-5 bg-gray-300 text-gray-500 py-3 rounded-xl cursor-not-allowed"
+          >
+            Cart is Empty
+          </button>
+        )}
+      </div>
     </div>
   );
 }

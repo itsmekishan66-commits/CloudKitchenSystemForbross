@@ -3,7 +3,7 @@
 import { useCartStore } from "../store/cartStore";
 
 export default function useCart() {
-  const { items, addItem, removeItem, increaseQty, decreaseQty, clearCart } =
+  const { items, addItem, removeItem, removeAddon, increaseQty, decreaseQty, clearCart } =
     useCartStore();
 
   const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
@@ -16,6 +16,7 @@ export default function useCart() {
     items,
     addItem,
     removeItem,
+    removeAddon,
     increaseQty,
     decreaseQty,
     clearCart,

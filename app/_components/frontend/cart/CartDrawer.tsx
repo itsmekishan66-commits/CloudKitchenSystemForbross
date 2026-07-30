@@ -17,6 +17,7 @@ export default function CartDrawer({ open, onClose }: Props) {
     increaseQty,
     decreaseQty,
     removeItem,
+    removeAddon,
   } = useCart();
 
   return (
@@ -57,11 +58,12 @@ export default function CartDrawer({ open, onClose }: Props) {
             <div className="space-y-4">
               {items.map((item) => (
                 <CartItem
-                  key={item.id}
+                  key={item.cartItemId ?? item.id}
                   item={item}
                   increaseQty={increaseQty}
                   decreaseQty={decreaseQty}
                   removeItem={removeItem}
+                  removeAddon={removeAddon}
                 />
               ))}
             </div>

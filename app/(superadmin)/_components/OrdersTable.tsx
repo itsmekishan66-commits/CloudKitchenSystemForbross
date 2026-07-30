@@ -226,11 +226,11 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
         prev.map((o) =>
           o.id === orderId
             ? {
-                ...o,
-                total: data.total,
-                deliveryCharge: data.deliveryCharge ?? o.deliveryCharge,
-                items: o.items.map((i) => (i.id === tempId ? (data.item as OrderItem) : i)),
-              }
+              ...o,
+              total: data.total,
+              deliveryCharge: data.deliveryCharge ?? o.deliveryCharge,
+              items: o.items.map((i) => (i.id === tempId ? (data.item as OrderItem) : i)),
+            }
             : o
         )
       );
@@ -270,15 +270,15 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
         {localOrders.map((order) => (
           <div
             key={order.id}
-            className={`rounded-xl shadow overflow-hidden border-l-4 ${!order.isGuest && order.userId
+            className={`rounded-xl shadow overflow-x-auto border-l-4 no-scrollbar ${!order.isGuest && order.userId
               ? "border-l-green-500 bg-green-200"
               : "border-l-gray-300 bg-white"
               }`}
           >
-            <div className="p-4 flex items-center justify-between flex-wrap gap-3 border-b border-gray-100">
-              <div className="flex items-center gap-4 flex-wrap">
+            <div className="p-4 flex items-center justify-between flex-nowrap gap-3 border-b border-gray-100">
+              <div className="flex items-center gap-4 flex-nowrap">
                 <span className="font-medium text-gray-900">#{order.id}</span>
-                <span className="text-gray-700">{order.customerName}</span>
+                <span className="text-gray-700 whitespace-nowrap">{order.customerName}</span>
                 {!order.isGuest && order.userId && Number(order.userCreditBalance || 0) > 0 && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
                     Credit: Rs {Number(order.userCreditBalance).toFixed(0)}
@@ -300,10 +300,10 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   <span className="text-gray-500">Rs.{order.total}</span>
                 )}
                 {Number(order.deliveryCharge) > 0 && (
-                  <span className="text-xs text-gray-400">(incl. Rs.{Number(order.deliveryCharge).toFixed(2)} delivery)</span>
+                  <span className="text-xs text-gray-400 whitespace-nowrap">(incl. Rs.{Number(order.deliveryCharge).toFixed(2)} delivery)</span>
                 )}
               </div>
-              <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-3 flex-nowrap">
                 {can("UPDATE_ORDERS") && order.status !== "Delivered" && order.status !== "Cancelled" ? (
                   <select
                     value={order.status}
@@ -368,7 +368,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                     </button>
                   )
                 )}
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-gray-400 mx-2 md:mx-0">
                   {new Date(order.createdAt).toLocaleDateString()}
                 </span>
               </div>
@@ -403,137 +403,140 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                     </button>
                   )}
                 </div>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="py-1.5 text-left font-bold text-red-500">Item</th>
-                      <th className="py-1.5 text-right font-medium text-green-500">Qty</th>
-                      <th className="py-1.5 text-right font-medium text-blue-500">Price</th>
-                      <th className="py-1.5 text-right font-medium text-black">Subtotal</th>
-                      {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && (
-                        <th className="py-1.5 text-right"></th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {order.items.length === 0 ? (
-                      <tr><td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 5 : 4} className="py-4 text-center text-gray-400">No items</td></tr>
-                    ) : (
-                      order.items.map((item) => (
-                        <tr key={item.id} className="border-b border-gray-100">
-                          <td className="py-1.5">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span>{item.title}</span>
-                              {item.meta?.discountPercent ? (
-                                <span className="inline-flex items-center rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">
-                                  -{item.meta.discountPercent}%
-                                </span>
-                              ) : null}
-                            </div>
-                            {item.meta?.discountPercent && item.meta?.originalPrice ? (
-                              <span className="text-xs text-gray-400 line-through">Rs.{Number(item.meta.originalPrice).toFixed(2)}</span>
-                            ) : null}
-                            {item.meta?.addons && item.meta.addons.length > 0 && (
-                              <div className="text-xs text-gray-500 mt-0.5 space-y-0.5">
-                                {item.meta.addons.map((a, i) => (
-                                  <div key={i} className="flex gap-1">
-                                    <span className="text-orange-400">+</span>
-                                    <span>{a.name}</span>
-                                    <span className="text-gray-500">(Rs.{Number(a.price).toFixed(2)})</span>
-                                  </div>
-                                ))}
+
+                <div className="overflow-x-auto">
+                   <table className="w-full text-sm whitespace-nowrap md:whitespace-normal min-w-160 md:min-w-0">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="py-1.5 text-left font-bold text-red-500">Item</th>
+                        <th className="py-1.5 text-right font-medium text-green-500">Qty</th>
+                        <th className="py-1.5 text-right font-medium text-blue-500">Price</th>
+                        <th className="py-1.5 text-right font-medium text-black">Subtotal</th>
+                        {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && (
+                          <th className="py-1.5 text-right"></th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {order.items.length === 0 ? (
+                        <tr><td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 5 : 4} className="py-4 text-center text-gray-400">No items</td></tr>
+                      ) : (
+                        order.items.map((item) => (
+                          <tr key={item.id} className="border-b border-gray-100">
+                            <td className="py-1.5">
+                              <div className="flex items-center gap-1.5 flex-nowrap md:flex-nowrap">
+                                <span>{item.title}</span>
+                                {item.meta?.discountPercent ? (
+                                  <span className="inline-flex items-center rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">
+                                    -{item.meta.discountPercent}%
+                                  </span>
+                                ) : null}
                               </div>
-                            )}
-                          </td>
-                          <td className="py-1.5 text-right">
-                            {order.status !== "Delivered" && order.status !== "Cancelled" && can("UPDATE_ORDERS") ? (
-                              <span className="inline-flex items-center gap-1">
-                                <button
-                                  onClick={() => updateItemQty(item.id, "decrease")}
-                                  className="w-5 h-5 rounded border border-gray-300 text-xs leading-none hover:bg-gray-100"
-                                >
-                                  −
-                                </button>
-                                <span className="w-6 text-center">{item.quantity}</span>
-                                <button
-                                  onClick={() => updateItemQty(item.id, "increase")}
-                                  className="w-5 h-5 rounded border border-gray-300 text-xs leading-none hover:bg-gray-100"
-                                >
-                                  +
-                                </button>
-                              </span>
-                            ) : (
-                              item.quantity
-                            )}
-                          </td>
-                          <td className="py-1.5 text-right">Rs.{item.price}</td>
-                          <td className="py-1.5 text-right font-medium">
-                            Rs.{(Number(item.price) * item.quantity).toFixed(2)}
-                          </td>
-                          {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && (
-                            <td className="py-1.5 text-right">
-                              <button
-                                onClick={async () => {
-                                  const ok = await confirm({
-                                    title: "Remove Item",
-                                    message: `Are you sure you want to remove ${item.title} from this order?`,
-                                    confirmText: "Remove",
-                                    variant: "danger",
-                                  });
-                                  if (ok) deleteItem(item.id, order.id);
-                                }}
-                                className="text-red-400 text-xs"
-                              >
-                                ✕
-                              </button>
+                              {item.meta?.discountPercent && item.meta?.originalPrice ? (
+                                <span className="text-xs text-gray-400 line-through">Rs.{Number(item.meta.originalPrice).toFixed(2)}</span>
+                              ) : null}
+                              {item.meta?.addons && item.meta.addons.length > 0 && (
+                                <div className="text-xs text-gray-500 mt-0.5 space-y-0.5">
+                                  {item.meta.addons.map((a, i) => (
+                                    <div key={i} className="flex gap-1">
+                                      <span className="text-orange-400">+</span>
+                                      <span>{a.name}</span>
+                                      <span className="text-gray-500">(Rs.{Number(a.price).toFixed(2)})</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </td>
-                          )}
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                  <tfoot>
-                    {(() => {
-                      const itemsSubtotal = order.items.reduce((s, i) => s + Number(i.price) * i.quantity, 0);
-                      return (
-                        <>
-                          <tr>
-                            <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1 text-right text-gray-500 text-xs">Items Subtotal</td>
-                            <td className="py-1 text-right text-gray-500 text-xs">Rs.{itemsSubtotal.toFixed(2)}</td>
-                            {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
+                            <td className="py-1.5 text-right">
+                              {order.status !== "Delivered" && order.status !== "Cancelled" && can("UPDATE_ORDERS") ? (
+                                <span className="inline-flex items-center gap-1">
+                                  <button
+                                    onClick={() => updateItemQty(item.id, "decrease")}
+                                    className="w-5 h-5 rounded border border-gray-300 text-xs leading-none hover:bg-gray-100"
+                                  >
+                                    −
+                                  </button>
+                                  <span className="w-6 text-center">{item.quantity}</span>
+                                  <button
+                                    onClick={() => updateItemQty(item.id, "increase")}
+                                    className="w-5 h-5 rounded border border-gray-300 text-xs leading-none hover:bg-gray-100"
+                                  >
+                                    +
+                                  </button>
+                                </span>
+                              ) : (
+                                item.quantity
+                              )}
+                            </td>
+                            <td className="py-1.5 text-right">Rs.{item.price}</td>
+                            <td className="py-1.5 text-right font-medium">
+                              Rs.{(Number(item.price) * item.quantity).toFixed(2)}
+                            </td>
+                            {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && (
+                              <td className="py-1.5 text-right">
+                                <button
+                                  onClick={async () => {
+                                    const ok = await confirm({
+                                      title: "Remove Item",
+                                      message: `Are you sure you want to remove ${item.title} from this order?`,
+                                      confirmText: "Remove",
+                                      variant: "danger",
+                                    });
+                                    if (ok) deleteItem(item.id, order.id);
+                                  }}
+                                  className="text-red-400 text-xs"
+                                >
+                                  ✕
+                                </button>
+                              </td>
+                            )}
                           </tr>
-                          <tr>
-                            <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1 text-right text-gray-500 text-xs">Delivery Charge</td>
-                            <td className="py-1 text-right text-gray-500 text-xs">Rs.{Number(order.deliveryCharge).toFixed(2)}</td>
-                            {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
-                          </tr>
-                          {Number(order.discountAmount || 0) > 0 && (
+                        ))
+                      )}
+                    </tbody>
+                    <tfoot>
+                      {(() => {
+                        const itemsSubtotal = order.items.reduce((s, i) => s + Number(i.price) * i.quantity, 0);
+                        return (
+                          <>
                             <tr>
-                              <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1 text-right text-green-600 text-xs">Coupon Discount</td>
-                              <td className="py-1 text-right text-green-600 text-xs">- Rs.{Number(order.discountAmount).toFixed(2)}</td>
+                              <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1 text-right text-gray-500 text-xs">Items Subtotal</td>
+                              <td className="py-1 text-right text-gray-500 text-xs">Rs.{itemsSubtotal.toFixed(2)}</td>
                               {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
                             </tr>
-                          )}
-
-                          {/* Previous dues to be added in superadmin orders above the total */}
-                          {Number(order.previousDues || 0) > 0 && (
                             <tr>
-                              <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1 text-right text-amber-600 text-xs">Previous Dues</td>
-                              <td className="py-1 text-right text-amber-600 text-xs font-semibold">Rs.{Number(order.previousDues).toFixed(2)}</td>
+                              <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1 text-right text-gray-500 text-xs">Delivery Charge</td>
+                              <td className="py-1 text-right text-gray-500 text-xs">Rs.{Number(order.deliveryCharge).toFixed(2)}</td>
                               {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
                             </tr>
-                          )}
+                            {Number(order.discountAmount || 0) > 0 && (
+                              <tr>
+                                <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1 text-right text-green-600 text-xs">Coupon Discount</td>
+                                <td className="py-1 text-right text-green-600 text-xs">- Rs.{Number(order.discountAmount).toFixed(2)}</td>
+                                {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
+                              </tr>
+                            )}
 
-                          <tr>
-                            <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1.5 text-right font-semibold text-gray-700">Total</td>
-                            <td className="py-1.5 text-right font-bold">Rs.{(Number(order.total) + Number(order.previousDues || 0)).toFixed(2)}</td>
-                            {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
-                          </tr>
-                        </>
-                      );
-                    })()}
-                  </tfoot>
-                </table>
+                            {/* Previous dues to be added in superadmin orders above the total */}
+                            {Number(order.previousDues || 0) > 0 && (
+                              <tr>
+                                <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1 text-right text-amber-600 text-xs">Previous Dues</td>
+                                <td className="py-1 text-right text-amber-600 text-xs font-semibold">Rs.{Number(order.previousDues).toFixed(2)}</td>
+                                {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
+                              </tr>
+                            )}
+
+                            <tr>
+                              <td colSpan={order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") ? 4 : 3} className="py-1.5 text-right font-semibold text-gray-700">Total</td>
+                              <td className="py-1.5 text-right font-bold">Rs.{(Number(order.total) + Number(order.previousDues || 0)).toFixed(2)}</td>
+                              {order.status !== "Delivered" && order.status !== "Cancelled" && can("DELETE_ORDERS") && <td></td>}
+                            </tr>
+                          </>
+                        );
+                      })()}
+                    </tfoot>
+                  </table>
+                </div>
               </div>
             </div>
           </div>

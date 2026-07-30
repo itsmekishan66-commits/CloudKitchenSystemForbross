@@ -39,7 +39,7 @@ export default function HeroSection() {
 
             <Link
               href="/menu"
-              className="border border-red-900 text-red-900 px-10 py-4 rounded-full hover:bg-red-900 hover:text-white transition-all text-center"
+              className="border border-red-900 text-white px-10 py-4 rounded-full hover:bg-red-900 hover:text-white transition-all text-center"
             >
               Explore Menu
             </Link>

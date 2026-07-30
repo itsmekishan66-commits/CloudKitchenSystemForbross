@@ -126,7 +126,7 @@ export default function Navbar() {
           {logoUrl ? (
             <img src={logoUrl} alt={siteName} className="h-10 w-10 rounded-full object-cover" />
           ) : (
-            <div className="bg-orange-100 h-10 w-10 rounded-full flex items-center justify-center font-bold text-white">
+            <div className="bg-orange-100 h-10 w-10 rounded-full flex items-center justify-center font-bold text-red-700">
               {siteName.charAt(0).toUpperCase()}
             </div>
           )}
@@ -149,7 +149,7 @@ export default function Navbar() {
               href={link.href}
               className={`px-4 py-2 rounded-full transition-all duration-300 ${isActive(link.href)
                 ? "bg-red-900 text-white"
-                : "text-white hover:bg-white/40 hover:text-red-800"
+                : "text-white hover:bg-white/90 hover:text-red-800"
                 }`}
             >
               {link.name}

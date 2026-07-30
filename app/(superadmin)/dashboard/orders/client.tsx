@@ -44,7 +44,7 @@ interface MenuItem {
   title: string;
   price: string;
   discountPercent?: string | null;
-  addons?: { name: string; price: number }[];
+  addons?: { name: string; price: number; inventoryItemId?: number | null; quantity?: number | null }[];
 }
 
 interface FormItem {
@@ -52,7 +52,7 @@ interface FormItem {
   title: string;
   quantity: string;
   price: string;
-  meta?: { addons?: { name: string; price: number }[] };
+  meta?: { addons?: { name: string; price: number; inventoryItemId?: number | null; quantity?: number | null }[] };
 }
 
 export default function OrdersClient() {
@@ -79,7 +79,7 @@ export default function OrdersClient() {
   const [addItemName, setAddItemName] = useState("");
   const [addItemQty, setAddItemQty] = useState("1");
   const [addItemPrice, setAddItemPrice] = useState("");
-  const [selectedAddons, setSelectedAddons] = useState<{ name: string; price: number }[]>([]);
+  const [selectedAddons, setSelectedAddons] = useState<{ name: string; price: number; inventoryItemId?: number | null; quantity?: number | null }[]>([]);
   const [userType, setUserType] = useState<"guest" | "logged">("guest");
   const [lookupEmail, setLookupEmail] = useState("");
   const [lookedUpUser, setLookedUpUser] = useState<{ id: number; name: string; email: string } | null>(null);

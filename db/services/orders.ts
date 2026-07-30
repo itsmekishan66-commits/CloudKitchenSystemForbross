@@ -280,6 +280,38 @@ export async function updateOrderStatus(
             .set({ quantity: String(current - needed) })
             .where(eq(cookedFoodStock.id, stock.id));
         }
+
+        // Deduct addon inventory
+        const addons = (item.meta as { addons?: { name: string; price: number; inventoryItemId?: number; quantity?: string | number }[] } | null)?.addons;
+        if (addons && addons.length > 0) {
+          for (const addon of addons) {
+            if (!addon.inventoryItemId || !addon.quantity) continue;
+            const addonQty = Number(addon.quantity) * needed;
+            if (addonQty <= 0) continue;
+
+            const [invItem] = await tx
+              .select()
+              .from(inventoryItems)
+              .where(eq(inventoryItems.id, addon.inventoryItemId))
+              .limit(1);
+
+            if (!invItem) {
+              warnings.push(`No inventory item for addon "${addon.name}". Skipping stock deduction.`);
+              continue;
+            }
+
+            const currentInv = Number(invItem.quantity);
+            if (currentInv < addonQty) {
+              warnings.push(`Insufficient inventory for addon "${addon.name}" (${invItem.name}): have ${currentInv}, need ${addonQty}.`);
+              continue;
+            }
+
+            await tx
+              .update(inventoryItems)
+              .set({ quantity: String(currentInv - addonQty) })
+              .where(eq(inventoryItems.id, addon.inventoryItemId));
+          }
+        }
       }
     }
 
@@ -331,6 +363,29 @@ export async function updateOrderStatus(
               .update(cookedFoodStock)
               .set({ quantity: String(Number(cookedStock.quantity) + restoreQuantity) })
               .where(eq(cookedFoodStock.id, cookedStock.id));
+          }
+        }
+
+        // Restore addon inventory
+        const addons = (item.meta as { addons?: { name: string; price: number; inventoryItemId?: number; quantity?: string | number }[] } | null)?.addons;
+        if (addons && addons.length > 0) {
+          for (const addon of addons) {
+            if (!addon.inventoryItemId || !addon.quantity) continue;
+            const addonQty = Number(addon.quantity) * restoreQuantity;
+            if (addonQty <= 0) continue;
+
+            const [invItem] = await tx
+              .select()
+              .from(inventoryItems)
+              .where(eq(inventoryItems.id, addon.inventoryItemId))
+              .limit(1);
+
+            if (invItem) {
+              await tx
+                .update(inventoryItems)
+                .set({ quantity: String(Number(invItem.quantity) + addonQty) })
+                .where(eq(inventoryItems.id, addon.inventoryItemId));
+            }
           }
         }
       }

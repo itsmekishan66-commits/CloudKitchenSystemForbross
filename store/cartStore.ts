@@ -5,6 +5,8 @@ export type Addon = {
   id?: string;
   name: string;
   price: number;
+  inventoryItemId?: number | null;
+  quantity?: number | null;
 };
 
 export interface CartItem {

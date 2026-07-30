@@ -8,7 +8,7 @@ import toast from "react-hot-toast";
 import Checkbox from "@/app/_components/Checkbox";
 import ReviewsPanel from "@/app/_components/ReviewsPanel";
 
-type AddonItem = { name: string; price: number };
+type AddonItem = { name: string; price: number; inventoryItemId?: number | null; quantity?: number | null };
 
 type ApiMenuItem = {
   id: number;

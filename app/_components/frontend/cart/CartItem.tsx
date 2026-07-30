@@ -19,6 +19,8 @@ export interface CartAddon {
   id: number;
   name: string;
   price: number;
+  inventoryItemId?: number | null;
+  quantity?: number | null;
 }
 export default function CartItem({
   item,

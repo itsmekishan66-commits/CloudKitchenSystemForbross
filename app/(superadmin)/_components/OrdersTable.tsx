@@ -14,7 +14,7 @@ interface OrderItem {
   meta?: {
     image?: string;
     clientId?: string;
-    addons?: { name: string; price: number }[];
+    addons?: { name: string; price: number; inventoryItemId?: number | null; quantity?: number | null }[];
     originalPrice?: number;
     discountPercent?: number;
   };
@@ -48,7 +48,7 @@ interface MenuItem {
   title: string;
   price: string;
   image: string | null;
-  addons?: { name: string; price: number }[];
+  addons?: { name: string; price: number; inventoryItemId?: number | null; quantity?: number | null }[];
   discountPercent?: string | null;
 }
 
@@ -67,7 +67,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
   const [selectedMenuItem, setSelectedMenuItem] = useState("");
   const [addQty, setAddQty] = useState(1);
   const [adding, setAdding] = useState(false);
-  const [selectedAddons, setSelectedAddons] = useState<{ name: string; price: number }[]>([]);
+  const [selectedAddons, setSelectedAddons] = useState<{ name: string; price: number; inventoryItemId?: number | null; quantity?: number | null }[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {

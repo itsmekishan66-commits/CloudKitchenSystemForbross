@@ -24,6 +24,8 @@ interface MenuItem {
 interface Addon {
   name?: string;
   price?: number | string;
+  inventoryItemId?: number | null;
+  quantity?: number | string | null;
 }
 
 interface Category {
@@ -31,7 +33,7 @@ interface Category {
   name: string;
 }
 
-type AddonRow = { name: string; price: string };
+type AddonRow = { name: string; price: string; inventoryItemId: number | null; quantity: string };
 
 interface MenuForm {
   title: string;
@@ -49,6 +51,8 @@ interface MenuForm {
 }
 
 const emptyForm: MenuForm = { title: "", slug: "", categoryId: null, price: "", image: "", description: "", badge: "", isAvailable: true, discountPercent: "", addons: [], rating: "", reviews: "" };
+
+const emptyAddonRow: AddonRow = { name: "", price: "", inventoryItemId: null, quantity: "" };
 
 // this is the code for menu recipe - types
 interface RecipeWithCost {
@@ -208,6 +212,7 @@ export default function MenuClient() {
     setForm(emptyForm);
     setErrors({});
     setShowModal(true);
+    void loadInventoryOptions();
   }
 
   async function handleCookFromRecipe() {
@@ -332,7 +337,8 @@ export default function MenuClient() {
   function openEdit(item: MenuItem) {
     setEditing(item);
     setErrors({});
-    const existingAddons: AddonRow[] = Array.isArray(item.addons) ? item.addons.map((a: Addon) => ({ name: a.name || "", price: String(a.price ?? 0) })) : [];
+    const existingAddons: AddonRow[] = Array.isArray(item.addons) ? item.addons.map((a: Addon) => ({ name: a.name || "", price: String(a.price ?? 0), inventoryItemId: a.inventoryItemId ?? null, quantity: String(a.quantity ?? "") })) : [];
+    void loadInventoryOptions();
     setForm({
       title: item.title,
       slug: item.slug,
@@ -408,7 +414,11 @@ export default function MenuClient() {
       discountPercent: form.discountPercent || null,
       rating: form.rating || null,
       reviews: form.reviews ? Number(form.reviews) : 0,
-      addons: form.addons.filter((a) => a.name.trim()),
+      addons: form.addons.filter((a) => a.name.trim()).map((a) => ({
+        name: a.name.trim(),
+        price: a.price,
+        ...(a.inventoryItemId ? { inventoryItemId: a.inventoryItemId, quantity: String(a.quantity || "0") } : {}),
+      })),
     };
 
     try {
@@ -968,39 +978,68 @@ export default function MenuClient() {
                     Add-ons / Extras <span className="text-gray-400 font-normal">(optional)</span>
                   </label>
                   <button type="button"
-                    onClick={() => setForm({ ...form, addons: [...form.addons, { name: "", price: "" }] })}
+                    onClick={() => setForm({ ...form, addons: [...form.addons, { ...emptyAddonRow }] })}
                     className="text-sm text-orange-600 font-medium"
                   >
                     + Add Add-on
                   </button>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {form.addons.map((addon, idx) => (
-                    <div key={idx} className="flex gap-2 items-start">
-                      <input type="text" value={addon.name}
-                        onChange={(e) => {
-                          const updated = [...form.addons];
-                          updated[idx] = { ...updated[idx], name: e.target.value };
-                          setForm({ ...form, addons: updated });
-                        }}
-                        placeholder="e.g. Extra Cheese"
-                        className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-500"
-                      />
-                      <input type="number" step="0.01" min="0" value={addon.price}
-                        onChange={(e) => {
-                          const updated = [...form.addons];
-                          updated[idx] = { ...updated[idx], price: e.target.value };
-                          setForm({ ...form, addons: updated });
-                        }}
-                        placeholder="Price"
-                        className="w-24 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-500"
-                      />
-                      <button type="button"
-                        onClick={() => setForm({ ...form, addons: form.addons.filter((_, i) => i !== idx) })}
-                        className="text-red-500 hover:text-red-700 p-2"
-                      >
-                        ✕
-                      </button>
+                    <div key={idx} className="rounded-xl border border-slate-200 p-3 space-y-2">
+                      <div className="flex gap-2 items-start">
+                        <input type="text" value={addon.name}
+                          onChange={(e) => {
+                            const updated = [...form.addons];
+                            updated[idx] = { ...updated[idx], name: e.target.value };
+                            setForm({ ...form, addons: updated });
+                          }}
+                          placeholder="e.g. Extra Cheese"
+                          className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-500"
+                        />
+                        <input type="number" step="0.01" min="0" value={addon.price}
+                          onChange={(e) => {
+                            const updated = [...form.addons];
+                            updated[idx] = { ...updated[idx], price: e.target.value };
+                            setForm({ ...form, addons: updated });
+                          }}
+                          placeholder="Price"
+                          className="w-24 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-500"
+                        />
+                        <button type="button"
+                          onClick={() => setForm({ ...form, addons: form.addons.filter((_, i) => i !== idx) })}
+                          className="text-red-500 hover:text-red-700 p-2"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="flex gap-2 items-center">
+                        <select value={addon.inventoryItemId ?? ""}
+                          onChange={(e) => {
+                            const updated = [...form.addons];
+                            const val = e.target.value ? Number(e.target.value) : null;
+                            updated[idx] = { ...updated[idx], inventoryItemId: val };
+                            setForm({ ...form, addons: updated });
+                          }}
+                          className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-500"
+                        >
+                          <option value="">-- No inventory link --</option>
+                          {inventoryOptions.map((inv) => (
+                            <option key={inv.id} value={inv.id}>{inv.name} ({inv.unit})</option>
+                          ))}
+                        </select>
+                        {addon.inventoryItemId && (
+                          <input type="number" step="0.01" min="0" value={addon.quantity}
+                            onChange={(e) => {
+                              const updated = [...form.addons];
+                              updated[idx] = { ...updated[idx], quantity: e.target.value };
+                              setForm({ ...form, addons: updated });
+                            }}
+                            placeholder="Qty (in smallest unit)"
+                            className="w-28 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-500"
+                          />
+                        )}
+                      </div>
                     </div>
                   ))}
                   {form.addons.length === 0 && (

@@ -180,29 +180,8 @@
     {
       "idx": 25,
       "version": "5",
-      "when": 1784645514928,
-      "tag": "0025_aromatic_xavin",
-      "breakpoints": true
-    },
-    {
-      "idx": 26,
-      "version": "5",
-      "when": 1784656135549,
-      "tag": "0026_cultured_pete_wisdom",
-      "breakpoints": true
-    },
-    {
-      "idx": 27,
-      "version": "5",
-      "when": 1784704470785,
-      "tag": "0027_lethal_polaris",
-      "breakpoints": true
-    },
-    {
-      "idx": 28,
-      "version": "5",
-      "when": 1785226286317,
-      "tag": "0028_closed_titanium_man",
+      "when": 1785476497729,
+      "tag": "0025_amazing_amazoness",
       "breakpoints": true
     }
   ]

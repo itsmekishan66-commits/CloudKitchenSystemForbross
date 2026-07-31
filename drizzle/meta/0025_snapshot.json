@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "50377674-b540-439d-bde6-2d0c60ec6bfe",
+  "id": "6d9bc7cc-700a-46c3-be80-e75733482a5f",
   "prevId": "88cae113-3e6d-4d41-9d08-72a679b7e421",
   "tables": {
     "activity_logs": {
@@ -218,6 +218,21 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'0'"
+        },
+        "conversion_unit": {
+          "name": "conversion_unit",
+          "type": "varchar(40)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "conversion_value": {
+          "name": "conversion_value",
+          "type": "decimal(10,2)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'1'"
         },
         "kitchen_id": {
           "name": "kitchen_id",
@@ -1980,6 +1995,21 @@
           "autoincrement": false,
           "default": "'0'"
         },
+        "conversion_unit": {
+          "name": "conversion_unit",
+          "type": "varchar(40)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "conversion_value": {
+          "name": "conversion_value",
+          "type": "decimal(10,2)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'1'"
+        },
         "inventory_item_id": {
           "name": "inventory_item_id",
           "type": "int",
@@ -3214,7 +3244,7 @@
           "name": "user_id",
           "type": "int",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "menu_item_id": {
@@ -3229,12 +3259,25 @@
           "type": "decimal(2,1)",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'3.5'"
+          "autoincrement": false
         },
         "comment": {
           "name": "comment",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "user_name": {
+          "name": "user_name",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "user_avatar": {
+          "name": "user_avatar",
+          "type": "varchar(2048)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -3248,16 +3291,7 @@
           "default": "(now())"
         }
       },
-      "indexes": {
-        "user_menu_item_idx": {
-          "name": "user_menu_item_idx",
-          "columns": [
-            "user_id",
-            "menu_item_id"
-          ],
-          "isUnique": true
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "reviews_user_id_users_id_fk": {
           "name": "reviews_user_id_users_id_fk",

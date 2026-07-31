@@ -374,7 +374,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
               </div>
             </div>
 
-            <div className="p-4 grid md:grid-cols-2 gap-6">
+            <div className="p-4 grid md:grid-cols-2 gap-6 no-scrollbar">
               <div>
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Customer Details</h4>
                 <div className="space-y-1.5 text-sm">
@@ -397,14 +397,14 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   {order.status !== "Delivered" && order.status !== "Cancelled" && can("UPDATE_ORDERS") && (
                     <button
                       onClick={() => openAddItem(order)}
-                      className="text-xs font-medium text-orange-600"
+                      className="text-xs font-medium text-orange-600 mr-2 md:mr-0"
                     >
                       + Add Item
                     </button>
                   )}
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto no-scrollbar mr-2 md:mr-0">
                    <table className="w-full text-sm whitespace-nowrap md:whitespace-normal min-w-160 md:min-w-0">
                     <thead>
                       <tr className="border-b border-gray-200">

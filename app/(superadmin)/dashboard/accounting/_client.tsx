@@ -10,6 +10,7 @@ import {
   BookOpen,
   ArrowUpRight,
   ArrowDownRight,
+  PiggyBank,
 } from "lucide-react";
 import Link from "next/link";
 import PageNote from "./_components/PageNote";
@@ -19,6 +20,7 @@ interface OverviewData {
   totalLiabilities: number;
   totalEquity: number;
   netIncome: number;
+  hasInitialInvestment: boolean;
   recentEntries: {
     id: string;
     entryNumber: string;
@@ -111,6 +113,7 @@ export default function AccountingOverviewPage() {
       icon: Wallet,
       color: "from-blue-500 to-blue-600",
       positive: true,
+      href: "/dashboard/accounting/balance-sheet",
     },
     {
       title: "Total Liabilities",
@@ -118,6 +121,7 @@ export default function AccountingOverviewPage() {
       icon: TrendingDown,
       color: "from-red-500 to-red-600",
       positive: false,
+      href: "/dashboard/accounting/balance-sheet",
     },
     {
       title: "Total Equity",
@@ -125,6 +129,7 @@ export default function AccountingOverviewPage() {
       icon: Landmark,
       color: "from-purple-500 to-purple-600",
       positive: true,
+      href: "/dashboard/accounting/balance-sheet",
     },
     {
       title: "Net Income (This Month)",
@@ -135,41 +140,70 @@ export default function AccountingOverviewPage() {
           ? "from-emerald-500 to-emerald-600"
           : "from-red-500 to-red-600",
       positive: data.netIncome >= 0,
+      href: "/dashboard/accounting/income-statement",
     },
   ];
 
   return (
     <div className="space-y-6">
+      {!data.hasInitialInvestment && (
+        <motion.div
+          initial={{ opacity: 0, y: -8, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-linear-to-r from-amber-500 to-orange-500 text-white rounded-2xl p-5 shadow-lg"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+              <PiggyBank size={20} />
+            </div>
+            <div>
+              <h3 className="font-semibold">Record your initial investment</h3>
+              <p className="text-sm text-amber-50">
+                Add your opening capital so the balance sheet and cash flow
+                reflect the money you put in.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/dashboard/accounting/initial-investment"
+            className="shrink-0 px-4 py-2.5 bg-white text-orange-600 rounded-xl font-semibold hover:bg-amber-50 transition-all text-sm"
+          >
+            Add Investment
+          </Link>
+        </motion.div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((stat, i) => {
           const Icon = stat.icon;
           return (
-            <motion.div
-              key={stat.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.08 }}
-              className="relative bg-white rounded-2xl p-5 border border-gray-100 hover:shadow-lg transition-all"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div
-                  className={`w-10 h-10 rounded-xl bg-linear-to-br ${stat.color} flex items-center justify-center shadow-lg`}
-                >
-                  <Icon size={18} className="text-white" />
+            <Link href={stat.href} key={stat.title}>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.08 }}
+                className="relative bg-white rounded-2xl p-5 border border-gray-100 hover:shadow-lg transition-all"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div
+                    className={`w-10 h-10 rounded-xl bg-linear-to-br ${stat.color} flex items-center justify-center shadow-lg`}
+                  >
+                    <Icon size={18} className="text-white" />
+                  </div>
+                  {stat.positive ? (
+                    <ArrowUpRight size={16} className="text-emerald-500" />
+                  ) : (
+                    <ArrowDownRight size={16} className="text-red-500" />
+                  )}
                 </div>
-                {stat.positive ? (
-                  <ArrowUpRight size={16} className="text-emerald-500" />
-                ) : (
-                  <ArrowDownRight size={16} className="text-red-500" />
-                )}
-              </div>
-              <p className="text-gray-400 text-xs font-medium uppercase tracking-wide">
-                {stat.title}
-              </p>
-              <p className="text-xl font-bold mt-0.5">
-                {formatCurrency(stat.value)}
-              </p>
-            </motion.div>
+                <p className="text-gray-400 text-xs font-medium uppercase tracking-wide">
+                  {stat.title}
+                </p>
+                <p className="text-xl font-bold mt-0.5">
+                  {formatCurrency(stat.value)}
+                </p>
+              </motion.div>
+            </Link>
           );
         })}
       </div>
@@ -205,9 +239,11 @@ export default function AccountingOverviewPage() {
               const tc = typeConfig[account.type] || typeConfig.asset;
               const balance = Number(account.balance);
               return (
-                <div
+                <Link
                   key={account.id}
-                  className="px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 transition-colors"
+                  href={`/dashboard/accounting/journal-entries?accountId=${account.id}`}
+                  className="block px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 transition-colors"
+                  title="View journal entries for this account"
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-mono text-gray-400 w-12">
@@ -227,7 +263,7 @@ export default function AccountingOverviewPage() {
                   >
                     {formatCurrency(balance)}
                   </span>
-                </div>
+                </Link>
               );
             })}
             {data.accountSummary.length === 0 && (
@@ -265,9 +301,10 @@ export default function AccountingOverviewPage() {
             {data.recentEntries.map((entry) => {
               const sc = statusConfig[entry.status] || statusConfig.draft;
               return (
-                <div
+                <Link
                   key={entry.id}
-                  className="px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 transition-colors"
+                  href="/dashboard/accounting/journal-entries"
+                  className="block px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-mono font-medium text-gray-700">
@@ -285,7 +322,7 @@ export default function AccountingOverviewPage() {
                     </p>
                     <p className="text-xs text-gray-400">{entry.date}</p>
                   </div>
-                </div>
+                </Link>
               );
             })}
             {data.recentEntries.length === 0 && (
@@ -300,8 +337,8 @@ export default function AccountingOverviewPage() {
       <PageNote
         points={[
           "Shows a snapshot of the business financial position pulled from the Chart of Accounts and Journal Entries.",
-          "Stat cards display Total Assets, Total Liabilities, Total Equity and Net Income for the current month.",
-          "Account Balances lists every configured account grouped by type with its current balance.",
+          "Stat cards display Total Assets, Total Liabilities, Total Equity and Net Income for the current month; click any card to open the matching report.",
+          "Account Balances lists every configured account grouped by type with its current balance; click a row to open that account's journal entries.",
           "Recent Journal Entries shows the last 5 double-entry records with their status (Draft, Posted, Voided).",
           "Use the 'View All' links to open the full Chart of Accounts or Journal Entries pages.",
         ]}

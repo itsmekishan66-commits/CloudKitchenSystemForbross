@@ -9,7 +9,9 @@ import {
   Calendar,
   TrendingUp,
   TrendingDown,
+  FileText,
 } from "lucide-react";
+import Link from "next/link";
 import PageNote from "../_components/PageNote";
 
 interface CashFlowData {
@@ -185,6 +187,14 @@ export default function CashFlowStatementPage() {
               />
             </div>
           )}
+          <Link
+            href={`/dashboard/accounting/journal-entries?startDate=${useCustom ? customStart : getDateRange(range).startDate}&endDate=${useCustom ? customEnd : getDateRange(range).endDate}`}
+            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:text-orange-600 hover:border-orange-200 transition-all"
+            title="Open the underlying journal entries for this period"
+          >
+            <FileText size={14} />
+            Entries
+          </Link>
           <div className="relative" ref={exportRef}>
             <button
               onClick={() => setExportOpen(!exportOpen)}
@@ -408,6 +418,7 @@ export default function CashFlowStatementPage() {
           "Each activity displays Cash Inflow, Cash Outflow and the Net Cash movement for the period.",
           "Net Change in Cash is the sum of the three activity net totals for the selected range.",
           "Use the preset ranges or a custom date range to change the reporting period.",
+          "Use Entries to open the journal entries behind the selected period.",
           "Export the statement as PDF, CSV or Excel using the Export button.",
         ]}
       />

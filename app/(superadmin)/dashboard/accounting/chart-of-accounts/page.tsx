@@ -13,9 +13,11 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+import Link from "next/link";
 import { usePermissions } from "@/lib/permission-context";
 import { toast } from "react-hot-toast";
 import PageNote from "../_components/PageNote";
+import { useConfirm } from "@/app/_components/ConfirmPopup";
 
 interface Account {
   id: string;
@@ -27,6 +29,7 @@ interface Account {
   parentId: string | null;
   isActive: boolean;
   openingBalance: string;
+  balance: string;
   createdAt: string;
 }
 
@@ -64,6 +67,8 @@ const typeConfig: Record<string, { color: string; bg: string }> = {
   expense: { color: "text-orange-700", bg: "bg-orange-50" },
 };
 
+const formatCurrency = (v: number) => `Rs.${Math.abs(v).toLocaleString("en-IN")}`;
+
 const defaultForm = {
   code: "",
   name: "",
@@ -77,6 +82,7 @@ const defaultForm = {
 export default function ChartOfAccountsPage() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
+  const confirm = useConfirm();
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -211,13 +217,22 @@ export default function ChartOfAccountsPage() {
   }
 
   async function handleDelete(account: Account) {
-    if (!confirm(`Delete account "${account.name}" (${account.code})?`)) return;
+    const ok = await confirm({
+      title: "Delete Account",
+      message: `Delete account "${account.name}" (${account.code})? This cannot be undone.`,
+      confirmText: "Delete",
+      variant: "danger",
+    });
+    if (!ok) return;
     try {
       const res = await fetch(
         `/api/accounting/chart-of-accounts/${account.id}`,
         { method: "DELETE" }
       );
-      if (!res.ok) throw new Error("Failed to delete account");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to delete account");
+      }
       fetchAccounts();
       toast.success("Account deleted successfully");
     } catch (err) {
@@ -521,6 +536,9 @@ export default function ChartOfAccountsPage() {
                           <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-2.5">
                             Sub-Type
                           </th>
+                          <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-2.5">
+                            Balance
+                          </th>
                           <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-2.5">
                             Status
                           </th>
@@ -544,9 +562,13 @@ export default function ChartOfAccountsPage() {
                             </td>
                             <td className="px-5 py-3">
                               <div>
-                                <span className="text-sm font-medium">
+                                <Link
+                                  href={`/dashboard/accounting/journal-entries?accountId=${account.id}`}
+                                  className="text-sm font-medium hover:text-orange-600 transition-colors"
+                                  title="View journal entries for this account"
+                                >
                                   {account.name}
-                                </span>
+                                </Link>
                                 {account.description && (
                                   <p className="text-xs text-gray-400 mt-0.5">
                                     {account.description}
@@ -557,6 +579,21 @@ export default function ChartOfAccountsPage() {
                             <td className="px-5 py-3">
                               <span className="text-xs text-gray-500 capitalize">
                                 {account.subType.replace(/_/g, " ")}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3 text-right">
+                              <span
+                                className={`text-sm font-semibold font-mono ${
+                                  Number(account.balance) >= 0
+                                    ? "text-emerald-600"
+                                    : "text-red-600"
+                                }`}
+                              >
+                                {Number(account.balance) === 0
+                                  ? "—"
+                                  : `${Number(account.balance) < 0 ? "-" : ""}${formatCurrency(
+                                      Number(account.balance)
+                                    )}`}
                               </span>
                             </td>
                             <td className="px-5 py-3">
@@ -651,7 +688,9 @@ export default function ChartOfAccountsPage() {
       <PageNote
         points={[
           "Lists every ledger account grouped by type: Assets, Liabilities, Equity, Revenue and Expense.",
-          "Each row shows the account Code, Name, Sub-Type and Active/Inactive status.",
+          "Each row shows the account Code, Name, Sub-Type, current Balance, and Active/Inactive status.",
+          "The Balance column reflects the cumulative ledger position for each account, synced from posted journal entries.",
+          "Click an account name to jump to its journal entries (ledger) for full traceability.",
           "Add a new account, or edit an existing one, to define its code, type, opening balance and parent.",
           "Toggle Active/Inactive to include or exclude an account from statements without deleting it.",
           "Deleting an account is permanent and only allowed when it has no dependent transactions.",

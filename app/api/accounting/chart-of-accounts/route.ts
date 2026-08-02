@@ -4,7 +4,7 @@ import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 import {
-  getChartOfAccounts,
+  getAccountsWithBalances,
   createAccount,
 } from "@/db/services/accounting";
 
@@ -15,7 +15,7 @@ export async function GET() {
     const user = await apiRequirePermissions(PERMISSIONS.VIEW_ACCOUNTING);
     if (user instanceof NextResponse) return user;
 
-    const accounts = await getChartOfAccounts();
+    const accounts = await getAccountsWithBalances();
     return NextResponse.json({ accounts });
   } catch (error) {
     console.error("Failed to load chart of accounts:", error);
@@ -85,6 +85,9 @@ export async function POST(request: Request) {
     revalidateTag(CACHE_TAGS.CHART_OF_ACCOUNTS, "max");
     revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
     revalidateTag(CACHE_TAGS.TRIAL_BALANCE, "max");
+    revalidateTag(CACHE_TAGS.INCOME_STATEMENT, "max");
+    revalidateTag(CACHE_TAGS.BALANCE_SHEET, "max");
+    revalidateTag(CACHE_TAGS.CASH_FLOW, "max");
     return NextResponse.json({ account }, { status: 201 });
   } catch (error) {
     console.error("Failed to create account:", error);

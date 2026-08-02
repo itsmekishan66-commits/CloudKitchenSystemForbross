@@ -248,7 +248,6 @@ export default function PromotionsClient() {
       setSaving(false);
     }
   }
-
   async function handleDelete(id: number) {
     if (!await confirm("Are you sure you want to delete this promotion?")) return;
     try {

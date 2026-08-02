@@ -99,8 +99,13 @@ export async function DELETE(
   } catch (error) {
     console.error("Failed to delete account:", error);
     return NextResponse.json(
-      { error: "Failed to delete account" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete account",
+      },
+      { status: 400 }
     );
   }
 }

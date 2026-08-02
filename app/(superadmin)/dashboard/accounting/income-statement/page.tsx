@@ -2,21 +2,28 @@
 
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Download, Calendar } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  Download,
+  Calendar,
+  FileText,
+} from "lucide-react";
+import Link from "next/link";
 import PageNote from "../_components/PageNote";
 
 interface IncomeStatementData {
   period: { startDate: string; endDate: string };
-  revenue: { items: { account: string; amount: number }[]; total: number };
-  cogs: { items: { account: string; amount: number }[]; total: number };
+  revenue: { items: { id: string; account: string; amount: number }[]; total: number };
+  cogs: { items: { id: string; account: string; amount: number }[]; total: number };
   grossProfit: number;
   operatingExpenses: {
-    items: { account: string; amount: number }[];
+    items: { id: string; account: string; amount: number }[];
     total: number;
   };
   operatingIncome: number;
   nonOperatingExpenses: {
-    items: { account: string; amount: number }[];
+    items: { id: string; account: string; amount: number }[];
     total: number;
   };
   netIncome: number;
@@ -182,6 +189,14 @@ export default function IncomeStatementPage() {
               />
             </div>
           )}
+          <Link
+            href={`/dashboard/accounting/journal-entries?startDate=${useCustom ? customStart : getDateRange(range).startDate}&endDate=${useCustom ? customEnd : getDateRange(range).endDate}`}
+            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:text-orange-600 hover:border-orange-200 transition-all"
+            title="Open the underlying journal entries for this period"
+          >
+            <FileText size={14} />
+            Entries
+          </Link>
           <div className="relative" ref={exportRef}>
             <button
               onClick={() => setExportOpen(!exportOpen)}
@@ -234,8 +249,14 @@ export default function IncomeStatementPage() {
             </h4>
             <div className="space-y-2">
               {data.revenue.items.map((item) => (
-                <div key={item.account} className="flex justify-between text-sm">
-                  <span className="text-gray-600 pl-4">{item.account}</span>
+                <div key={item.id} className="flex justify-between text-sm">
+                  <Link
+                    href={`/dashboard/accounting/journal-entries?accountId=${item.id}`}
+                    className="text-gray-600 pl-4 hover:text-orange-600 transition-colors"
+                    title="View journal entries for this account"
+                  >
+                    {item.account}
+                  </Link>
                   <span className="font-medium text-emerald-600">
                     {formatCurrency(item.amount)}
                   </span>
@@ -259,8 +280,14 @@ export default function IncomeStatementPage() {
             </h4>
             <div className="space-y-2">
               {data.cogs.items.map((item) => (
-                <div key={item.account} className="flex justify-between text-sm">
-                  <span className="text-gray-600 pl-4">{item.account}</span>
+                <div key={item.id} className="flex justify-between text-sm">
+                  <Link
+                    href={`/dashboard/accounting/journal-entries?accountId=${item.id}`}
+                    className="text-gray-600 pl-4 hover:text-orange-600 transition-colors"
+                    title="View journal entries for this account"
+                  >
+                    {item.account}
+                  </Link>
                   <span className="font-medium text-red-600">
                     {formatCurrency(item.amount)}
                   </span>
@@ -300,8 +327,14 @@ export default function IncomeStatementPage() {
             </h4>
             <div className="space-y-2">
               {data.operatingExpenses.items.map((item) => (
-                <div key={item.account} className="flex justify-between text-sm">
-                  <span className="text-gray-600 pl-4">{item.account}</span>
+                <div key={item.id} className="flex justify-between text-sm">
+                  <Link
+                    href={`/dashboard/accounting/journal-entries?accountId=${item.id}`}
+                    className="text-gray-600 pl-4 hover:text-orange-600 transition-colors"
+                    title="View journal entries for this account"
+                  >
+                    {item.account}
+                  </Link>
                   <span className="font-medium text-red-600">
                     {formatCurrency(item.amount)}
                   </span>
@@ -338,8 +371,14 @@ export default function IncomeStatementPage() {
             </h4>
             <div className="space-y-2">
               {data.nonOperatingExpenses.items.map((item) => (
-                <div key={item.account} className="flex justify-between text-sm">
-                  <span className="text-gray-600 pl-4">{item.account}</span>
+                <div key={item.id} className="flex justify-between text-sm">
+                  <Link
+                    href={`/dashboard/accounting/journal-entries?accountId=${item.id}`}
+                    className="text-gray-600 pl-4 hover:text-orange-600 transition-colors"
+                    title="View journal entries for this account"
+                  >
+                    {item.account}
+                  </Link>
                   <span className="font-medium text-red-600">
                     {formatCurrency(item.amount)}
                   </span>
@@ -394,6 +433,7 @@ export default function IncomeStatementPage() {
           "Breaks down Revenue, Cost of Goods Sold, Gross Profit, Operating Expenses and Non-Operating Expenses.",
           "Net Income is computed and shown with Gross Margin % and Net Margin % against revenue.",
           "Switch ranges (This Month / Quarter / Year / All Time) or pick a custom start and end date.",
+          "Click an account name to open its journal entries, or use Entries to view all entries for the period.",
           "Export the statement as PDF, CSV or Excel using the Export button.",
         ]}
       />

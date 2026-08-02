@@ -11,6 +11,8 @@ import {
   X,
   FileText,
 } from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { usePermissions } from "@/lib/permission-context";
 import { toast } from "react-hot-toast";
 import PageNote from "../_components/PageNote";
@@ -54,6 +56,107 @@ const statusConfig: Record<
   voided: { label: "Voided", color: "text-red-700", bg: "bg-red-50" },
 };
 
+const sourceConfig: Record<
+  string,
+  { label: string; href: string; color: string; bg: string }
+> = {
+  initial_investment: {
+    label: "Initial Investment",
+    href: "/dashboard/accounting/initial-investment",
+    color: "text-amber-700",
+    bg: "bg-amber-50",
+  },
+  order: {
+    label: "Order Sale",
+    href: "/dashboard/orders",
+    color: "text-emerald-700",
+    bg: "bg-emerald-50",
+  },
+  order_payment: {
+    label: "Customer Payment",
+    href: "/dashboard/payment",
+    color: "text-blue-700",
+    bg: "bg-blue-50",
+  },
+  supplier_purchase: {
+    label: "Supplier Purchase",
+    href: "/dashboard/suppliers",
+    color: "text-purple-700",
+    bg: "bg-purple-50",
+  },
+  supplier_payment: {
+    label: "Supplier Payment",
+    href: "/dashboard/suppliers",
+    color: "text-purple-700",
+    bg: "bg-purple-50",
+  },
+  payment_cash_received: {
+    label: "Payments",
+    href: "/dashboard/payment",
+    color: "text-teal-700",
+    bg: "bg-teal-50",
+  },
+  payment_online_received: {
+    label: "Payments",
+    href: "/dashboard/payment",
+    color: "text-teal-700",
+    bg: "bg-teal-50",
+  },
+  payment_cash_paid: {
+    label: "Payments",
+    href: "/dashboard/payment",
+    color: "text-teal-700",
+    bg: "bg-teal-50",
+  },
+  payment_online_paid: {
+    label: "Payments",
+    href: "/dashboard/payment",
+    color: "text-teal-700",
+    bg: "bg-teal-50",
+  },
+  payment_expense: {
+    label: "Payments",
+    href: "/dashboard/payment",
+    color: "text-teal-700",
+    bg: "bg-teal-50",
+  },
+  payment_bank_transfer: {
+    label: "Payments",
+    href: "/dashboard/payment",
+    color: "text-teal-700",
+    bg: "bg-teal-50",
+  },
+  payment_refund: {
+    label: "Payments",
+    href: "/dashboard/payment",
+    color: "text-teal-700",
+    bg: "bg-teal-50",
+  },
+};
+
+const MANUAL_SOURCE = {
+  label: "Manual Entry",
+  href: "/dashboard/accounting/journal-entries",
+  color: "text-gray-700",
+  bg: "bg-gray-100",
+};
+
+function getSource(refType: string | null) {
+  if (!refType) return MANUAL_SOURCE;
+  if (
+    refType.startsWith("supplier_purchase_rect") ||
+    refType.startsWith("supplier_settlement_rect")
+  ) {
+    return {
+      label: "Supplier Adjustment",
+      href: "/dashboard/suppliers",
+      color: "text-fuchsia-700",
+      bg: "bg-fuchsia-50",
+    };
+  }
+  return sourceConfig[refType] || MANUAL_SOURCE;
+}
+
 export default function JournalEntriesPage() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
@@ -78,10 +181,30 @@ export default function JournalEntriesPage() {
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const searchStartDate = searchParams.get("startDate");
+  const searchEndDate = searchParams.get("endDate");
+  const searchAccountId = searchParams.get("accountId");
+
+  const urlParams = useMemo(
+    () => ({
+      ...(searchStartDate ? { startDate: searchStartDate } : {}),
+      ...(searchEndDate ? { endDate: searchEndDate } : {}),
+      ...(searchAccountId ? { accountId: searchAccountId } : {}),
+    }),
+    [searchStartDate, searchEndDate, searchAccountId]
+  );
 
   useEffect(() => {
+    const params = new URLSearchParams();
+    if (urlParams.startDate) params.set("startDate", urlParams.startDate);
+    if (urlParams.endDate) params.set("endDate", urlParams.endDate);
+    if (urlParams.accountId) params.set("accountId", urlParams.accountId);
     Promise.all([
-      fetch("/api/accounting/journal-entries").then((r) => r.json()),
+      fetch(`/api/accounting/journal-entries?${params.toString()}`).then((r) =>
+        r.json()
+      ),
       fetch("/api/accounting/chart-of-accounts").then((r) => r.json()),
     ])
       .then(([entriesData, accountsData]) => {
@@ -90,7 +213,32 @@ export default function JournalEntriesPage() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [urlParams]);
+
+  const filteredAccount = useMemo(
+    () =>
+      urlParams.accountId
+        ? accounts.find((a) => a.id === urlParams.accountId)
+        : undefined,
+    [urlParams.accountId, accounts]
+  );
+
+  function navigateWithParams(next: {
+    startDate?: string;
+    endDate?: string;
+    accountId?: string;
+  }) {
+    const sp = new URLSearchParams();
+    if (next.startDate) sp.set("startDate", next.startDate);
+    if (next.endDate) sp.set("endDate", next.endDate);
+    if (next.accountId) sp.set("accountId", next.accountId);
+    const qs = sp.toString();
+    router.replace(qs ? `/dashboard/accounting/journal-entries?${qs}` : "/dashboard/accounting/journal-entries");
+  }
+
+  function clearUrlFilters() {
+    navigateWithParams({});
+  }
 
   const filteredEntries = useMemo(() => {
     const q = search.toLowerCase();
@@ -334,6 +482,73 @@ export default function JournalEntriesPage() {
         </div>
       </div>
 
+      {(urlParams.accountId ||
+        urlParams.startDate ||
+        urlParams.endDate) && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-medium text-gray-500">
+            Filtered by:
+          </span>
+          {urlParams.accountId && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 border border-orange-200 px-3 py-1 text-xs font-medium text-orange-700">
+              Account: {filteredAccount?.name || urlParams.accountId}
+              <button
+                onClick={() =>
+                  navigateWithParams({
+                    ...urlParams,
+                    accountId: undefined,
+                  })
+                }
+                className="hover:text-orange-900"
+                title="Remove account filter"
+              >
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          {urlParams.startDate && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-medium text-blue-700">
+              From: {urlParams.startDate}
+              <button
+                onClick={() =>
+                  navigateWithParams({
+                    ...urlParams,
+                    startDate: undefined,
+                  })
+                }
+                className="hover:text-blue-900"
+                title="Remove start date filter"
+              >
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          {urlParams.endDate && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-medium text-blue-700">
+              To: {urlParams.endDate}
+              <button
+                onClick={() =>
+                  navigateWithParams({
+                    ...urlParams,
+                    endDate: undefined,
+                  })
+                }
+                className="hover:text-blue-900"
+                title="Remove end date filter"
+              >
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          <button
+            onClick={clearUrlFilters}
+            className="text-xs font-medium text-gray-500 hover:text-gray-800 underline underline-offset-2"
+          >
+            Clear all filters
+          </button>
+        </div>
+      )}
+
       <AnimatePresence>
         {showForm && (
           <motion.div
@@ -547,6 +762,9 @@ export default function JournalEntriesPage() {
                   Description
                 </th>
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">
+                  Source
+                </th>
+                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">
                   Debit
                 </th>
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">
@@ -563,6 +781,9 @@ export default function JournalEntriesPage() {
             <tbody>
               {filteredEntries.map((entry) => {
                 const sc = statusConfig[entry.status] || statusConfig.draft;
+                const source = getSource(entry.referenceType);
+                const isSourceLink =
+                  source.href !== "/dashboard/accounting/journal-entries";
                 return (
                   <tr
                     key={entry.id}
@@ -578,6 +799,23 @@ export default function JournalEntriesPage() {
                     </td>
                     <td className="px-5 py-4 text-sm max-w-50 truncate">
                       {entry.description}
+                    </td>
+                    <td className="px-5 py-4">
+                      {isSourceLink ? (
+                        <Link
+                          href={source.href}
+                          className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${source.color} ${source.bg} hover:opacity-80 transition-opacity`}
+                          title={`View in ${source.label}`}
+                        >
+                          {source.label}
+                        </Link>
+                      ) : (
+                        <span
+                          className={`inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full ${source.color} ${source.bg}`}
+                        >
+                          {source.label}
+                        </span>
+                      )}
                     </td>
                     <td className="px-5 py-4 text-sm font-medium text-emerald-600">
                       Rs.{Number(entry.totalDebit).toLocaleString()}
@@ -634,7 +872,7 @@ export default function JournalEntriesPage() {
               {filteredEntries.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="text-center text-gray-400 py-12 text-sm"
                   >
                     No journal entries found
@@ -843,11 +1081,12 @@ export default function JournalEntriesPage() {
       <PageNote
         points={[
           "Shows all double-entry journal entries with Entry #, Date, Description, Debit, Credit and Status.",
+          "The Source column identifies where each entry came from (Orders, Payments, Suppliers, Initial Investment) and links back to that screen.",
           "Status can be Draft, Posted or Voided; only Draft entries can be posted or voided.",
           "Create a new entry by adding at least two lines where total Debit must equal total Credit.",
-          "Posting an entry updates the balances of the related accounts in the Chart of Accounts.",
+          "Posting an entry updates the balances of the related accounts in the Chart of Accounts and all statements.",
+          "Open the page with ?accountId=, ?startDate= and ?endDate= to see the ledger for a specific account or period.",
           "Voiding requires a reason and marks the entry as Voided without altering posted history.",
-          "Use the View icon to inspect individual line items (account, debit, credit, note).",
         ]}
       />
     </div>

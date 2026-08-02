@@ -23,6 +23,7 @@ export async function GET(request: Request) {
       | undefined;
     const startDate = searchParams.get("startDate") || undefined;
     const endDate = searchParams.get("endDate") || undefined;
+    const accountId = searchParams.get("accountId") || undefined;
     const limit = parseInt(searchParams.get("limit") || "100", 10);
     const offset = parseInt(searchParams.get("offset") || "0", 10);
 
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
       status: status || undefined,
       startDate,
       endDate,
+      accountId,
       limit,
       offset,
     });

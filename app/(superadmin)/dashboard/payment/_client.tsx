@@ -110,7 +110,7 @@ const typeConfig: Record<TransactionType, { label: string; color: string; bg: st
   online_paid: { label: "Online Paid", color: "text-red-700", bg: "bg-red-50", icon: ArrowUpRight },
   expense: { label: "Expense", color: "text-orange-700", bg: "bg-orange-50", icon: ArrowUpRight },
   bank_transfer: { label: "Bank Transfer", color: "text-blue-700", bg: "bg-blue-50", icon: ArrowUpRight },
-  refund: { label: "Refund", color: "text-purple-700", bg: "bg-purple-50", icon: ArrowDownRight },
+  refund: { label: "Refund", color: "text-purple-700", bg: "bg-purple-50", icon: ArrowUpRight },
 };
 
 const paymentIcons: Record<PaymentMethod, typeof CreditCard> = {
@@ -121,6 +121,14 @@ const paymentIcons: Record<PaymentMethod, typeof CreditCard> = {
   fonepay: Smartphone,
   card: CreditCard,
 };
+
+const typeFilterOptions = [
+  { value: "all", label: "All Types" },
+  ...Object.entries(typeConfig).map(([value, cfg]) => ({
+    value,
+    label: cfg.label,
+  })),
+];
 
 const statusConfig = {
   pending: { label: "Pending", color: "text-amber-700", bg: "bg-amber-50", dot: "bg-amber-400" },
@@ -182,7 +190,7 @@ function DailyBalancesSection({ transactions }: { transactions: Transaction[] })
 
     transactions.forEach((t) => {
       const prev = dailyMap.get(t.createdAt) || { received: 0, paid: 0 };
-      if (t.type.includes("received") || t.type === "refund") {
+      if (t.type.includes("received")) {
         prev.received += t.amount;
       } else {
         prev.paid += t.amount;
@@ -289,6 +297,105 @@ function DailyBalancesSection({ transactions }: { transactions: Transaction[] })
     );
   }
 
+function CashPaidSection({ transactions }: { transactions: Transaction[] }) {
+  const cashPaidTxs = useMemo(() => {
+    return transactions
+      .filter(
+        (t) =>
+          t.type === "cash_paid" ||
+          (t.type === "refund" && t.paymentMethod === "cash")
+      )
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  }, [transactions]);
+
+  const total = cashPaidTxs.reduce((sum, t) => sum + t.amount, 0);
+
+  const CASH_PAID_PER_PAGE = 10;
+  const [page, setPage] = useState(1);
+  const paginated = cashPaidTxs.slice(0, page * CASH_PAID_PER_PAGE);
+
+  if (cashPaidTxs.length === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.13 }}
+      className="bg-white rounded-2xl border border-gray-100"
+    >
+      <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center shadow-md">
+            <Banknote size={16} className="text-red-600" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm">Cash Payments</h3>
+            <p className="text-xs text-gray-400">All accumulated cash paid</p>
+          </div>
+        </div>
+        <span className="text-sm font-bold text-red-600">
+          Rs {total.toLocaleString()}
+        </span>
+      </div>
+      <div className="overflow-x-auto no-scrollbar">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-gray-50">
+              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Date</th>
+              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Paid To</th>
+              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Method</th>
+              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Notes</th>
+              <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginated.map((t, i) => (
+              <motion.tr
+                key={t.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: i * 0.03 }}
+                className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors"
+              >
+                <td className="px-5 py-4 text-sm text-gray-400">{t.createdAt}</td>
+                <td className="px-5 py-4 text-sm font-medium">{t.paidTo || "-"}</td>
+                <td className="px-5 py-4 text-sm capitalize text-gray-500">{t.paymentMethod}</td>
+                <td className="px-5 py-4 text-sm text-gray-500">{t.notes || "-"}</td>
+                <td className="px-5 py-4 text-right text-sm font-semibold text-red-600">
+                  -Rs {t.amount.toLocaleString()}
+                </td>
+              </motion.tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="bg-gray-50 border-t-2 border-gray-200">
+              <td colSpan={4} className="px-5 py-4 text-sm font-bold">
+                Accumulated Cash Paid
+              </td>
+              <td className="px-5 py-4 text-right text-sm font-bold text-red-600">
+                Rs {total.toLocaleString()}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      {cashPaidTxs.length > CASH_PAID_PER_PAGE && (
+        <div className="p-4 border-t border-gray-50 flex items-center justify-between">
+          <span className="text-xs text-gray-400">
+            Showing {paginated.length} of {cashPaidTxs.length}
+          </span>
+          <Pagination
+            total={cashPaidTxs.length}
+            perPage={CASH_PAID_PER_PAGE}
+            page={page}
+            onPage={setPage}
+          />
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 export default function PaymentPage() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
@@ -375,6 +482,7 @@ export default function PaymentPage() {
   const [globalSearch, setGlobalSearch] = useState("");
   const filterStatus = useMemo(() => "all",[]);
   const [txPage, setTxPage] = useState(1);
+  const [txTypeFilter, setTxTypeFilter] = useState<string>("all");
   const [receivablePage, setReceivablePage] = useState(1);
   const [duesPage, setDuesPage] = useState(1);
   const [accountBalancesPage, setAccountBalancesPage] = useState(1);
@@ -438,8 +546,20 @@ export default function PaymentPage() {
     const supplierDueTotal = filteredDues.filter((d) => d.role !== "customer").reduce((acc, d) => acc + d.totalDue, 0);
     const supplierDuePaid = filteredDues.filter((d) => d.role !== "customer").reduce((acc, d) => acc + d.paid, 0);
     const supplierDueRemaining = filteredDues.filter((d) => d.role !== "customer").reduce((acc, d) => acc + d.remaining, 0);
-    return { cashReceived, onlineReceived, cashPaid, onlinePaid, expenses, cashBalance, bankBalance, pendingDue, totalSales: cashReceived + onlineReceived, totalDueAll, totalCollected, customerDues, customerDueTotal, customerDuePaid, supplierDueTotal, supplierDuePaid, supplierDueRemaining };
+    return { cashReceived, onlineReceived, cashPaid, onlinePaid, expenses, cashBalance, bankBalance, bankTransfer, pendingDue, totalSales: cashReceived + onlineReceived, totalDueAll, totalCollected, customerDues, customerDueTotal, customerDuePaid, supplierDueTotal, supplierDuePaid, supplierDueRemaining };
   }, [filteredTransactions, filteredDues]);
+
+  const accumulatedCashPaid = useMemo(
+    () =>
+      transactions
+        .filter(
+          (t) =>
+            t.type === "cash_paid" ||
+            (t.type === "refund" && t.paymentMethod === "cash")
+        )
+        .reduce((sum, t) => sum + t.amount, 0),
+    [transactions]
+  );
 
   async function addTransaction() {
     const newErrors: Record<string, string> = {};
@@ -714,7 +834,14 @@ export default function PaymentPage() {
     card: { label: "Card", icon: CreditCard, color: "text-orange-700", bg: "bg-orange-50" },
   };
 
-  const paginatedTx = useMemo(() => filteredTransactions.slice(0, txPage * PER_PAGE), [filteredTransactions, txPage]);
+  const txFiltered = useMemo(
+    () =>
+      filteredTransactions.filter(
+        (t) => txTypeFilter === "all" || t.type === txTypeFilter
+      ),
+    [filteredTransactions, txTypeFilter]
+  );
+  const paginatedTx = useMemo(() => txFiltered.slice(0, txPage * PER_PAGE), [txFiltered, txPage]);
   const customerGroups = useMemo(() => aggregateDues(filteredDues.filter((d) => d.role === "customer")), [filteredDues]);
   const supplierGroups = useMemo(() => aggregateDues(filteredDues.filter((d) => d.role !== "customer")), [filteredDues]);
   const paginatedReceivables = useMemo(() => customerGroups.slice(0, receivablePage * PER_PAGE), [customerGroups, receivablePage]);
@@ -829,12 +956,14 @@ export default function PaymentPage() {
       </div>
 
       {/* Secondary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {[
           { label: "Cash Received", value: analytics.cashReceived, color: "text-emerald-600" },
           { label: "Online Received", value: analytics.onlineReceived, color: "text-blue-600" },
-          { label: "Expenses", value: analytics.expenses, color: "text-red-600" },
+          { label: "Cash Paid", value: accumulatedCashPaid, color: "text-red-600" },
           { label: "Online Paid", value: analytics.onlinePaid, color: "text-orange-600" },
+          { label: "Expenses", value: analytics.expenses, color: "text-rose-600" },
+          { label: "Bank Transfer", value: analytics.bankTransfer, color: "text-purple-600" },
         ].map((s) => (
           <div key={s.label} className="bg-white/60 backdrop-blur-sm rounded-xl px-4 py-3 border border-gray-100">
             <p className="text-xs text-gray-400">{s.label}</p>
@@ -845,6 +974,9 @@ export default function PaymentPage() {
 
       {/* Daily Balances Section */}
       <DailyBalancesSection transactions={transactions} />
+
+      {/* Cash Paid Section */}
+      <CashPaidSection transactions={transactions} />
 
       {/* Account Balances Section */}
       {accounts.length > 0 && (
@@ -1130,8 +1262,24 @@ export default function PaymentPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-sm">Recent Transactions</h3>
-                  <p className="text-xs text-gray-400">{filteredTransactions.length} entries</p>
+                  <p className="text-xs text-gray-400">{txFiltered.length} entries</p>
                 </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={txTypeFilter}
+                  onChange={(e) => {
+                    setTxTypeFilter(e.target.value);
+                    setTxPage(1);
+                  }}
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-orange-300"
+                >
+                  {typeFilterOptions.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="overflow-x-auto no-scrollbar">
@@ -1166,8 +1314,8 @@ export default function PaymentPage() {
                           </div>
                         </td>
                         <td className="px-5 py-4">
-                          <span className={`text-sm font-semibold ${t.type.includes("received") || t.type === "refund" ? "text-emerald-600" : "text-red-600"}`}>
-                            {t.type.includes("received") || t.type === "refund" ? "+" : "-"}Rs {t.amount.toLocaleString()}
+                          <span className={`text-sm font-semibold ${t.type.includes("received") ? "text-emerald-600" : "text-red-600"}`}>
+                            {t.type.includes("received") ? "+" : "-"}Rs {t.amount.toLocaleString()}
                           </span>
                         </td>
                         <td className="px-5 py-4 text-sm text-gray-600">{t.receivedFrom || t.paidTo || "-"}</td>
@@ -1189,9 +1337,9 @@ export default function PaymentPage() {
             </div>
             <div className="p-4 border-t border-gray-50 flex items-center justify-between">
               <span className="text-xs text-gray-400">
-                Showing {paginatedTx.length} of {filteredTransactions.length}
+                Showing {paginatedTx.length} of {txFiltered.length}
               </span>
-              <Pagination total={filteredTransactions.length} perPage={PER_PAGE} page={txPage} onPage={setTxPage} />
+              <Pagination total={txFiltered.length} perPage={PER_PAGE} page={txPage} onPage={setTxPage} />
             </div>
           </motion.div>
         </div>

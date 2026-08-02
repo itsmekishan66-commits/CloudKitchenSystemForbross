@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 
 import { getTransactions, createTransaction, getDues, createDue, updateDue, getDueById, getPaymentAccountById } from "@/db/services/payments";
+import { postTransactionEntry, recordCustomerPayment } from "@/db/services/accounting";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 import { markOrderPaymentSettled } from "@/db/services/orders";
 import { getSupplierByName, createSupplierSettlement } from "@/db/services/suppliers";
@@ -51,7 +52,19 @@ export async function POST(request: Request) {
                 notes: payload.notes || null,
             };
             await createTransaction(data);
+            await postTransactionEntry({
+                id: data.id,
+                type: data.type,
+                amount: data.amount,
+                notes: data.notes,
+                paidTo: data.paidTo,
+                receivedFrom: data.receivedFrom,
+            });
             revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
+            revalidateTag(CACHE_TAGS.TRIAL_BALANCE, "max");
+            revalidateTag(CACHE_TAGS.INCOME_STATEMENT, "max");
+            revalidateTag(CACHE_TAGS.BALANCE_SHEET, "max");
+            revalidateTag(CACHE_TAGS.CASH_FLOW, "max");
             return NextResponse.json({ ok: true }, { status: 201 });
         }
 
@@ -122,6 +135,21 @@ export async function PATCH(request: Request) {
                 const linkedAccountId = account ? account.id : null;
                 const accountLabel = accountName || account?.accountName || (method === "cash" ? "Cash" : method);
 
+                let supplierSettlementId: number | null = null;
+                if (!isReceived && existing?.personName) {
+                    const supplier = await getSupplierByName(existing.personName);
+                    if (supplier) {
+                        supplierSettlementId = await createSupplierSettlement({
+                            supplierId: supplier.id,
+                            amount: settledAmount.toFixed(2),
+                            type: "payment",
+                            paymentMethod: method,
+                            transactionId: null,
+                            notes: `Payment via Payments section${existing.orderId ? ` (Order #${existing.orderId})` : ""} via ${accountLabel}`,
+                        });
+                    }
+                }
+
                 await createTransaction({
                     id: crypto.randomUUID(),
                     type,
@@ -130,22 +158,18 @@ export async function PATCH(request: Request) {
                     paidTo: isReceived ? null : (existing?.personName || null),
                     paymentMethod: method,
                     accountId: linkedAccountId,
-                    transactionId: linkedAccountId ? `SETTLE-${linkedAccountId}` : null,
+                    transactionId: supplierSettlementId
+                        ? `SUPPLIER-SETTLE-${supplierSettlementId}`
+                        : (linkedAccountId ? `SETTLE-${linkedAccountId}` : null),
                     notes: `Due settlement${existing?.orderId ? ` (Order #${existing.orderId})` : ""} via ${accountLabel}`,
                 });
 
-                if (!isReceived && existing?.personName) {
-                    const supplier = await getSupplierByName(existing.personName);
-                    if (supplier) {
-                        await createSupplierSettlement({
-                            supplierId: supplier.id,
-                            amount: settledAmount.toFixed(2),
-                            type: "payment",
-                            paymentMethod: method,
-                            transactionId: linkedAccountId ? `ACC-${linkedAccountId}` : null,
-                            notes: `Payment via Payments section${existing.orderId ? ` (Order #${existing.orderId})` : ""} via ${accountLabel}`,
-                        });
-                    }
+                if (isReceived && existing?.orderId) {
+                    await recordCustomerPayment({
+                        orderId: Number(existing.orderId),
+                        amount: settledAmount,
+                        referenceId: crypto.randomUUID(),
+                    });
                 }
             }
 

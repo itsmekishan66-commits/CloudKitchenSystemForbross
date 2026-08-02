@@ -12,6 +12,24 @@ export async function createTransaction(data: NewTransaction) {
     await db.insert(transactions).values(data);
 }
 
+export async function getTransactionById(id: string) {
+    const [tx] = await db.select().from(transactions).where(eq(transactions.id, id)).limit(1);
+    return tx ?? null;
+}
+
+export async function getTransactionByRef(ref: string) {
+    const [tx] = await db.select().from(transactions).where(eq(transactions.transactionId, ref)).limit(1);
+    return tx ?? null;
+}
+
+export async function updateTransaction(id: string, data: Partial<NewTransaction>) {
+    await db.update(transactions).set(data).where(eq(transactions.id, id));
+}
+
+export async function deleteTransaction(id: string) {
+    await db.delete(transactions).where(eq(transactions.id, id));
+}
+
 export async function getDues() {
     return db.select().from(dues).orderBy(desc(dues.createdAt));
 }
@@ -63,8 +81,8 @@ export async function getAccountBalances() {
         })
         .from(transactions);
 
-    const RECEIVED = new Set(["cash_received", "online_received", "refund"]);
-    const PAID = new Set(["cash_paid", "online_paid", "expense", "bank_transfer"]);
+    const RECEIVED = new Set(["cash_received", "online_received"]);
+    const PAID = new Set(["cash_paid", "online_paid", "expense", "bank_transfer", "refund"]);
 
     return accounts.map((account) => {
         let totalReceived = 0;

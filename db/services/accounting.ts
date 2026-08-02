@@ -13,6 +13,7 @@ import {
   inventoryItems,
   type NewChartOfAccount,
 } from "@/db/schemas";
+import { createTransaction } from "@/db/services/payments";
 
 
 export async function getChartOfAccounts() {
@@ -28,6 +29,19 @@ export async function getActiveAccounts() {
     .from(chartOfAccounts)
     .where(eq(chartOfAccounts.isActive, true))
     .orderBy(asc(chartOfAccounts.code));
+}
+
+// Chart of accounts enriched with the current cumulative balance of each account.
+export async function getAccountsWithBalances() {
+  const accounts = await getChartOfAccounts();
+  const balanceMap = await getAccountBalanceMap(
+    "1900-01-01",
+    new Date().toISOString().substring(0, 10)
+  );
+  return accounts.map((a) => ({
+    ...a,
+    balance: String(balanceMap.get(a.id) ?? 0),
+  }));
 }
 
 export async function getAccountById(id: string) {
@@ -134,6 +148,40 @@ export async function updateAccount(
 }
 
 export async function deleteAccount(id: string) {
+  const [entryLines, accountBalancesRefs, childAccounts] = await Promise.all([
+    db
+      .select({ id: journalEntryLines.id })
+      .from(journalEntryLines)
+      .where(eq(journalEntryLines.accountId, id))
+      .limit(1),
+    db
+      .select({ id: accountBalances.id })
+      .from(accountBalances)
+      .where(eq(accountBalances.accountId, id))
+      .limit(1),
+    db
+      .select({ id: chartOfAccounts.id })
+      .from(chartOfAccounts)
+      .where(eq(chartOfAccounts.parentId, id))
+      .limit(1),
+  ]);
+
+  if (entryLines.length > 0) {
+    throw new Error(
+      "This account cannot be deleted because it has journal entry transactions."
+    );
+  }
+  if (accountBalancesRefs.length > 0) {
+    throw new Error(
+      "This account cannot be deleted because it has recorded balances."
+    );
+  }
+  if (childAccounts.length > 0) {
+    throw new Error(
+      "This account cannot be deleted because it has sub-accounts linked to it."
+    );
+  }
+
   await db.delete(chartOfAccounts).where(eq(chartOfAccounts.id, id));
 }
 
@@ -163,6 +211,7 @@ export async function getJournalEntries(filters?: {
   status?: "draft" | "posted" | "voided";
   startDate?: string;
   endDate?: string;
+  accountId?: string;
   limit?: number;
   offset?: number;
 }) {
@@ -175,6 +224,18 @@ export async function getJournalEntries(filters?: {
   }
   if (filters?.endDate) {
     conditions.push(lte(journalEntries.date, new Date(filters.endDate)));
+  }
+  if (filters?.accountId) {
+    const lineRows = await db
+      .select({ journalEntryId: journalEntryLines.journalEntryId })
+      .from(journalEntryLines)
+      .where(eq(journalEntryLines.accountId, filters.accountId));
+    conditions.push(
+      inArray(
+        journalEntries.id,
+        lineRows.map((r) => r.journalEntryId)
+      )
+    );
   }
 
   const where =
@@ -601,35 +662,35 @@ export async function getIncomeStatement(
 
   const balanceMap = await getAccountBalanceMap(startDate, endDate);
 
-  const revenue: { account: string; amount: number }[] = [];
+  const revenue: { id: string; account: string; amount: number }[] = [];
   let totalRevenue = 0;
 
   for (const account of revenueAccounts) {
     const amount = Number(balanceMap.get(account.id) ?? 0);
     if (amount !== 0) {
-      revenue.push({ account: account.name, amount });
+      revenue.push({ id: account.id, account: account.name, amount });
       totalRevenue += amount;
     }
   }
 
-  const cogs: { account: string; amount: number }[] = [];
+  const cogs: { id: string; account: string; amount: number }[] = [];
   let totalCogs = 0;
-  const operatingExpenses: { account: string; amount: number }[] = [];
+  const operatingExpenses: { id: string; account: string; amount: number }[] = [];
   let totalOperatingExpenses = 0;
-  const nonOperatingExpenses: { account: string; amount: number }[] = [];
+  const nonOperatingExpenses: { id: string; account: string; amount: number }[] = [];
   let totalNonOperatingExpenses = 0;
 
   for (const account of expenseAccounts) {
     const amount = Math.abs(Number(balanceMap.get(account.id) ?? 0));
     if (amount !== 0) {
       if (account.subType === "cogs") {
-        cogs.push({ account: account.name, amount });
+        cogs.push({ id: account.id, account: account.name, amount });
         totalCogs += amount;
       } else if (account.subType === "operating_expense") {
-        operatingExpenses.push({ account: account.name, amount });
+        operatingExpenses.push({ id: account.id, account: account.name, amount });
         totalOperatingExpenses += amount;
       } else {
-        nonOperatingExpenses.push({ account: account.name, amount });
+        nonOperatingExpenses.push({ id: account.id, account: account.name, amount });
         totalNonOperatingExpenses += amount;
       }
     }
@@ -767,13 +828,13 @@ export async function getBalanceSheet(asOfDate: string) {
   const liabilityAccounts = await getAccountsByType("liability");
   const equityAccounts = await getAccountsByType("equity");
 
-  // Two balance maps cover the distinct period ranges used below (avoids per-account N+1)
+  // Single cumulative balance map covers the whole position up to asOfDate
+  // (avoids per-account N+1). Position statements must use cumulative balances.
   const cumulativeMap = await getAccountBalanceMap("1900-01-01", asOfDate);
-  const periodMap = await getAccountBalanceMap(asOfDate, asOfDate);
 
   const assets: {
     category: string;
-    accounts: { name: string; balance: number }[];
+    accounts: { id: string; name: string; balance: number }[];
     total: number;
   }[] = [];
   let totalAssets = 0;
@@ -787,13 +848,13 @@ export async function getBalanceSheet(asOfDate: string) {
     const accounts = assetAccounts.filter(
       (a) => a.subType === cat.subType && a.isActive
     );
-    const items: { name: string; balance: number }[] = [];
+    const items: { id: string; name: string; balance: number }[] = [];
     let catTotal = 0;
 
     for (const account of accounts) {
       const balance = Number(cumulativeMap.get(account.id) ?? 0);
       if (balance !== 0) {
-        items.push({ name: account.name, balance });
+        items.push({ id: account.id, name: account.name, balance });
         catTotal += balance;
       }
     }
@@ -806,7 +867,7 @@ export async function getBalanceSheet(asOfDate: string) {
 
   const liabilities: {
     category: string;
-    accounts: { name: string; balance: number }[];
+    accounts: { id: string; name: string; balance: number }[];
     total: number;
   }[] = [];
   let totalLiabilities = 0;
@@ -820,13 +881,13 @@ export async function getBalanceSheet(asOfDate: string) {
     const accounts = liabilityAccounts.filter(
       (a) => a.subType === cat.subType && a.isActive
     );
-    const items: { name: string; balance: number }[] = [];
+    const items: { id: string; name: string; balance: number }[] = [];
     let catTotal = 0;
 
     for (const account of accounts) {
-      const balance = Math.abs(Number(periodMap.get(account.id) ?? 0));
+      const balance = Math.abs(Number(cumulativeMap.get(account.id) ?? 0));
       if (balance !== 0) {
-        items.push({ name: account.name, balance });
+        items.push({ id: account.id, name: account.name, balance });
         catTotal += balance;
       }
     }
@@ -841,21 +902,21 @@ export async function getBalanceSheet(asOfDate: string) {
     }
   }
 
-  const equity: { name: string; balance: number }[] = [];
+  const equity: { id: string; name: string; balance: number }[] = [];
   let totalEquity = 0;
 
   for (const account of equityAccounts) {
     if (!account.isActive) continue;
-    const balance = Math.abs(Number(periodMap.get(account.id) ?? 0));
+    const balance = Math.abs(Number(cumulativeMap.get(account.id) ?? 0));
     if (balance !== 0) {
-      equity.push({ name: account.name, balance });
+      equity.push({ id: account.id, name: account.name, balance });
       totalEquity += balance;
     }
   }
 
   const netIncome = await getNetIncomeForPeriod("1900-01-01", asOfDate);
   if (netIncome !== 0) {
-    equity.push({ name: "Retained Earnings (Current Period)", balance: netIncome });
+    equity.push({ id: "", name: "Retained Earnings (Current Period)", balance: netIncome });
     totalEquity += netIncome;
   }
 
@@ -870,8 +931,9 @@ export async function getBalanceSheet(asOfDate: string) {
 
 export async function getTrialBalance(asOfDate: string) {
   const accounts = await getActiveAccounts();
-  const balanceMap = await getAccountBalanceMap(asOfDate, asOfDate);
+  const balanceMap = await getAccountBalanceMap("1900-01-01", asOfDate);
   const result: {
+    id: string;
     code: string;
     name: string;
     type: string;
@@ -900,6 +962,7 @@ export async function getTrialBalance(asOfDate: string) {
 
     if (debit !== 0 || credit !== 0) {
       result.push({
+        id: account.id,
         code: account.code,
         name: account.name,
         type: account.type,
@@ -1016,6 +1079,17 @@ export async function getAccountingOverview() {
     balance: monthMap.get(account.id) ?? 0,
   }));
 
+  const investmentEntry = await db
+    .select({ id: journalEntries.id })
+    .from(journalEntries)
+    .where(
+      and(
+        eq(journalEntries.referenceType, INITIAL_INVESTMENT_REF),
+        eq(journalEntries.status, "posted")
+      )
+    )
+    .limit(1);
+
   return {
     totalAssets,
     totalLiabilities,
@@ -1023,7 +1097,124 @@ export async function getAccountingOverview() {
     netIncome: incomeStatement.netIncome,
     recentEntries,
     accountSummary,
+    hasInitialInvestment: Boolean(investmentEntry[0]),
   };
+}
+
+// Initial Investment / Opening Capital
+
+export const INITIAL_INVESTMENT_REF = "initial_investment";
+
+export async function getInitialInvestments() {
+  const entries = await db
+    .select()
+    .from(journalEntries)
+    .where(eq(journalEntries.referenceType, INITIAL_INVESTMENT_REF))
+    .orderBy(desc(journalEntries.date), desc(journalEntries.createdAt));
+
+  const entryIds = entries.map((e) => e.id);
+  const lines =
+    entryIds.length > 0
+      ? await db
+          .select()
+          .from(journalEntryLines)
+          .where(inArray(journalEntryLines.journalEntryId, entryIds))
+      : [];
+  const linesByEntry = new Map<string, (typeof lines)[number][]>();
+  for (const line of lines) {
+    const list = linesByEntry.get(line.journalEntryId) ?? [];
+    list.push(line);
+    linesByEntry.set(line.journalEntryId, list);
+  }
+
+  const accounts = await getChartOfAccounts();
+  const accountMap = new Map(accounts.map((a) => [a.id, a]));
+
+  const investments = entries.map((e) => ({
+    id: e.id,
+    entryNumber: e.entryNumber,
+    date: e.date.toISOString().substring(0, 10),
+    description: e.description,
+    status: e.status,
+    amount: Number(e.totalDebit),
+    lines: (linesByEntry.get(e.id) ?? []).map((l) => ({
+      accountId: l.accountId,
+      accountCode: accountMap.get(l.accountId)?.code,
+      accountName: accountMap.get(l.accountId)?.name,
+      debit: Number(l.debit),
+      credit: Number(l.credit),
+    })),
+  }));
+
+  const total = investments
+    .filter((i) => i.status !== "voided")
+    .reduce((sum, i) => sum + i.amount, 0);
+
+  return { investments, total };
+}
+
+// Creates AND posts the opening capital entry: Debit fund asset, Credit Owner's Equity.
+export async function recordInitialInvestment(input: {
+  date: string;
+  amount: number;
+  fundAccountCode: string;
+  note?: string;
+}) {
+  await ensureStandardAccounts();
+
+  const amount = Number(input.amount) || 0;
+  if (amount <= 0) {
+    throw new Error("Investment amount must be greater than zero");
+  }
+
+  const fundAccount = await getAccountByCode(input.fundAccountCode || "1000");
+  if (!fundAccount || fundAccount.type !== "asset") {
+    throw new Error(
+      `Fund account "${input.fundAccountCode}" is not a valid asset account`
+    );
+  }
+
+  const equityAccount = await getAccountByCode("3000");
+  if (!equityAccount) {
+    throw new Error("Owner's Equity account is missing from the chart of accounts");
+  }
+
+  const note = input.note?.trim() || "Initial investment / opening capital";
+  const description = `${note} - into ${fundAccount.name}`;
+
+  const entryId = await postAutoEntry({
+    date: input.date,
+    description,
+    referenceType: INITIAL_INVESTMENT_REF,
+    referenceId: crypto.randomUUID(),
+    lines: [
+      {
+        accountId: fundAccount.id,
+        debit: amount,
+        credit: 0,
+        description: `Capital invested into ${fundAccount.name}`,
+      },
+      {
+        accountId: equityAccount.id,
+        debit: 0,
+        credit: amount,
+        description: "Owner's equity",
+      },
+    ],
+  });
+
+  const isCashFund = fundAccount.code === "1000";
+  await createTransaction({
+    id: crypto.randomUUID(),
+    type: isCashFund ? "cash_received" : "online_received",
+    amount: String(amount),
+    receivedFrom: note,
+    paymentMethod: isCashFund ? "cash" : "bank",
+    transactionId: `${INITIAL_INVESTMENT_REF}-${entryId}`,
+    notes: `Initial investment of ${amount} into ${fundAccount.name}`,
+  });
+
+  return entryId;
 }
 
 // Automated Entries (wired to operational transactions)
@@ -1383,5 +1574,93 @@ export async function recordCustomerPayment(input: {
       { accountId: "1000", debit: amount, credit: 0, description: "Cash received" },
       { accountId: "1200", debit: 0, credit: amount, description: "Accounts receivable cleared" },
     ],
+  });
+}
+
+const TX_TO_REFERENCE_TYPE: Record<string, string> = {
+  cash_received: "payment_cash_received",
+  online_received: "payment_online_received",
+  cash_paid: "payment_cash_paid",
+  online_paid: "payment_online_paid",
+  expense: "payment_expense",
+  bank_transfer: "payment_bank_transfer",
+  refund: "payment_refund",
+};
+
+// Posts the journal entry that mirrors a manual transaction recorded in /payment.
+// Idempotent per transaction id: if the entry already exists it is not re-posted.
+export async function postTransactionEntry(tx: {
+  id: string;
+  type: string;
+  amount: number | string;
+  notes?: string | null;
+  paidTo?: string | null;
+  receivedFrom?: string | null;
+}) {
+  await ensureStandardAccounts();
+  const amount = Number(tx.amount) || 0;
+  if (amount <= 0) return null;
+
+  const type = tx.type;
+  const refType = TX_TO_REFERENCE_TYPE[type];
+  if (!refType) return null;
+
+  const existing = await db
+    .select({ id: journalEntries.id })
+    .from(journalEntries)
+    .where(
+      and(
+        eq(journalEntries.referenceType, refType),
+        eq(journalEntries.referenceId, tx.id)
+      )
+    )
+    .limit(1);
+  if (existing.length > 0) return existing[0];
+
+  const description =
+    type === "cash_received" || type === "online_received"
+      ? `Cash received${tx.receivedFrom ? ` from ${tx.receivedFrom}` : ""}`
+      : `Cash paid${tx.paidTo ? ` to ${tx.paidTo}` : ""}`;
+  const note = tx.notes?.trim();
+
+  let lines: { accountId: string; debit: number; credit: number; description: string }[];
+  switch (type) {
+    case "cash_received":
+    case "online_received":
+      lines = [
+        { accountId: "1000", debit: amount, credit: 0, description: "Cash received" },
+        { accountId: "4000", debit: 0, credit: amount, description: "Sales revenue" },
+      ];
+      break;
+    case "cash_paid":
+    case "online_paid":
+    case "expense":
+      lines = [
+        { accountId: "5100", debit: amount, credit: 0, description: "Operating expenses" },
+        { accountId: "1000", debit: 0, credit: amount, description: "Cash paid" },
+      ];
+      break;
+    case "bank_transfer":
+      lines = [
+        { accountId: "1010", debit: amount, credit: 0, description: "Bank transfer in" },
+        { accountId: "1000", debit: 0, credit: amount, description: "Bank transfer out" },
+      ];
+      break;
+    case "refund":
+      lines = [
+        { accountId: "4000", debit: amount, credit: 0, description: "Sales refund" },
+        { accountId: "1000", debit: 0, credit: amount, description: "Cash refunded" },
+      ];
+      break;
+    default:
+      return null;
+  }
+
+  return postAutoEntry({
+    date: new Date().toISOString().slice(0, 10),
+    description: description + (note ? ` - ${note}` : ""),
+    referenceType: refType,
+    referenceId: tx.id,
+    lines,
   });
 }

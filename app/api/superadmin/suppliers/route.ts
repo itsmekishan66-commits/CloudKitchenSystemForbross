@@ -15,6 +15,7 @@ import {
   updateSupplierProduct,
   deleteSupplierProduct,
   getSupplierSettlements,
+  getSupplierSettlementById,
   createSupplierSettlement,
   deleteSupplierSettlement,
   updateSupplierSettlement,
@@ -22,7 +23,7 @@ import {
 import { createMenuItem, updateMenuItem, deleteMenuItem } from "@/db/services/menu-items";
 import { createInventoryItem, updateInventoryItem, deleteInventoryItem } from "@/db/services/inventory";
 import { createActivityLog } from "@/db/services/activity-logs";
-import { createDue, updateDue } from "@/db/services/payments";
+import { createDue, updateDue, createTransaction, getTransactionByRef, updateTransaction, deleteTransaction } from "@/db/services/payments";
 // import { getDues} from "@/db/services/payments";
 import { v4 as uuidv4 } from "uuid";
 import { eq } from "drizzle-orm";
@@ -69,6 +70,35 @@ async function syncSupplierDue(supplierId: number) {
       status,
     });
   }
+}
+
+function mapPaymentMethod(method: string): "cash" | "bank" | "esewa" | "khalti" | "fonepay" | "card" {
+  const m = (method || "").toLowerCase().trim();
+  if (m.includes("khalti")) return "khalti";
+  if (m.includes("esewa")) return "esewa";
+  if (m.includes("fonepay")) return "fonepay";
+  if (m.includes("card")) return "card";
+  if (m.includes("bank") || m.includes("net")) return "bank";
+  return "cash";
+}
+
+async function recordSupplierPaymentTransaction(
+  supplierName: string,
+  amount: number,
+  paymentMethod: string,
+  settlementId: number | null,
+  notes: string | null
+) {
+  const mappedMethod = mapPaymentMethod(paymentMethod);
+  await createTransaction({
+    id: uuidv4(),
+    type: mappedMethod === "cash" ? "cash_paid" : "online_paid",
+    amount: amount.toFixed(2),
+    paidTo: supplierName,
+    paymentMethod: mappedMethod,
+    transactionId: settlementId ? `SUPPLIER-SETTLE-${settlementId}` : null,
+    notes: notes || null,
+  });
 }
 
 // ---- SUPPLIERS CRUD ----
@@ -216,6 +246,7 @@ export async function POST(request: Request) {
       }
       const sid = Number(supplierId);
       const paidNow = data.type === "purchase" ? (Number(data.paidNow) || 0) : 0;
+      const supplier = await getSupplierById(sid);
 
       const settlementId = await createSupplierSettlement({
         supplierId: sid,
@@ -226,15 +257,35 @@ export async function POST(request: Request) {
         notes: cleanText(data.notes) || null,
       });
 
+      if (supplier && data.type === "payment") {
+        await recordSupplierPaymentTransaction(
+          supplier.name,
+          Number(data.amount),
+          data.paymentMethod || "",
+          settlementId,
+          cleanText(data.notes) || null
+        );
+      }
+
+      let partialSettlementId: number | null = null;
       if (paidNow > 0) {
-        await createSupplierSettlement({
+        partialSettlementId = await createSupplierSettlement({
           supplierId: sid,
           amount: paidNow.toString(),
           type: "payment",
           paymentMethod: cleanText(data.paymentMethod) || null,
-          transactionId: cleanText(data.transactionId) || null,
+          transactionId: null,
           notes: "Partial payment on purchase",
         });
+        if (supplier) {
+          await recordSupplierPaymentTransaction(
+            supplier.name,
+            paidNow,
+            data.paymentMethod || "",
+            partialSettlementId,
+            "Partial payment on purchase"
+          );
+        }
       }
 
       await syncSupplierDue(sid);
@@ -368,8 +419,36 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: "supplierId is required for settlement updates" }, { status: 400 });
       }
 
+      const existing = await getSupplierSettlementById(Number(id));
       await updateSupplierSettlement(Number(id), updates);
       await syncSupplierDue(Number(supplierId));
+
+      const isPayment = (updates.type ?? existing?.type) === "payment";
+      const linkedRef = `SUPPLIER-SETTLE-${id}`;
+      const linkedTx = await getTransactionByRef(linkedRef);
+      if (isPayment) {
+        const newAmount = Number(updates.amount ?? existing?.amount) || 0;
+        const method = mapPaymentMethod(cleanText(updates.paymentMethod ?? existing?.paymentMethod) || "cash");
+        if (linkedTx) {
+          await updateTransaction(linkedTx.id, {
+            amount: newAmount.toFixed(2),
+            paidTo: existing?.supplierId ? (await getSupplierById(existing.supplierId))?.name || null : null,
+            paymentMethod: method,
+            notes: updates.notes !== undefined ? updates.notes : (existing?.notes ?? null),
+          });
+        } else {
+          const supplier = await getSupplierById(Number(supplierId));
+          await recordSupplierPaymentTransaction(
+            supplier?.name || "Supplier",
+            newAmount,
+            cleanText(updates.paymentMethod ?? existing?.paymentMethod) || "cash",
+            Number(id),
+            updates.notes !== undefined ? updates.notes : (existing?.notes ?? null)
+          );
+        }
+      } else if (linkedTx) {
+        await deleteTransaction(linkedTx.id);
+      }
 
       revalidateTag(CACHE_TAGS.ACCOUNTING_OVERVIEW, "max");
       revalidateTag(CACHE_TAGS.TRIAL_BALANCE, "max");
@@ -425,7 +504,12 @@ export async function DELETE(request: Request) {
 
     if (type === "settlement") {
       const settlementSupplierId = Number(searchParams.get("supplierId"));
+      const existing = await getSupplierSettlementById(id);
       await deleteSupplierSettlement(id);
+      if (existing?.type === "payment") {
+        const linkedTx = await getTransactionByRef(`SUPPLIER-SETTLE-${id}`);
+        if (linkedTx) await deleteTransaction(linkedTx.id);
+      }
       if (Number.isInteger(settlementSupplierId)) {
         await syncSupplierDue(settlementSupplierId);
       }

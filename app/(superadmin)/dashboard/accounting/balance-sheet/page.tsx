@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Scale, Download, Calendar } from "lucide-react";
+import { Scale, Download, Calendar, FileText } from "lucide-react";
+import Link from "next/link";
 import PageNote from "../_components/PageNote";
 
 interface BalanceSheetData {
@@ -10,7 +11,7 @@ interface BalanceSheetData {
   assets: {
     categories: {
       category: string;
-      accounts: { name: string; balance: number }[];
+      accounts: { id: string; name: string; balance: number }[];
       total: number;
     }[];
     total: number;
@@ -18,12 +19,12 @@ interface BalanceSheetData {
   liabilities: {
     categories: {
       category: string;
-      accounts: { name: string; balance: number }[];
+      accounts: { id: string; name: string; balance: number }[];
       total: number;
     }[];
     total: number;
   };
-  equity: { accounts: { name: string; balance: number }[]; total: number };
+  equity: { accounts: { id: string; name: string; balance: number }[]; total: number };
   totalLiabilitiesAndEquity: number;
 }
 
@@ -108,6 +109,14 @@ export default function BalanceSheetPage() {
               className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30"
             />
           </div>
+          <Link
+            href={`/dashboard/accounting/journal-entries?endDate=${asOfDate}`}
+            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-orange-600 hover:border-orange-200 transition-all"
+            title="Open the underlying journal entries up to this date"
+          >
+            <FileText size={14} />
+            Entries
+          </Link>
           <div className="relative" ref={exportRef}>
             <button
               onClick={() => setExportOpen(!exportOpen)}
@@ -171,12 +180,16 @@ export default function BalanceSheetPage() {
                     <div className="space-y-1">
                       {category.accounts.map((account) => (
                         <div
-                          key={account.name}
+                          key={account.id}
                           className="flex justify-between text-sm py-1"
                         >
-                          <span className="text-gray-600 pl-4">
+                          <Link
+                            href={`/dashboard/accounting/journal-entries?accountId=${account.id}`}
+                            className="text-gray-600 pl-4 hover:text-orange-600 transition-colors"
+                            title="View journal entries for this account"
+                          >
                             {account.name}
-                          </span>
+                          </Link>
                           <span className="font-medium">
                             {formatCurrency(account.balance)}
                           </span>
@@ -222,12 +235,16 @@ export default function BalanceSheetPage() {
                       <div className="space-y-1">
                         {category.accounts.map((account) => (
                           <div
-                            key={account.name}
+                            key={account.id}
                             className="flex justify-between text-sm py-1"
                           >
-                            <span className="text-gray-600 pl-4">
+                            <Link
+                              href={`/dashboard/accounting/journal-entries?accountId=${account.id}`}
+                              className="text-gray-600 pl-4 hover:text-orange-600 transition-colors"
+                              title="View journal entries for this account"
+                            >
                               {account.name}
-                            </span>
+                            </Link>
                             <span className="font-medium">
                               {formatCurrency(account.balance)}
                             </span>
@@ -268,10 +285,20 @@ export default function BalanceSheetPage() {
                 <div className="space-y-1">
                   {data.equity.accounts.map((account) => (
                     <div
-                      key={account.name}
+                      key={account.id}
                       className="flex justify-between text-sm py-1"
                     >
-                      <span className="text-gray-600">{account.name}</span>
+                      {account.id ? (
+                        <Link
+                          href={`/dashboard/accounting/journal-entries?accountId=${account.id}`}
+                          className="text-gray-600 hover:text-orange-600 transition-colors"
+                          title="View journal entries for this account"
+                        >
+                          {account.name}
+                        </Link>
+                      ) : (
+                        <span className="text-gray-600">{account.name}</span>
+                      )}
                       <span className="font-medium">
                         {formatCurrency(account.balance)}
                       </span>
@@ -329,6 +356,7 @@ export default function BalanceSheetPage() {
           "Liabilities are grouped into Current and Long-term Liabilities.",
           "Equity includes equity accounts plus current-period Retained Earnings (Net Income).",
           "A banner confirms whether the sheet is balanced (Assets equal Liabilities + Equity).",
+          "Click an account name to open its journal entries, or use Entries to view all entries up to the as-of date.",
           "Change the 'As of' date to view the position on any past date; export via PDF, CSV or Excel.",
         ]}
       />

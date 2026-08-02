@@ -101,13 +101,34 @@ export async function createSupplierSettlement(data: NewSupplierSettlement) {
 export async function updateSupplierSettlement(id: number, data: Partial<NewSupplierSettlement>) {
   const existing = await getSupplierSettlementById(id);
   await db.update(supplierSettlements).set(data).where(eq(supplierSettlements.id, id));
-  if (existing && data.amount && existing.amount !== data.amount) {
+  if (!existing) return;
+
+  const newType = (data.type as "purchase" | "payment") ?? existing.type;
+  const newAmount = data.amount ?? existing.amount;
+
+  if (existing.type !== newType) {
     try {
       await recordSettlementAdjustment({
         id,
         type: existing.type as "purchase" | "payment",
         oldAmount: existing.amount,
-        newAmount: data.amount,
+        newAmount: "0",
+      });
+      await recordSupplierSettlement({
+        id,
+        type: newType,
+        amount: newAmount,
+      });
+    } catch (err) {
+      console.error("Failed to record accounting rectification for settlement", id, err);
+    }
+  } else if (existing.amount !== newAmount) {
+    try {
+      await recordSettlementAdjustment({
+        id,
+        type: existing.type as "purchase" | "payment",
+        oldAmount: existing.amount,
+        newAmount,
       });
     } catch (err) {
       console.error("Failed to record accounting rectification for settlement", id, err);

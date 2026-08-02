@@ -8,9 +8,19 @@ import {
   Scale,
   Calculator,
   TrendingUp,
+  PiggyBank,
+  ArrowLeft,
+  BadgeCheck,
 } from "lucide-react";
 
 const quickLinks = [
+  {
+    title: "Initial Investment",
+    description: "Record opening capital",
+    href: "/dashboard/accounting/initial-investment",
+    icon: PiggyBank,
+    color: "from-amber-500 to-orange-600",
+  },
   {
     title: "Income Statement",
     description: "View Profit & Loss for any period",
@@ -33,6 +43,13 @@ const quickLinks = [
     color: "from-purple-500 to-purple-600",
   },
   {
+    title: "Trial Balance",
+    description: "Verify debits equal credits",
+    href: "/dashboard/accounting/trial-balance",
+    icon: BadgeCheck,
+    color: "from-cyan-500 to-teal-600",
+  },
+  {
     title: "Chart of Accounts",
     description: "Manage account categories",
     href: "/dashboard/accounting/chart-of-accounts",
@@ -52,38 +69,49 @@ export default function QuickNav() {
   const pathname = usePathname();
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
-      {quickLinks.map((link) => {
-        const Icon = link.icon;
-        const isActive = pathname === link.href;
-        return (
-          <Link
-            key={link.title}
-            href={link.href}
-            className={`group relative overflow-hidden rounded-2xl border p-4 shadow-lg backdrop-blur-xl hover:shadow-xl transition-all ${
-              isActive
-                ? "border-white/40 bg-orange-200/80"
-                : "border-white/40 bg-white/90"
-            }`}
-          >
-            <div
-              className={`w-10 h-10 rounded-xl bg-linear-to-br ${link.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform ${
-                isActive ? "scale-110" : ""
+    <div className="mb-8">
+      {pathname !== "/dashboard/accounting" && (
+        <Link
+          href="/dashboard/accounting"
+          className="inline-flex items-center gap-2 text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors mb-4"
+        >
+          <ArrowLeft size={16} />
+          Back to Accounting
+        </Link>
+      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+        {quickLinks.map((link) => {
+          const Icon = link.icon;
+          const isActive = pathname === link.href;
+          return (
+            <Link
+              key={link.title}
+              href={link.href}
+              className={`group relative overflow-hidden rounded-2xl border p-4 shadow-lg backdrop-blur-xl hover:shadow-xl transition-all ${
+                isActive
+                  ? "border-white/40 bg-orange-200/80"
+                  : "border-white/40 bg-white/90"
               }`}
             >
-              <Icon size={18} className="text-white" />
-            </div>
-            <h3
-              className={`font-semibold text-sm ${
-                isActive ? "text-orange-700" : "text-gray-900"
-              }`}
-            >
-              {link.title}
-            </h3>
-            <p className="text-xs text-gray-500 mt-1">{link.description}</p>
-          </Link>
-        );
-      })}
+              <div
+                className={`w-10 h-10 rounded-xl bg-linear-to-br ${link.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform ${
+                  isActive ? "scale-110" : ""
+                }`}
+              >
+                <Icon size={18} className="text-white" />
+              </div>
+              <h3
+                className={`font-semibold text-sm ${
+                  isActive ? "text-orange-700" : "text-gray-900"
+                }`}
+              >
+                {link.title}
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">{link.description}</p>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

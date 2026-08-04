@@ -561,6 +561,30 @@ export default function PaymentPage() {
     [transactions]
   );
 
+  function handleMethodChange(nextMethod: PaymentMethod) {
+    setForm((prev) => {
+      let nextType = prev.type;
+      if (prev.type === "cash_received" || prev.type === "online_received") {
+        nextType = nextMethod === "cash" ? "cash_received" : "online_received";
+      } else if (prev.type === "cash_paid" || prev.type === "online_paid") {
+        nextType = nextMethod === "cash" ? "cash_paid" : "online_paid";
+      }
+      return { ...prev, method: nextMethod, type: nextType };
+    });
+  }
+
+  function handleTypeChange(nextType: TransactionType) {
+    setForm((prev) => {
+      let nextMethod = prev.method;
+      if (nextType === "cash_received" || nextType === "cash_paid") {
+        nextMethod = "cash";
+      } else if ((nextType === "online_received" || nextType === "online_paid") && prev.method === "cash") {
+        nextMethod = "esewa";
+      }
+      return { ...prev, type: nextType, method: nextMethod };
+    });
+  }
+
   async function addTransaction() {
     const newErrors: Record<string, string> = {};
     if (!form.amount.toString().trim() || Number(form.amount) <= 0) newErrors.amount = "Amount is required.";
@@ -1079,7 +1103,7 @@ export default function PaymentPage() {
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <div>
-                <select className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all w-full" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as TransactionType })}>
+                <select className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all w-full" value={form.type} onChange={(e) => handleTypeChange(e.target.value as TransactionType)}>
                   <option value="cash_received">Cash Received</option>
                   <option value="cash_paid">Cash Paid</option>
                   <option value="online_received">Online Received</option>
@@ -1097,7 +1121,7 @@ export default function PaymentPage() {
                 <input placeholder="Received from / Paid to *" className={`bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all w-full ${formErrors.person ? "border-red-400" : "border-gray-200"}`} value={form.person} onChange={(e) => { setForm({ ...form, person: e.target.value }); setFormErrors((prev) => { const next = { ...prev }; delete next.person; return next; }); }} />
                 {formErrors.person && <p className="mt-1 text-xs text-red-500">{formErrors.person}</p>}
               </div>
-              <select className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value as PaymentMethod })}>
+              <select className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.method} onChange={(e) => handleMethodChange(e.target.value as PaymentMethod)}>
                 <option>cash</option>
                 <option>bank</option>
                 <option>esewa</option>
@@ -1310,7 +1334,24 @@ export default function PaymentPage() {
                             <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
                               <Icon size={14} className="text-black" />
                             </div>
-                            <span className="text-sm font-medium">{typeConfig[t.type].label}</span>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{typeConfig[t.type].label}</span>
+                                {t.transactionId?.startsWith("VOID-") && (
+                                  <span
+                                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 uppercase tracking-wide"
+                                    title={t.notes || ""}
+                                  >
+                                    Void
+                                  </span>
+                                )}
+                              </div>
+                              {t.transactionId?.startsWith("VOID-") && (
+                                <p className="text-[10px] text-red-500 mt-0.5">
+                                  Reversal void of {t.transactionId.slice(5)}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="px-5 py-4">

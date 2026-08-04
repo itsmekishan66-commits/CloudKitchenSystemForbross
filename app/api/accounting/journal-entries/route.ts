@@ -7,6 +7,7 @@ import {
   getJournalEntries,
   createJournalEntry,
 } from "@/db/services/accounting";
+import { getTransactions } from "@/db/services/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,34 @@ export async function GET(request: Request) {
       offset,
     });
 
-    return NextResponse.json({ entries });
+    // Attach the /payment reversal created when a voided entry was cancelled,
+    // so the UI can show how much was deducted and from which balance.
+    const allTx = await getTransactions();
+    const reversals = new Map<string, {
+      type: string;
+      amount: string;
+      paymentMethod: string;
+      transactionId: string;
+      notes: string | null;
+    }>();
+    for (const tx of allTx) {
+      if (tx.transactionId?.startsWith("VOID-")) {
+        reversals.set(tx.transactionId.slice("VOID-".length), {
+          type: tx.type,
+          amount: tx.amount,
+          paymentMethod: tx.paymentMethod,
+          transactionId: tx.transactionId,
+          notes: tx.notes,
+        });
+      }
+    }
+    const enriched = entries.map((e) =>
+      e.status === "voided" && reversals.has(e.entryNumber)
+        ? { ...e, reversal: reversals.get(e.entryNumber) }
+        : e
+    );
+
+    return NextResponse.json({ entries: enriched });
   } catch (error) {
     console.error("Failed to load journal entries:", error);
     return NextResponse.json(

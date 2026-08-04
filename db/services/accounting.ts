@@ -13,7 +13,7 @@ import {
   inventoryItems,
   type NewChartOfAccount,
 } from "@/db/schemas";
-import { createTransaction } from "@/db/services/payments";
+import { createTransaction, getTransactionByRef, getTransactionById } from "@/db/services/payments";
 
 
 export async function getChartOfAccounts() {
@@ -369,7 +369,83 @@ export async function voidJournalEntry(id: string, reason: string) {
     await reverseAccountBalances(entry);
   }
 
+  await reverseLinkedPaymentTransaction(entry, reason);
+
   return getJournalEntryById(id);
+}
+
+type PaymentTxType =
+  | "cash_received"
+  | "cash_paid"
+  | "online_received"
+  | "online_paid"
+  | "expense"
+  | "bank_transfer"
+  | "refund";
+
+type PaymentMethod = "cash" | "bank" | "esewa" | "khalti" | "fonepay" | "card";
+
+const REVERSAL_TYPE: Record<PaymentTxType, PaymentTxType> = {
+  cash_received: "cash_paid",
+  cash_paid: "cash_received",
+  online_received: "online_paid",
+  online_paid: "online_received",
+  expense: "cash_received",
+  bank_transfer: "cash_received",
+  refund: "cash_received",
+};
+
+// Inserts an opposite-side transaction in /payment so the voided amount is
+// deducted (or restored) in the same balance bucket, keeping /payment in sync
+// with the voided journal entry. No journal entry is created for the reversal
+// itself, mirroring the initial-investment void convention.
+async function reverseLinkedPaymentTransaction(
+  entry: {
+    id: string;
+    entryNumber: string;
+    referenceType: string | null;
+    referenceId: string | null;
+  },
+  reason: string
+) {
+  const refType = entry.referenceType || "";
+
+  let linkedTx: {
+    type: PaymentTxType;
+    amount: string;
+    paymentMethod: PaymentMethod;
+    receivedFrom: string | null;
+    paidTo: string | null;
+  } | null = null;
+
+  if (refType === INITIAL_INVESTMENT_REF) {
+    linkedTx = await getTransactionByRef(`${INITIAL_INVESTMENT_REF}-${entry.id}`);
+  } else if (refType.startsWith("payment_")) {
+    linkedTx = await getTransactionById(entry.referenceId || "");
+  } else if (refType.startsWith("supplier_")) {
+    linkedTx = await getTransactionByRef(`SUPPLIER-SETTLE-${entry.referenceId}`);
+  }
+
+  if (!linkedTx) return;
+
+  let type = REVERSAL_TYPE[linkedTx.type];
+  if (linkedTx.type === "refund") {
+    type = linkedTx.paymentMethod === "cash" ? "cash_received" : "online_received";
+  }
+
+  const isReceived = type.endsWith("received");
+  const fallbackParty = `Void of ${entry.entryNumber}`;
+
+  await createTransaction({
+    id: crypto.randomUUID(),
+    type,
+    amount: linkedTx.amount,
+    receivedFrom: isReceived ? linkedTx.paidTo || fallbackParty : null,
+    paidTo: isReceived ? null : linkedTx.receivedFrom || fallbackParty,
+    paymentMethod: linkedTx.paymentMethod,
+    transactionId: `VOID-${entry.entryNumber}`,
+    notes: `Reversal of ${linkedTx.type} ${linkedTx.amount} - ${entry.entryNumber} (${reason})`,
+  });
 }
 
 // Account Balances
@@ -1204,15 +1280,19 @@ export async function recordInitialInvestment(input: {
   });
 
   const isCashFund = fundAccount.code === "1000";
-  await createTransaction({
-    id: crypto.randomUUID(),
-    type: isCashFund ? "cash_received" : "online_received",
-    amount: String(amount),
-    receivedFrom: note,
-    paymentMethod: isCashFund ? "cash" : "bank",
-    transactionId: `${INITIAL_INVESTMENT_REF}-${entryId}`,
-    notes: `Initial investment of ${amount} into ${fundAccount.name}`,
-  });
+  const linkedTransactionId = `${INITIAL_INVESTMENT_REF}-${entryId}`;
+  const existingTx = await getTransactionByRef(linkedTransactionId);
+  if (!existingTx) {
+    await createTransaction({
+      id: crypto.randomUUID(),
+      type: isCashFund ? "cash_received" : "online_received",
+      amount: String(amount),
+      receivedFrom: note,
+      paymentMethod: isCashFund ? "cash" : "bank",
+      transactionId: linkedTransactionId,
+      notes: `Initial investment of ${amount} into ${fundAccount.name}`,
+    });
+  }
 
   return entryId;
 }

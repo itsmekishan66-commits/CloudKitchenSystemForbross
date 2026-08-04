@@ -7,9 +7,7 @@ import {
   getInitialInvestments,
   recordInitialInvestment,
   voidJournalEntry,
-  INITIAL_INVESTMENT_REF,
 } from "@/db/services/accounting";
-import { createTransaction, getTransactionByRef } from "@/db/services/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -103,24 +101,6 @@ export async function DELETE(request: Request) {
     }
 
     await voidJournalEntry(entryId, reason.trim());
-
-    const linkedTx = await getTransactionByRef(`${INITIAL_INVESTMENT_REF}-${entryId}`);
-    if (linkedTx) {
-      const { investments } = await getInitialInvestments();
-      const investment = investments.find((i) => i.id === entryId);
-      const isCashFund = investment?.lines.some(
-        (l) => l.accountCode === "1000" && l.debit > 0
-      );
-      await createTransaction({
-        id: crypto.randomUUID(),
-        type: isCashFund ? "cash_paid" : "online_paid",
-        amount: linkedTx.amount,
-        paidTo: "Reversal - voided investment",
-        paymentMethod: linkedTx.paymentMethod,
-        transactionId: `${INITIAL_INVESTMENT_REF}-void-${entryId}`,
-        notes: `${reason.trim()} - Reversal of voided investment`,
-      });
-    }
 
     revalidateAccounting();
     return NextResponse.json({ ok: true });

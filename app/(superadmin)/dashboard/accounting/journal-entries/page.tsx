@@ -30,6 +30,7 @@ interface JournalEntry {
   voidReason: string | null;
   createdAt: string;
   lines?: JournalEntryLine[];
+  reversal?: Reversal;
 }
 
 interface JournalEntryLine {
@@ -39,6 +40,24 @@ interface JournalEntryLine {
   credit: string;
   description: string | null;
 }
+
+interface Reversal {
+  type: string;
+  amount: string;
+  paymentMethod: string;
+  transactionId: string;
+  notes: string | null;
+}
+
+const reversalBucket: Record<string, string> = {
+  cash_paid: "Cash",
+  cash_received: "Cash",
+  online_paid: "Bank",
+  online_received: "Bank",
+};
+
+const formatCurrency = (v: number | string) =>
+  `Rs.${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
 interface Account {
   id: string;
@@ -834,6 +853,13 @@ export default function JournalEntriesPage() {
                           Reason: {entry.voidReason}
                         </p>
                       )}
+                      {entry.reversal && (
+                        <p className="text-[10px] text-red-500 mt-0.5">
+                          Reversed {formatCurrency(entry.reversal.amount)} from{" "}
+                          {reversalBucket[entry.reversal.type] || "balance"} in
+                          Payments
+                        </p>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center justify-end gap-1">
@@ -934,6 +960,32 @@ export default function JournalEntriesPage() {
                     <p className="text-sm text-red-700">
                       {viewingEntry.voidReason}
                     </p>
+                  </div>
+                )}
+                {viewingEntry.reversal && (
+                  <div className="bg-red-50/60 border border-red-100 rounded-xl p-3">
+                    <p className="text-xs text-red-500 font-medium">
+                      Void Reversal in Payments
+                    </p>
+                    <p className="text-sm font-semibold text-red-700 mt-1">
+                      {formatCurrency(viewingEntry.reversal.amount)} deducted
+                      from{" "}
+                      {reversalBucket[viewingEntry.reversal.type] || "balance"}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Reversal reference: {viewingEntry.reversal.transactionId}
+                    </p>
+                    {viewingEntry.reversal.notes && (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {viewingEntry.reversal.notes}
+                      </p>
+                    )}
+                    <Link
+                      href="/dashboard/payment"
+                      className="inline-flex items-center gap-1 mt-2 text-[10px] font-medium px-2 py-1 rounded-lg bg-white text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+                    >
+                      View in Payments
+                    </Link>
                   </div>
                 )}
                 <div>
@@ -1047,6 +1099,7 @@ export default function JournalEntriesPage() {
               <div className="p-6 space-y-4">
                 <p className="text-sm text-gray-600">
                   Please provide a reason for voiding this journal entry. This
+                  reverses the account balances. Be careful before voiding, this
                   action cannot be undone.
                 </p>
                 <textarea
@@ -1086,7 +1139,7 @@ export default function JournalEntriesPage() {
           "Create a new entry by adding at least two lines where total Debit must equal total Credit.",
           "Posting an entry updates the balances of the related accounts in the Chart of Accounts and all statements.",
           "Open the page with ?accountId=, ?startDate= and ?endDate= to see the ledger for a specific account or period.",
-          "Voiding requires a reason and marks the entry as Voided without altering posted history.",
+          "Voiding requires a reason, marks the entry as Voided, reverses its account balances, and adds a reversal of the amount in /payment (deducted from Cash or Bank).",
         ]}
       />
     </div>

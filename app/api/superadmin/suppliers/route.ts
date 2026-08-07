@@ -87,7 +87,8 @@ async function recordSupplierPaymentTransaction(
   amount: number,
   paymentMethod: string,
   settlementId: number | null,
-  notes: string | null
+  notes: string | null,
+  accountId: string | null = null
 ) {
   const mappedMethod = mapPaymentMethod(paymentMethod);
   await createTransaction({
@@ -97,6 +98,7 @@ async function recordSupplierPaymentTransaction(
     paidTo: supplierName,
     paymentMethod: mappedMethod,
     transactionId: settlementId ? `SUPPLIER-SETTLE-${settlementId}` : null,
+    accountId: accountId || null,
     notes: notes || null,
   });
 }
@@ -240,7 +242,7 @@ export async function POST(request: Request) {
     }
 
     if (actionType === "settlement") {
-      const data = body as NewSupplierSettlement & { paidNow?: string };
+      const data = body as NewSupplierSettlement & { paidNow?: string; paymentAccountId?: string | null };
       if (!supplierId || !data.amount) {
         return NextResponse.json({ error: "Supplier ID and amount are required" }, { status: 400 });
       }
@@ -263,7 +265,8 @@ export async function POST(request: Request) {
           Number(data.amount),
           data.paymentMethod || "",
           settlementId,
-          cleanText(data.notes) || null
+          cleanText(data.notes) || null,
+          data.paymentAccountId || null
         );
       }
 
@@ -283,7 +286,8 @@ export async function POST(request: Request) {
             paidNow,
             data.paymentMethod || "",
             partialSettlementId,
-            "Partial payment on purchase"
+            "Partial payment on purchase",
+            data.paymentAccountId || null
           );
         }
       }
@@ -429,11 +433,14 @@ export async function PATCH(request: Request) {
       if (isPayment) {
         const newAmount = Number(updates.amount ?? existing?.amount) || 0;
         const method = mapPaymentMethod(cleanText(updates.paymentMethod ?? existing?.paymentMethod) || "cash");
+        const accountId = body.paymentAccountId !== undefined ? (cleanText(body.paymentAccountId) || null) : null;
         if (linkedTx) {
           await updateTransaction(linkedTx.id, {
+            type: method === "cash" ? "cash_paid" : "online_paid",
             amount: newAmount.toFixed(2),
             paidTo: existing?.supplierId ? (await getSupplierById(existing.supplierId))?.name || null : null,
             paymentMethod: method,
+            accountId,
             notes: updates.notes !== undefined ? updates.notes : (existing?.notes ?? null),
           });
         } else {
@@ -443,7 +450,8 @@ export async function PATCH(request: Request) {
             newAmount,
             cleanText(updates.paymentMethod ?? existing?.paymentMethod) || "cash",
             Number(id),
-            updates.notes !== undefined ? updates.notes : (existing?.notes ?? null)
+            updates.notes !== undefined ? updates.notes : (existing?.notes ?? null),
+            accountId
           );
         }
       } else if (linkedTx) {

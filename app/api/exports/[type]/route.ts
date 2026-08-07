@@ -8,8 +8,9 @@ import { users, roles, orders, orderItems, menuItems } from "@/db/schemas";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
 import { getUsers, getInventoryItems } from "@/db/services";
+import { getAccountTransactions } from "@/db/services/payments";
 
-async function fetchData(source: string): Promise<NextResponse | Record<string, unknown>[]> {
+async function fetchData(source: string, searchParams: URLSearchParams): Promise<NextResponse | Record<string, unknown>[]> {
     switch (source) {
         case "users": {
             const perm = await apiRequirePermissions(PERMISSIONS.DOWNLOAD_USERS);
@@ -90,6 +91,31 @@ async function fetchData(source: string): Promise<NextResponse | Record<string, 
                 popularItems: JSON.stringify(popularItems.map((i) => ({ title: i.title, totalQuantity: Number(i.totalQuantity), totalRevenue: Number(i.totalRevenue) }))),
             }];
         }
+        case "account-transactions": {
+            const perm = await apiRequirePermissions(PERMISSIONS.VIEW_PAYMENTS);
+            if (perm instanceof NextResponse) return perm;
+
+            const accountId = searchParams.get("accountId");
+            if (!accountId) {
+                return NextResponse.json({ error: "accountId required" }, { status: 400 });
+            }
+
+            const result = await getAccountTransactions(accountId);
+            if (!result) {
+                return NextResponse.json({ error: "Account not found" }, { status: 404 });
+            }
+
+            // Format transactions for export
+            return result.transactions.map((tx) => ({
+                Date: tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : "",
+                Type: tx.type,
+                Amount: Number(tx.amount),
+                "Person": tx.enrichedPerson || tx.receivedFrom || tx.paidTo || "",
+                "Payment Method": tx.paymentMethod,
+                "Transaction ID": tx.transactionId || "",
+                Notes: tx.notes || "",
+            })) as Record<string, unknown>[];
+        }
         default: {
             return NextResponse.json({ error: "Invalid export source" }, { status: 400 });
         }
@@ -103,7 +129,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Sanitize for safe use in Content-Disposition (strip quotes and line breaks).
     const filename = source.replace(/["\r\n;]/g, "").slice(0, 100) || "export";
 
-    const data = await fetchData(source);
+    const data = await fetchData(source, searchParams);
     if (data instanceof NextResponse) return data;
 
     switch (type) {

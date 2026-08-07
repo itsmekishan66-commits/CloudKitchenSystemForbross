@@ -416,6 +416,7 @@ async function reverseLinkedPaymentTransaction(
     paymentMethod: PaymentMethod;
     receivedFrom: string | null;
     paidTo: string | null;
+    accountId: string | null;
   } | null = null;
 
   if (refType === INITIAL_INVESTMENT_REF) {
@@ -443,6 +444,7 @@ async function reverseLinkedPaymentTransaction(
     receivedFrom: isReceived ? linkedTx.paidTo || fallbackParty : null,
     paidTo: isReceived ? null : linkedTx.receivedFrom || fallbackParty,
     paymentMethod: linkedTx.paymentMethod,
+    accountId: linkedTx.accountId,
     transactionId: `VOID-${entry.entryNumber}`,
     notes: `Reversal of ${linkedTx.type} ${linkedTx.amount} - ${entry.entryNumber} (${reason})`,
   });
@@ -1282,6 +1284,41 @@ export async function recordInitialInvestment(input: {
   const isCashFund = fundAccount.code === "1000";
   const linkedTransactionId = `${INITIAL_INVESTMENT_REF}-${entryId}`;
   const existingTx = await getTransactionByRef(linkedTransactionId);
+  
+  // For bank/online investments, ensure a payment account exists or get the first active one
+  let accountId: string | null = null;
+  if (!isCashFund) {
+    // Import payment account functions
+    const { getPaymentAccounts, createPaymentAccount } = await import("./payments");
+    const accounts = await getPaymentAccounts();
+    
+    // Find first active netbanking account, or create one if none exists
+    const targetAccount = accounts.find((a) => a.method === "netbanking" && a.status === "active");
+    
+    
+    if (!targetAccount) {
+      // Create a default bank account for initial investment
+      const accountIdNew = crypto.randomUUID();
+      await createPaymentAccount({
+        id: accountIdNew,
+        accountName: "Primary Bank Account",
+        holderName: "Business",
+        method: "netbanking",
+        accountNumber: "INVESTMENT-ACCOUNT",
+        phoneNumber: null,
+        bankName: "Initial Investment",
+        branch: null,
+        openingBalance: "0", // Opening balance will be updated via transaction
+        qrCode: null,
+        notes: "Auto-created for initial investment",
+        status: "active",
+      });
+      accountId = accountIdNew;
+    } else {
+      accountId = targetAccount.id;
+    }
+  }
+
   if (!existingTx) {
     await createTransaction({
       id: crypto.randomUUID(),
@@ -1289,6 +1326,7 @@ export async function recordInitialInvestment(input: {
       amount: String(amount),
       receivedFrom: note,
       paymentMethod: isCashFund ? "cash" : "bank",
+      accountId: accountId || null,
       transactionId: linkedTransactionId,
       notes: `Initial investment of ${amount} into ${fundAccount.name}`,
     });

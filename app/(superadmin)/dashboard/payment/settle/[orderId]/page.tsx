@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { usePermissions } from "@/lib/permission-context";
 import toast from "react-hot-toast";
@@ -22,7 +23,7 @@ interface Order {
   paymentMethod: string;
   total: string;
   status: string;
-  paymentSettled?: number | boolean | null;
+  paymentSettled?: boolean;
   dueAmount?: string | null;
   items: OrderItem[];
 }
@@ -43,7 +44,7 @@ export default function SettlePaymentPage() {
   const router = useRouter();
 
   const permissions = usePermissions();
-  const hasSettleAccess = permissions.includes("CREATE_PAYMENTS") || permissions.includes("UPDATE_PAYMENTS");
+  const hasSettleAccess = permissions.includes("CREATE_PAYMENTS");
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -109,10 +110,17 @@ export default function SettlePaymentPage() {
   const received = cashVal + onlineVal;
   const base = hasDue ? dueAmt : total;
   const remaining = base - received - discountVal;
-  const overpayment = Math.max(0, received - base);
+  const overpayment = Math.max(0, -remaining);
 
   async function handleSubmit() {
-    if (received <= 0 && !markAsDue) return;
+    if (received <= 0 && !markAsDue) {
+      toast.error("Enter a cash or online amount, or mark the remaining as due.");
+      return;
+    }
+    if (discountVal > base) {
+      toast.error("Discount cannot exceed the amount owed.");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/payments/settle", {
@@ -329,7 +337,7 @@ export default function SettlePaymentPage() {
                     <option value="netbanking">Net Banking</option>
                     <option value="card">Card</option>
                   </select>
-                  <p className="text-xs text-gray-400">No payment accounts configured. <a href="/dashboard/payment/accounts" className="text-orange-500 hover:underline">Add one</a></p>
+                  <p className="text-xs text-gray-400">No payment accounts configured. <Link href="/dashboard/payment/accounts" className="text-orange-500 hover:underline">Add one</Link></p>
                 </div>
               )}
             </div>
@@ -381,7 +389,7 @@ export default function SettlePaymentPage() {
             <div className="flex justify-between font-bold text-base pt-1.5 border-t border-gray-200">
               <span>Remaining</span>
               <span className={remaining > 0 ? "text-amber-600" : "text-emerald-600"}>
-                {overpayment > 0 ? "Rs 0" : `Rs ${remaining.toFixed(2)}`}
+                {remaining > 0 ? `Rs ${remaining.toFixed(2)}` : "Rs 0"}
               </span>
             </div>
           </div>

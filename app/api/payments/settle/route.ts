@@ -82,17 +82,36 @@ export async function POST(request: Request) {
     if (markAsDue && remainingDue > 0) {
       const [orderRecord] = await db.select().from(orders).where(eq(orders.id, Number(orderId))).limit(1);
       const customerName = duePersonName || orderRecord?.customerName || `Order #${orderId}`;
-      const dueData: NewDue = {
-        id: crypto.randomUUID(),
-        personName: customerName,
-        orderId: Number(orderId),
-        role: dueRole || "customer",
-        totalDue: String(remainingDue),
-        paid: "0",
-        remaining: String(remainingDue),
-        status: "pending",
-      };
-      await createDue(dueData);
+
+      const allDues = await getDues();
+      const existingDue = allDues.find((d) => d.orderId === Number(orderId) && Number(d.remaining) > 0);
+
+      if (existingDue) {
+        const paidNow = totalReceived + discountAmount;
+        const newPaid = Math.min(Number(existingDue.paid) + paidNow, Number(existingDue.totalDue));
+        const newRemaining = Number(existingDue.totalDue) - newPaid;
+        const newStatus = newRemaining <= 0 ? "paid" : newPaid > 0 ? "partial" : "pending";
+        await updateDue(existingDue.id, {
+          personName: customerName,
+          role: dueRole || existingDue.role,
+          paid: String(newPaid),
+          remaining: String(newRemaining),
+          status: newStatus,
+        });
+      } else {
+        const dueData: NewDue = {
+          id: crypto.randomUUID(),
+          personName: customerName,
+          orderId: Number(orderId),
+          role: dueRole || "customer",
+          totalDue: String(remainingDue),
+          paid: "0",
+          remaining: String(remainingDue),
+          status: "pending",
+        };
+        await createDue(dueData);
+      }
+
       await updateOrderPaymentStatus(Number(orderId), false, remainingDue.toFixed(2));
     } else if (Number(cashAmount) > 0 || Number(onlineAmount) > 0) {
       await updateOrderPaymentStatus(Number(orderId), remainingDue <= 0, remainingDue.toFixed(2));

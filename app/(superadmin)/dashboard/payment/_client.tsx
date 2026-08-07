@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 import { motion } from "framer-motion";
@@ -397,6 +398,7 @@ function CashPaidSection({ transactions }: { transactions: Transaction[] }) {
 }
 
 export default function PaymentPage() {
+  const router = useRouter();
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
   const confirm = useConfirm();
@@ -421,6 +423,7 @@ export default function PaymentPage() {
   const [accountForm, setAccountForm] = useState({ accountName: "", holderName: "", method: "esewa", accountNumber: "", phoneNumber: "", bankName: "", branch: "", openingBalance: "", qrCode: "", notes: "" });
   const [savingAccount, setSavingAccount] = useState(false);
   const [uploadingQr, setUploadingQr] = useState(false);
+  const [qrError, setQrError] = useState("");
   const [accountSearch, setAccountSearch] = useState("");
   const [accountErrors, setAccountErrors] = useState<Record<string, string>>({});
 
@@ -480,7 +483,7 @@ export default function PaymentPage() {
   const [showForm, setShowForm] = useState(false);
   // const [showSupplierForm, setShowSupplierForm] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
-  const filterStatus = useMemo(() => "all",[]);
+  const [filterStatus] = useState("all");
   const [txPage, setTxPage] = useState(1);
   const [txTypeFilter, setTxTypeFilter] = useState<string>("all");
   const [receivablePage, setReceivablePage] = useState(1);
@@ -492,6 +495,7 @@ export default function PaymentPage() {
     amount: "",
     person: "",
     method: "cash" as PaymentMethod,
+    accountSelection: "cash", // "cash" or account id
     txId: "",
     notes: "",
   });
@@ -536,7 +540,10 @@ export default function PaymentPage() {
       }
     });
     const cashBalance = cashReceived - cashPaid - expenses - bankTransfer;
-    const bankBalance = onlineReceived - onlinePaid + bankTransfer;
+    // Bank Balance = sum of all active payment account closing balances
+    const bankBalance = accounts
+      .filter((a) => a.status === "active")
+      .reduce((sum, a) => sum + a.closingBalance, 0);
     const pendingDue = filteredDues.reduce((acc, d) => acc + d.remaining, 0);
     const totalDueAll = filteredDues.reduce((acc, d) => acc + d.totalDue, 0);
     const totalCollected = filteredDues.reduce((acc, d) => acc + d.paid, 0);
@@ -547,7 +554,7 @@ export default function PaymentPage() {
     const supplierDuePaid = filteredDues.filter((d) => d.role !== "customer").reduce((acc, d) => acc + d.paid, 0);
     const supplierDueRemaining = filteredDues.filter((d) => d.role !== "customer").reduce((acc, d) => acc + d.remaining, 0);
     return { cashReceived, onlineReceived, cashPaid, onlinePaid, expenses, cashBalance, bankBalance, bankTransfer, pendingDue, totalSales: cashReceived + onlineReceived, totalDueAll, totalCollected, customerDues, customerDueTotal, customerDuePaid, supplierDueTotal, supplierDuePaid, supplierDueRemaining };
-  }, [filteredTransactions, filteredDues]);
+  }, [filteredTransactions, filteredDues, accounts]);
 
   const accumulatedCashPaid = useMemo(
     () =>
@@ -561,27 +568,30 @@ export default function PaymentPage() {
     [transactions]
   );
 
-  function handleMethodChange(nextMethod: PaymentMethod) {
+  function handleAccountSelectionChange(value: string) {
+    const option = transactionPaymentOptions.find((o) => o.value === value) || transactionPaymentOptions[0];
     setForm((prev) => {
       let nextType = prev.type;
       if (prev.type === "cash_received" || prev.type === "online_received") {
-        nextType = nextMethod === "cash" ? "cash_received" : "online_received";
+        nextType = option.method === "cash" ? "cash_received" : "online_received";
       } else if (prev.type === "cash_paid" || prev.type === "online_paid") {
-        nextType = nextMethod === "cash" ? "cash_paid" : "online_paid";
+        nextType = option.method === "cash" ? "cash_paid" : "online_paid";
       }
-      return { ...prev, method: nextMethod, type: nextType };
+      return { ...prev, accountSelection: value, method: option.method, type: nextType };
     });
   }
 
   function handleTypeChange(nextType: TransactionType) {
     setForm((prev) => {
-      let nextMethod = prev.method;
+      let nextAccountSelection = prev.accountSelection;
       if (nextType === "cash_received" || nextType === "cash_paid") {
-        nextMethod = "cash";
-      } else if ((nextType === "online_received" || nextType === "online_paid") && prev.method === "cash") {
-        nextMethod = "esewa";
+        nextAccountSelection = "cash";
+      } else if ((nextType === "online_received" || nextType === "online_paid") && prev.accountSelection === "cash") {
+        const firstOnlineAccount = transactionPaymentOptions.find((o) => o.accountId);
+        nextAccountSelection = firstOnlineAccount?.value || "cash";
       }
-      return { ...prev, type: nextType, method: nextMethod };
+      const option = transactionPaymentOptions.find((o) => o.value === nextAccountSelection) || transactionPaymentOptions[0];
+      return { ...prev, type: nextType, accountSelection: nextAccountSelection, method: option.method };
     });
   }
 
@@ -593,13 +603,14 @@ export default function PaymentPage() {
     setFormErrors({});
     const amount = Number(form.amount);
     const id = crypto.randomUUID();
+    const accountId = selectedTransactionPayment.accountId;
     const newTx: Transaction = {
       id,
       type: form.type,
       amount,
       receivedFrom: form.type.includes("received") ? form.person : undefined,
       paidTo: !form.type.includes("received") ? form.person : undefined,
-      paymentMethod: form.method,
+      paymentMethod: selectedTransactionPayment.method,
       transactionId: form.txId,
       notes: form.notes,
       createdAt: new Date().toISOString().slice(0, 10),
@@ -609,7 +620,7 @@ export default function PaymentPage() {
       const res = await fetch("/api/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ _kind: "transaction", ...newTx }),
+        body: JSON.stringify({ _kind: "transaction", ...newTx, accountId }),
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -617,7 +628,7 @@ export default function PaymentPage() {
       }
       setTransactions((prev) => [newTx, ...prev]);
       await loadPaymentsData();
-      setForm({ type: "cash_received", amount: "", person: "", method: "cash", txId: "", notes: "" });
+      setForm({ type: "cash_received", amount: "", person: "", method: "cash", accountSelection: "cash", txId: "", notes: "" });
       setShowForm(false);
       // setShowSupplierForm(false);
     } catch (err) {
@@ -658,6 +669,28 @@ export default function PaymentPage() {
       });
     return opts;
   }, [accounts]);
+
+  // Payment options for manual transaction form (same structure as settleOptions)
+  const methodMap: Record<string, PaymentMethod> = {
+    esewa: "esewa",
+    khalti: "khalti",
+    netbanking: "bank",
+    card: "card",
+  };
+  const transactionPaymentOptions: { value: string; label: string; method: PaymentMethod; accountId: string | null }[] = [
+    { value: "cash", label: "Cash", method: "cash", accountId: null },
+    ...accounts
+      .filter((a) => a.status === "active")
+      .map((a) => ({
+        value: a.id,
+        label: `${a.accountName} (${a.method === "netbanking" ? "Net Banking" : a.method})`,
+        method: methodMap[a.method] || "bank",
+        accountId: a.id,
+      })),
+  ];
+
+  const selectedTransactionPayment =
+    transactionPaymentOptions.find((o) => o.value === form.accountSelection) || transactionPaymentOptions[0];
 
   const selectedSettleOption = useMemo(
     () => settleOptions.find((o) => o.value === settleSelection) || settleOptions[0],
@@ -733,6 +766,7 @@ export default function PaymentPage() {
     setAccountForm(emptyAccountForm);
     setEditingAccount(null);
     setAccountErrors({});
+    setQrError("");
     setShowAccountForm(true);
   }
 
@@ -751,6 +785,7 @@ export default function PaymentPage() {
     });
     setEditingAccount(account);
     setAccountErrors({});
+    setQrError("");
     setShowAccountForm(true);
   }
 
@@ -820,6 +855,15 @@ export default function PaymentPage() {
   }
 
   async function handleUploadQr(file: File) {
+    setQrError("");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setQrError("Invalid file type. Allowed: JPG, PNG, WebP");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setQrError("File size must be under 2MB");
+      return;
+    }
     setUploadingQr(true);
     try {
       const formData = new FormData();
@@ -1020,9 +1064,9 @@ export default function PaymentPage() {
                 <p className="text-xs text-gray-400">{accounts.length} accounts</p>
               </div>
             </div>
-            <a href="/dashboard/payment/accounts" className="text-xs font-medium text-orange-600">
-              Manage →
-            </a>
+              {/* <a href="/dashboard/payment/accounts" className="text-xs font-medium text-orange-600">
+                Manage →
+              </a> */}
           </div>
           <div className="overflow-x-auto no-scrollbar">
             <table className="w-full">
@@ -1121,13 +1165,10 @@ export default function PaymentPage() {
                 <input placeholder="Received from / Paid to *" className={`bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all w-full ${formErrors.person ? "border-red-400" : "border-gray-200"}`} value={form.person} onChange={(e) => { setForm({ ...form, person: e.target.value }); setFormErrors((prev) => { const next = { ...prev }; delete next.person; return next; }); }} />
                 {formErrors.person && <p className="mt-1 text-xs text-red-500">{formErrors.person}</p>}
               </div>
-              <select className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.method} onChange={(e) => handleMethodChange(e.target.value as PaymentMethod)}>
-                <option>cash</option>
-                <option>bank</option>
-                <option>esewa</option>
-                <option>khalti</option>
-                <option>fonepay</option>
-                <option>card</option>
+              <select className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.accountSelection} onChange={(e) => handleAccountSelectionChange(e.target.value)}>
+                {transactionPaymentOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
               <input placeholder="Transaction ID" className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.txId} onChange={(e) => setForm({ ...form, txId: e.target.value })} />
               <input placeholder="Notes (optional)" className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
@@ -1656,6 +1697,7 @@ export default function PaymentPage() {
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Account Number</th>
                   <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Opening</th>
                   <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Received</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Paid</th>
                   <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Closing</th>
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Status</th>
                   <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Actions</th>
@@ -1684,6 +1726,7 @@ export default function PaymentPage() {
                       <td className="px-5 py-4 text-sm font-mono text-gray-600">{account.accountNumber}</td>
                       <td className="px-5 py-4 text-sm text-right">Rs {Number(account.openingBalance).toLocaleString()}</td>
                       <td className="px-5 py-4 text-sm text-right text-emerald-600 font-medium">+ Rs {account.totalReceived.toLocaleString()}</td>
+                      <td className="px-5 py-4 text-sm text-right text-red-600 font-medium">- Rs {account.totalPaid.toLocaleString()}</td>
                       <td className={`px-5 py-4 text-sm text-right font-bold ${account.closingBalance >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                         Rs {account.closingBalance.toLocaleString()}
                       </td>
@@ -1694,6 +1737,13 @@ export default function PaymentPage() {
                       </td>
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <button 
+                            onClick={() => router.push(`/dashboard/payment/accounts/${account.id}`)}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors" 
+                            title="View Details"
+                          >
+                            <Eye size={14} className="text-blue-500" />
+                          </button>
                           <button onClick={() => toggleAccountStatus(account)} className="p-1.5 rounded-lg transition-colors" title={account.status === "active" ? "Deactivate" : "Activate"}>
                             <Power size={14} className={account.status === "active" ? "text-green-600" : "text-gray-400"} />
                           </button>
@@ -1721,7 +1771,7 @@ export default function PaymentPage() {
                   );
                 })}
                 {filteredAccounts.length === 0 && (
-                  <tr><td colSpan={8} className="text-center text-gray-400 py-8 text-sm">No payment accounts found</td></tr>
+                  <tr><td colSpan={9} className="text-center text-gray-400 py-8 text-sm">No payment accounts found</td></tr>
                 )}
               </tbody>
             </table>
@@ -1794,6 +1844,7 @@ export default function PaymentPage() {
               )}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">QR Code</label>
+                {qrError && <p className="mb-2 text-xs text-red-500">{qrError}</p>}
                 {accountForm.qrCode ? (
                   <div className="relative inline-block">
                     <img src={accountForm.qrCode} alt="QR Code" className="w-32 h-32 object-contain rounded-xl border border-gray-200" />
@@ -1803,7 +1854,7 @@ export default function PaymentPage() {
                   <label className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-orange-400 transition-colors">
                     <Upload size={20} className="text-gray-400 mb-1" />
                     <span className="text-xs text-gray-400">{uploadingQr ? "Uploading..." : "Upload QR"}</span>
-                    <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden" disabled={uploadingQr} onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadQr(file); }} />
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploadingQr} onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadQr(file); }} />
                   </label>
                 )}
               </div>
@@ -1813,7 +1864,7 @@ export default function PaymentPage() {
               </div>
             </form>
             <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
-              <button onClick={() => { setShowAccountForm(false); setEditingAccount(null); setAccountErrors({}); }} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+              <button onClick={() => { setShowAccountForm(false); setEditingAccount(null); setAccountErrors({}); setQrError(""); }} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
               <button onClick={handleSaveAccount} disabled={savingAccount} className="rounded-lg bg-orange-500 px-5 py-2 text-sm text-white font-semibold hover:bg-orange-600 disabled:opacity-50">{savingAccount ? "Saving..." : editingAccount ? "Update" : "Create"}</button>
             </div>
           </div>

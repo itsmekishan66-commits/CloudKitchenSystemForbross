@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 import Checkbox from "@/app/_components/Checkbox";
-import { Truck, Plus, ArrowLeft, Package, ShoppingBag, DollarSign, FileText, Edit, Trash2 } from "lucide-react";
+import { Truck, Plus, ArrowLeft, Package, ShoppingBag, FileText, Edit, Trash2, Landmark} from "lucide-react";
 
 interface Supplier {
   id: number;
@@ -48,6 +48,14 @@ interface SupplierSettlement {
   transactionId: string | null;
   notes: string | null;
   settlementDate: string;
+}
+
+interface PaymentAccount {
+  id: string;
+  accountName: string;
+  holderName: string;
+  method: string;
+  status: string;
 }
 
 const emptySupplierForm: {
@@ -133,6 +141,7 @@ export default function SuppliersClient() {
   const [settlementForm, setSettlementForm] = useState({ amount: "", paidNow: "", type: "purchase" as "payment" | "purchase", paymentMethod: "", transactionId: "", notes: "" });
   const [settlementErrors, setSettlementErrors] = useState<Record<string, string>>({});
   const [partialPayEnabled, setPartialPayEnabled] = useState(false);
+  const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
 
   const filteredSuppliers = useMemo(() => {
     if (!search.trim()) return suppliers;
@@ -162,6 +171,14 @@ export default function SuppliersClient() {
     } catch { /* ignore */ }
   }
 
+  async function loadPaymentAccounts() {
+    try {
+      const res = await fetch("/api/payments/accounts");
+      const data = await res.json();
+      if (!data.error) setPaymentAccounts(data.accounts ?? []);
+    } catch { /* ignore */ }
+  }
+
   async function loadProducts(supplierId: number) {
     try {
       const res = await fetch(`/api/superadmin/suppliers?id=${supplierId}&type=products`);
@@ -181,7 +198,8 @@ export default function SuppliersClient() {
   useEffect(() => {
     const t1 = setTimeout(() => { void loadSuppliers(); }, 0);
     const t2 = setTimeout(() => { void loadCategories(); }, 0);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    const t3 = setTimeout(() => { void loadPaymentAccounts(); }, 0);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, []);
 
   // ---- Supplier CRUD ----
@@ -381,14 +399,17 @@ export default function SuppliersClient() {
     const newErrors: Record<string, string> = {};
     if (!settlementForm.amount.toString().trim() || Number(settlementForm.amount) <= 0) newErrors.amount = "Amount is required.";
     if (partialPayEnabled && (!settlementForm.paidNow.toString().trim() || Number(settlementForm.paidNow) <= 0)) newErrors.paidNow = "Partial amount is required.";
-    if ((editingSettlement || settlementForm.type === "payment" || partialPayEnabled) && !settlementForm.paymentMethod.trim()) newErrors.paymentMethod = "Payment method is required.";
+    if ((editingSettlement || settlementForm.type === "payment" || partialPayEnabled) && !selectedSettlementPayment?.method) newErrors.paymentMethod = "Payment method is required.";
     if (Object.keys(newErrors).length > 0) { setSettlementErrors(newErrors); return; }
+
+    const paymentMethod = selectedSettlementPayment?.method || "cash";
+    const paymentAccountId = selectedSettlementPayment?.accountId || null;
 
     if (editingSettlement) {
       const noChange =
         settlementForm.amount === editingSettlement.amount &&
         settlementForm.type === editingSettlement.type &&
-        settlementForm.paymentMethod === (editingSettlement.paymentMethod ?? "") &&
+        toCanonicalPaymentMethod(paymentMethod) === toCanonicalPaymentMethod(editingSettlement.paymentMethod) &&
         settlementForm.transactionId === (editingSettlement.transactionId ?? "") &&
         settlementForm.notes === (editingSettlement.notes ?? "");
       if (noChange) {
@@ -405,10 +426,10 @@ export default function SuppliersClient() {
         await fetch("/api/superadmin/suppliers", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: editingSettlement.id, type: "settlement", supplierId: selectedSupplier!.id, amount: settlementForm.amount, settlementType: settlementForm.type, paymentMethod: settlementForm.paymentMethod, transactionId: settlementForm.transactionId, notes: settlementForm.notes }),
+          body: JSON.stringify({ id: editingSettlement.id, type: "settlement", supplierId: selectedSupplier!.id, amount: settlementForm.amount, settlementType: settlementForm.type, paymentMethod, paymentAccountId, transactionId: settlementForm.transactionId, notes: settlementForm.notes }),
         });
       } else {
-        const body: Record<string, string | number> = { supplierId: selectedSupplier!.id, requestType: "settlement", type: settlementForm.type, amount: settlementForm.amount, paymentMethod: settlementForm.paymentMethod, transactionId: settlementForm.transactionId, notes: settlementForm.notes };
+        const body: Record<string, string | number | null> = { supplierId: selectedSupplier!.id, requestType: "settlement", type: settlementForm.type, amount: settlementForm.amount, paymentMethod, paymentAccountId, transactionId: settlementForm.transactionId, notes: settlementForm.notes };
         if (settlementForm.type === "purchase" && Number(settlementForm.paidNow) > 0) {
           body.paidNow = settlementForm.paidNow;
         }
@@ -420,7 +441,7 @@ export default function SuppliersClient() {
       }
       setShowSettlementModal(false);
       setEditingSettlement(null);
-      setSettlementForm({ amount: "", paidNow: "", type: "purchase", paymentMethod: "", transactionId: "", notes: "" });
+      setSettlementForm({ amount: "", paidNow: "", type: "purchase", paymentMethod: "cash", transactionId: "", notes: "" });
       if (selectedSupplier) await loadSettlements(selectedSupplier.id);
     } catch {
       setMessage("Failed to save settlement");
@@ -457,6 +478,49 @@ export default function SuppliersClient() {
     });
     return { totalPurchases, totalPayments, balance: totalPurchases - totalPayments };
   }, [settlements]);
+
+  // Payment method options built from the /payment payment accounts (plus Cash).
+  const settlementPaymentOptions = useMemo(() => {
+    const methodLabel: Record<string, string> = { esewa: "Esewa", khalti: "Khalti", netbanking: "Net Banking", card: "Card", fonepay: "FonePay" };
+    const methodMap: Record<string, string> = { esewa: "esewa", khalti: "khalti", netbanking: "bank", card: "card", fonepay: "fonepay" };
+    const opts: { value: string; label: string; method: string; accountId: string | null }[] = [
+      { value: "cash", label: "Cash", method: "cash", accountId: null },
+    ];
+    paymentAccounts
+      .filter((a) => a.status === "active")
+      .forEach((a) => {
+        opts.push({
+          value: a.id,
+          label: `${a.accountName} (${methodLabel[a.method] || a.method})`,
+          method: methodMap[a.method] || "bank",
+          accountId: a.id,
+        });
+      });
+    return opts;
+  }, [paymentAccounts]);
+
+  const selectedSettlementPayment = useMemo(
+    () => settlementPaymentOptions.find((o) => o.value === settlementForm.paymentMethod) || settlementPaymentOptions[0],
+    [settlementPaymentOptions, settlementForm.paymentMethod]
+  );
+
+  function toCanonicalPaymentMethod(m: string | null): string {
+    const x = (m || "").toLowerCase().trim();
+    if (x.includes("khalti")) return "khalti";
+    if (x.includes("esewa")) return "esewa";
+    if (x.includes("fonepay")) return "fonepay";
+    if (x.includes("card")) return "card";
+    if (x.includes("bank") || x.includes("net") || x.includes("mobile")) return "bank";
+    return "cash";
+  }
+
+  function resolvePaymentMethodValue(method: string | null): string {
+    const canon = toCanonicalPaymentMethod(method);
+    if (canon === "cash") return "cash";
+    const accountMatch = settlementPaymentOptions.find((o) => o.accountId && o.method === canon);
+    if (accountMatch) return accountMatch.value;
+    return "cash";
+  }
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500" /></div>;
@@ -495,7 +559,7 @@ export default function SuppliersClient() {
             <Package size={16} className="inline mr-1" /> Products ({products.length})
           </button>
           <button onClick={() => setDetailTab("settlements")} className={`px-2 py-1 md:px-4 md:py-2 rounded-lg font-medium ${detailTab === "settlements" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
-            <DollarSign size={16} className="inline mr-1" /> Settlements & Dues
+            <Landmark size={16} className="inline mr-1" /> Settlements & Dues
           </button>
         </div>
 
@@ -646,7 +710,7 @@ export default function SuppliersClient() {
                         <td className="p-3">
                           <div className="flex gap-4">
                             {can("UPDATE_SUPPLIERS") && (
-                              <button onClick={() => { setEditingSettlement(s); setSettlementForm({ amount: s.amount, paidNow: "", type: s.type, paymentMethod: s.paymentMethod || "", transactionId: s.transactionId || "", notes: s.notes || "" }); setSettlementErrors({}); setMessage(""); setShowSettlementModal(true); }} className="rounded text-blue-500 text-sm"><Edit size={22} /></button>
+                              <button onClick={() => { setEditingSettlement(s); setSettlementForm({ amount: s.amount, paidNow: "", type: s.type, paymentMethod: resolvePaymentMethodValue(s.paymentMethod), transactionId: s.transactionId || "", notes: s.notes || "" }); setSettlementErrors({}); setMessage(""); setShowSettlementModal(true); }} className="rounded text-blue-500 text-sm"><Edit size={22} /></button>
                             )}
                             {can("DELETE_SUPPLIERS") && (
                               <button onClick={() => handleDeleteSettlement(s.id)} className="rounded text-red-500 text-sm"><Trash2 size={22} /></button>
@@ -945,7 +1009,11 @@ export default function SuppliersClient() {
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Payment Method *</label>
-                      <input type="text" value={settlementForm.paymentMethod} onChange={(e) => setSettlementForm({ ...settlementForm, paymentMethod: e.target.value })} className={`mt-1 w-full rounded-lg border p-3 ${settlementErrors.paymentMethod ? "border-red-400" : ""}`} placeholder="cash, bank, etc." />
+                      <select value={settlementForm.paymentMethod || "cash"} onChange={(e) => setSettlementForm({ ...settlementForm, paymentMethod: e.target.value })} className={`mt-1 w-full rounded-lg border p-3 ${settlementErrors.paymentMethod ? "border-red-400" : ""}`}>
+                        {settlementPaymentOptions.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
                       {settlementErrors.paymentMethod && <p className="mt-1 text-sm text-red-500">{settlementErrors.paymentMethod}</p>}
                     </div>
                     <div>

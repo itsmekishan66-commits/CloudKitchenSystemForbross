@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { categories, type NewCategory } from "@/db/schemas";
@@ -12,6 +12,12 @@ export async function getActiveCategories() {
     .select()
     .from(categories)
     .where(eq(categories.isActive, true))
+    .orderBy(asc(categories.name));
+}
+
+export async function getCategoriesByType(type: 'menu' | 'inventory') {
+  return db.select().from(categories)
+    .where(and(eq(categories.isActive, true), eq(categories.type, type)))
     .orderBy(asc(categories.name));
 }
 

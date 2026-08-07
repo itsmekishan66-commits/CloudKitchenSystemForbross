@@ -175,6 +175,11 @@ export default function CheckoutForm() {
 
       if (Object.keys(newErrors).length > 0) {
         setErrors(newErrors);
+        if (!selectedZoneId) {
+          setError("Please select the landmark.");
+        } else {
+          setError("Please fill in all required fields.");
+        }
         return;
       }
 

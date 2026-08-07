@@ -1,27 +1,33 @@
 "use client";
 
-import { forwardRef, type InputHTMLAttributes } from "react";
+import { forwardRef, type InputHTMLAttributes, useId } from "react";
 
 interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
   bare?: boolean;
 }
 
 const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
-  ({ className = "", checked, bare = false, ...props }, ref) => {
+  ({ className = "", checked, bare = false, id: providedId, onChange, ...props }, ref) => {
+    const generatedId = useId();
+    const id = providedId || generatedId;
+
     if (bare) {
       return (
         <span className="relative inline-flex items-center justify-center group">
           <input
             ref={ref}
             type="checkbox"
+            id={id}
             checked={checked}
             className="sr-only peer"
+            onChange={onChange}
             {...props}
           />
-          <span
+          <label
+            htmlFor={id}
             className={`
               w-4 h-4 rounded flex items-center justify-center
-              border transition-all duration-150
+              border transition-all duration-150 cursor-pointer
               border-gray-300 bg-white
               peer-checked:bg-orange-500 peer-checked:border-orange-500
               peer-focus-visible:ring-2 peer-focus-visible:ring-orange-400 peer-focus-visible:ring-offset-1
@@ -45,7 +51,7 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
                 strokeLinejoin="round"
               />
             </svg>
-          </span>
+          </label>
         </span>
       );
     }
@@ -55,8 +61,10 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
         <input
           ref={ref}
           type="checkbox"
+          id={id}
           checked={checked}
-          className="sr-only peer"
+          className="absolute opacity-0 w-5 h-5 cursor-pointer peer"
+          onChange={onChange}
           {...props}
         />
 
@@ -72,12 +80,13 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
         />
 
         {/* Box */}
-        <span
+        <label
+          htmlFor={id}
           className={`
             relative z-10 w-5 h-5 rounded-[7px]
             flex items-center justify-center
             border-[1.5px] transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]
-            shadow-sm
+            shadow-sm cursor-pointer
             border-gray-300 bg-linear-to-br from-white to-gray-50
             group-hover:border-orange-400 group-hover:shadow-md group-hover:shadow-orange-500/10
             peer-checked:bg-linear-to-br peer-checked:from-orange-500 peer-checked:to-orange-600
@@ -106,7 +115,7 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
               strokeLinejoin="round"
             />
           </svg>
-        </span>
+        </label>
       </span>
     );
   }

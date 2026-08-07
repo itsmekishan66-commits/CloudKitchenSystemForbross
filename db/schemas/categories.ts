@@ -12,6 +12,7 @@ export const categories = mysqlTable("categories", {
   slug: varchar("slug", { length: 140 }).notNull().unique(),
   image: varchar("image", { length: 2048 }),
   isActive: boolean("is_active").notNull().default(true),
+  type: varchar("type", { length: 20 }).notNull().default("menu"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
 });

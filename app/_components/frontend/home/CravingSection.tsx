@@ -18,7 +18,7 @@ export default function CravingsSection() {
   const [categories, setCategories] = useState<ApiCategory[]>([]);
 
   useEffect(() => {
-    dedupedFetch<{ categories: ApiCategory[] }>("/api/categories?active=true")
+    dedupedFetch<{ categories: ApiCategory[] }>("/api/categories?active=true&type=menu")
       .then((data) => setCategories(data.categories || []))
       .catch(() => { });
   }, []);

@@ -36,7 +36,7 @@ function SidebarContent() {
   const [dbCategories, setDbCategories] = useState<ApiCategory[]>([]);
 
   useEffect(() => {
-    fetch("/api/categories?active=true")
+    fetch("/api/categories?active=true&type=menu")
       .then((res) => res.json())
       .then((data) => setDbCategories(data.categories || []))
       .catch(() => {});

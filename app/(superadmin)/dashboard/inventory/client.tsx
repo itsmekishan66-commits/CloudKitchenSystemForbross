@@ -84,7 +84,7 @@ export default function InventoryClient() {
   }
   const [supplierStock, setSupplierStock] = useState<SupplierStockItem[]>([]);
   const [stockLoading, setStockLoading] = useState(false);
-  const [categories, setCategories] = useState<{ id: number; name: string; slug: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: number; name: string; slug: string; type: 'menu' | 'inventory' }[]>([]);
   const [cookedStock, setCookedStock] = useState<CookedStockItem[]>([]);
   const [cookedLoading, setCookedLoading] = useState(false);
 
@@ -139,7 +139,7 @@ export default function InventoryClient() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/categories")
+    fetch("/api/categories?active=true&type=inventory")
       .then((r) => r.json())
       .then((d) => { if (d.categories) setCategories(d.categories); })
       .catch(() => {});

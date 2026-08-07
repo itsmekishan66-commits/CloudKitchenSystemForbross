@@ -1,0 +1,1 @@
+ALTER TABLE `categories` ADD `type` varchar(20) DEFAULT 'menu' NOT NULL;

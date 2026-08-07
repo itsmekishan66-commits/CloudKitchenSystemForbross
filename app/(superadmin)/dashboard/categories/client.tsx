@@ -1,10 +1,10 @@
 "use client";
 // import { CircleArrowDown, } from 'lucide-react';
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 import Checkbox from "@/app/_components/Checkbox";
-import{ Edit,Trash2} from "lucide-react";
+import { Edit, Trash2, Search } from "lucide-react";
 
 interface Category {
   id: number;
@@ -12,6 +12,7 @@ interface Category {
   slug: string;
   image: string | null;
   isActive: boolean;
+  type: 'menu' | 'inventory';
   createdAt: string;
 }
 
@@ -20,9 +21,10 @@ interface CategoryForm {
   slug: string;
   image: string;
   isActive: boolean;
+  type: 'menu' | 'inventory';
 }
 
-const emptyForm: CategoryForm = { name: "", slug: "", image: "", isActive: true };
+const emptyForm: CategoryForm = { name: "", slug: "", image: "", isActive: true, type: "menu" };
 
 export default function CategoriesClient() {
   const permissions = usePermissions();
@@ -32,6 +34,7 @@ export default function CategoriesClient() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const perPage = 20;
+  const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState<CategoryForm>(emptyForm);
@@ -49,10 +52,19 @@ export default function CategoriesClient() {
   //   }
   // };
 
+  const filteredCategories = useMemo(() => {
+    if (!search.trim()) return categories;
+    const q = search.toLowerCase();
+    return categories.filter((cat) =>
+      cat.name.toLowerCase().includes(q) ||
+      cat.slug.toLowerCase().includes(q) ||
+      cat.type.toLowerCase().includes(q)
+    );
+  }, [categories, search]);
 
-  const totalPages = Math.ceil(categories.length / perPage);
+  const totalPages = Math.ceil(filteredCategories.length / perPage);
   const start = (page - 1) * perPage;
-  const visibleCategories = categories.slice(start, start + perPage);
+  const visibleCategories = filteredCategories.slice(start, start + perPage);
 
   async function loadCategories() {
     try {
@@ -82,7 +94,7 @@ export default function CategoriesClient() {
 
   function openEdit(cat: Category) {
     setEditing(cat);
-    setForm({ name: cat.name, slug: cat.slug, image: cat.image ?? "", isActive: cat.isActive });
+    setForm({ name: cat.name, slug: cat.slug, image: cat.image ?? "", isActive: cat.isActive, type: cat.type });
     setErrors({});
     setMessage("");
     setShowModal(true);
@@ -110,7 +122,8 @@ export default function CategoriesClient() {
         form.name === editing.name &&
         form.slug === editing.slug &&
         (form.image || "") === (editing.image ?? "") &&
-        form.isActive === editing.isActive;
+        form.isActive === editing.isActive &&
+        form.type === editing.type;
       if (unchanged) {
         setMessage("Nothing to update.");
         return;
@@ -190,24 +203,43 @@ export default function CategoriesClient() {
         <div className="mb-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-700">{message}</div>
       )}
 
+      <div className="mb-4">
+        <div className="relative">
+          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            placeholder="Search categories..."
+            className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-400 text-sm text-gray-700 placeholder-gray-400"
+          />
+        </div>
+      </div>
+
       <div className="rounded-xl bg-white shadow overflow-x-auto no-scrollbar">
         <table className="w-full">
           <thead className="bg-gray-100">
             <tr>
               <th className="p-4 text-left">Name</th>
               <th className="p-4 text-left">Slug</th>
+              <th className="p-4 text-left">Type</th>
               <th className="p-4 text-left">Status</th>
               <th className="p-4 text-left">Actions</th>
             </tr>
           </thead>
           <tbody>
             {visibleCategories.length === 0 ? (
-              <tr><td colSpan={4} className="p-8 text-center text-gray-400">No categories found</td></tr>
+              <tr><td colSpan={5} className="p-8 text-center text-gray-400">No categories found</td></tr>
             ) : (
               visibleCategories.map((cat) => (
                 <tr key={cat.id} className="border-t">
                   <td className="p-4 font-medium">{cat.name}</td>
                   <td className="p-4 text-gray-500">{cat.slug}</td>
+                  <td className="p-4">
+                    <span className={`rounded-full px-3 py-1 text-sm ${cat.type === 'menu' ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"}`}>
+                      {cat.type === 'menu' ? "Menu" : "Inventory"}
+                    </span>
+                  </td>
                   <td className="p-4">
                     <span className={`rounded-full px-3 py-1 text-sm ${cat.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                       {cat.isActive ? "Active" : "Inactive"}
@@ -225,24 +257,41 @@ export default function CategoriesClient() {
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 mt-4 border-t border-gray-200">
           <p className="text-sm text-gray-500">
-            Page {page} of {totalPages} ({categories.length} categories)
+            Page {page} of {totalPages} ({filteredCategories.length} categories)
           </p>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-1 flex-wrap">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-2 rounded-xl transition-colors"
             >
-              Previous
+              <span aria-hidden="true">←</span> Prev
             </button>
+            {(() => {
+              const windowStart = Math.floor((page - 1) / 10) * 10 + 1;
+              const windowEnd = Math.min(totalPages, windowStart + 9);
+              const pages: number[] = [];
+              for (let p = windowStart; p <= windowEnd; p++) pages.push(p);
+              return pages.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`min-w-9.5 text-sm font-medium px-3 py-2 rounded-xl transition-colors ${
+                    p === page ? "bg-orange-500 text-white" : "text-gray-700 bg-gray-50 hover:bg-gray-100"
+                  }`}
+                >
+                  {p}
+                </button>
+              ));
+            })()}
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-2 rounded-xl transition-colors"
             >
-              Next
+              Next <span aria-hidden="true">→</span>
             </button>
           </div>
         </div>
@@ -263,12 +312,25 @@ export default function CategoriesClient() {
                 <input type="text" value={form.slug} onChange={(e) => updateForm("slug", e.target.value)} className="mt-1 w-full rounded-lg border p-3" />
                 {errors.slug && <p className="mt-1 text-sm text-red-500">{errors.slug}</p>}
               </div>
-              <div>
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-700">Image URL</label>
                 <input type="text" value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} className="mt-1 w-full rounded-lg border p-3" />
+              </div> */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Type</label>
+                <div className="mt-2 flex gap-4">
+                  <label className="flex items-center gap-2">
+                    <input type="radio" value="menu" checked={form.type === "menu"} onChange={(e) => updateForm("type", e.target.value as 'menu' | 'inventory')} className="text-orange-500" />
+                    <span className="text-sm">Menu (shows on frontend)</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input type="radio" value="inventory" checked={form.type === "inventory"} onChange={(e) => updateForm("type", e.target.value as 'menu' | 'inventory')} className="text-orange-500" />
+                    <span className="text-sm">Inventory (internal only)</span>
+                  </label>
+                </div>
               </div>
               <div className="flex items-center gap-2">
-                <Checkbox checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} id="isActive" />
+                <Checkbox checked={form.isActive} onChange={(e) => updateForm("isActive", e.target.checked)} id="isActive" />
                 <label htmlFor="isActive" className="text-sm text-gray-700">Active</label>
               </div>
             </div>

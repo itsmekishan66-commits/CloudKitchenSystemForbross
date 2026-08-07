@@ -92,7 +92,7 @@ function MenuContent() {
       try {
         const [itemsRes, catsRes] = await Promise.all([
           fetch("/api/menu-items"),
-          fetch("/api/categories?active=true"),
+          fetch("/api/categories?active=true&type=menu"),
         ]);
         const itemsData = await itemsRes.json();
         const catsData = await catsRes.json();

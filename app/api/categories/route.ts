@@ -8,6 +8,7 @@ import { CACHE_TAGS } from "@/lib/cache-tags";
 import {
   getCategories,
   getActiveCategories,
+  getCategoriesByType,
   createCategory,
   updateCategory,
   deleteCategory,
@@ -26,8 +27,16 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get("active") === "true";
+    const type = searchParams.get("type") as 'menu' | 'inventory' | null;
 
-    const categories = activeOnly ? await getActiveCategories() : await getCategories();
+    let categories;
+    if (activeOnly && type) {
+      categories = await getCategoriesByType(type);
+    } else if (activeOnly) {
+      categories = await getActiveCategories();
+    } else {
+      categories = await getCategories();
+    }
     return NextResponse.json({ categories });
   } catch (error) {
     console.error("Failed to load categories", error);
@@ -47,9 +56,10 @@ export async function POST(request: Request) {
       return user;
     }
 
-    const body = (await request.json()) as NewCategory;
+    const body = (await request.json()) as NewCategory & { type?: string };
     const name = cleanText(body.name);
     const slug = cleanText(body.slug);
+    const type = body.type === 'inventory' ? 'inventory' : 'menu';
 
     if (!name || !slug) {
       return NextResponse.json({ error: "Name and slug are required" }, { status: 400 });
@@ -60,6 +70,7 @@ export async function POST(request: Request) {
       slug,
       image: cleanText(body.image) || null,
       isActive: body.isActive ?? true,
+      type,
     });
 
     await createActivityLog({
@@ -91,7 +102,7 @@ export async function PATCH(request: Request) {
       return user;
     }
 
-    const body = (await request.json()) as NewCategory & { id: number };
+    const body = (await request.json()) as NewCategory & { id: number; type?: string };
     const id = Number(body.id);
 
     if (!Number.isInteger(id)) {
@@ -103,6 +114,7 @@ export async function PATCH(request: Request) {
       slug: body.slug,
       image: body.image,
       isActive: body.isActive,
+      type: body.type === 'inventory' ? 'inventory' : 'menu',
     });
 
     revalidateTag(CACHE_TAGS.CATEGORIES, "max");

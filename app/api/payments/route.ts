@@ -48,6 +48,7 @@ export async function POST(request: Request) {
                 receivedFrom: payload.receivedFrom || null,
                 paidTo: payload.paidTo || null,
                 paymentMethod: payload.paymentMethod,
+                accountId: payload.accountId || null,
                 transactionId: payload.transactionId || null,
                 notes: payload.notes || null,
             };
@@ -56,6 +57,8 @@ export async function POST(request: Request) {
                 id: data.id,
                 type: data.type,
                 amount: data.amount,
+                paymentMethod: data.paymentMethod,
+                accountId: data.accountId,
                 notes: data.notes,
                 paidTo: data.paidTo,
                 receivedFrom: data.receivedFrom,
@@ -169,6 +172,7 @@ export async function PATCH(request: Request) {
                         orderId: Number(existing.orderId),
                         amount: settledAmount,
                         referenceId: crypto.randomUUID(),
+                        paymentMethod: method,
                     });
                 }
             }

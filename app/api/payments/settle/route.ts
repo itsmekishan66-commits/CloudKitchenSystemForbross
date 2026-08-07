@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 import { db } from "@/db";
 import { createTransaction, createDue, updateDue, getDues } from "@/db/services/payments";
 import { updateOrderPaymentStatus } from "@/db/services/orders";
 import { recordCustomerPayment } from "@/db/services/accounting";
-import { orders, users } from "@/db/schemas";
+import { orders, users, journalEntries } from "@/db/schemas";
 import type { NewTransaction, NewDue } from "@/db/schemas";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -24,6 +24,7 @@ export async function POST(request: Request) {
 
     const totalReceived = (Number(cashAmount) || 0) + (Number(onlineAmount) || 0);
     const discountAmount = Number(discount) || 0;
+    const onlineMethod = paymentMethod === "card" ? "card" : paymentMethod === "netbanking" ? "bank" : paymentMethod === "bank" ? "bank" : "esewa";
 
     if (totalReceived <= 0 && !markAsDue) {
       return NextResponse.json({ error: "At least one payment method or mark as due is required" }, { status: 400 });
@@ -45,13 +46,12 @@ export async function POST(request: Request) {
     }
 
     if (Number(onlineAmount) > 0) {
-      const mappedMethod = paymentMethod === "card" ? "card" : paymentMethod === "netbanking" ? "bank" : paymentMethod === "bank" ? "bank" : "esewa";
       const txData: NewTransaction = {
         id: crypto.randomUUID(),
         type: "online_received",
         amount: String(onlineAmount),
         receivedFrom: `Order #${orderId}`,
-        paymentMethod: mappedMethod,
+        paymentMethod: onlineMethod,
         accountId: accountId || null,
         transactionId: `SETTLE-${orderId}-${Date.now()}`,
         notes: discountAmount > 0 ? `Discount: Rs ${discountAmount}` : null,
@@ -131,13 +131,45 @@ export async function POST(request: Request) {
           status: newStatus,
         });
       }
+    }
 
+    // Book received amounts in the ledger.
+    // - For orders not yet delivered, the cash/online receipt is booked when
+    //   recordOrderSale runs at delivery (it reads the checkout transactions),
+    //   so booking here would double-count. We skip.
+    // - For already-delivered orders a receivable entry already exists, so the
+    //   receipt is booked against it now (Debit Cash/Bank, Credit Receivable).
+    const [orderEntry] = await db
+      .select({ id: journalEntries.id })
+      .from(journalEntries)
+      .where(
+        and(
+          eq(journalEntries.referenceType, "order"),
+          eq(journalEntries.referenceId, String(orderId)),
+          eq(journalEntries.status, "posted")
+        )
+      )
+      .limit(1);
+
+    if (orderEntry && (Number(cashAmount) > 0 || Number(onlineAmount) > 0)) {
       try {
-        await recordCustomerPayment({
-          orderId: Number(orderId),
-          amount: totalReceived,
-          referenceId: `SETTLE-${orderId}-${Date.now()}`,
-        });
+        const baseRef = `SETTLE-${orderId}-${Date.now()}`;
+        if (Number(cashAmount) > 0) {
+          await recordCustomerPayment({
+            orderId: Number(orderId),
+            amount: Number(cashAmount),
+            referenceId: `${baseRef}-cash`,
+            paymentMethod: "cash",
+          });
+        }
+        if (Number(onlineAmount) > 0) {
+          await recordCustomerPayment({
+            orderId: Number(orderId),
+            amount: Number(onlineAmount),
+            referenceId: `${baseRef}-online`,
+            paymentMethod: onlineMethod,
+          });
+        }
       } catch (e) {
         console.error("Failed to record customer payment accounting entry", e);
       }

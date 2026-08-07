@@ -1,3 +1,4 @@
+import { createTransaction, getTransactionByRef } from "@/db/services/payments";
 import { eq, and, sql, desc, asc, gte, lte, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -11,9 +12,13 @@ import {
   recipes,
   recipeIngredients,
   inventoryItems,
+  transactions,
   type NewChartOfAccount,
 } from "@/db/schemas";
-import { createTransaction, getTransactionByRef, getTransactionById } from "@/db/services/payments";
+
+// A db client that is either the shared pool or a transaction handle. Passing
+// the transaction handle keeps multi-step journal operations atomic.
+type DbClient = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 
 export async function getChartOfAccounts() {
@@ -197,14 +202,25 @@ export async function getAccountsByType(
 
 // Journal Entries
 
-export async function generateEntryNumber(): Promise<string> {
+// Computes the next sequential entry number for the current year using a
+// locking read. It MUST be called inside the same transaction that inserts the
+// entry so the lock is held until the row is committed, preventing concurrent
+// inserts from colliding on the unique entry_number.
+async function nextEntryNumber(client: DbClient): Promise<string> {
   const year = new Date().getFullYear();
-  const result = await db
+  await client.execute(
+    sql`SELECT id FROM journal_entries WHERE year(date) = ${year} FOR UPDATE`
+  );
+  const result = await client
     .select({ count: sql<number>`count(*)` })
     .from(journalEntries)
     .where(sql`year(${journalEntries.date}) = ${year}`);
   const seq = (result[0]?.count || 0) + 1;
   return `JE-${year}-${String(seq).padStart(4, "0")}`;
+}
+
+export async function generateEntryNumber(): Promise<string> {
+  return db.transaction((tx) => nextEntryNumber(tx));
 }
 
 export async function getJournalEntries(filters?: {
@@ -284,8 +300,6 @@ export async function createJournalEntry(data: {
     description?: string;
   }[];
 }) {
-  const entryNumber = await generateEntryNumber();
-
   const totalDebit = data.lines.reduce(
     (sum, line) => sum + Number(line.debit),
     0
@@ -305,29 +319,35 @@ export async function createJournalEntry(data: {
     throw new Error("Debit and Credit amounts must be greater than zero");
   }
 
-  await db.insert(journalEntries).values({
-    id: data.id,
-    entryNumber,
-    date: new Date(data.date),
-    description: data.description,
-    referenceType: data.referenceType,
-    referenceId: data.referenceId,
-    status: "draft",
-    totalDebit: String(totalDebit),
-    totalCredit: String(totalCredit),
-    createdBy: data.createdBy,
-  });
-
-  for (const line of data.lines) {
-    await db.insert(journalEntryLines).values({
-      id: line.id,
-      journalEntryId: data.id,
-      accountId: line.accountId,
-      debit: line.debit || "0",
-      credit: line.credit || "0",
-      description: line.description,
+  // Header + lines are inserted in one transaction so a failure cannot leave an
+  // orphan entry or lines without a header. The entry number is allocated with a
+  // locking read inside the same transaction to stay collision-free.
+  await db.transaction(async (tx) => {
+    const entryNumber = await nextEntryNumber(tx);
+    await tx.insert(journalEntries).values({
+      id: data.id,
+      entryNumber,
+      date: new Date(data.date),
+      description: data.description,
+      referenceType: data.referenceType,
+      referenceId: data.referenceId,
+      status: "draft",
+      totalDebit: String(totalDebit),
+      totalCredit: String(totalCredit),
+      createdBy: data.createdBy,
     });
-  }
+
+    for (const line of data.lines) {
+      await tx.insert(journalEntryLines).values({
+        id: line.id,
+        journalEntryId: data.id,
+        accountId: line.accountId,
+        debit: line.debit || "0",
+        credit: line.credit || "0",
+        description: line.description,
+      });
+    }
+  });
 
   return getJournalEntryById(data.id);
 }
@@ -340,12 +360,16 @@ export async function postJournalEntry(id: string) {
   if (entry.status === "voided")
     throw new Error("Cannot post a voided journal entry");
 
-  await db
-    .update(journalEntries)
-    .set({ status: "posted", updatedAt: new Date() })
-    .where(eq(journalEntries.id, id));
+  // Status flip and balance application are committed atomically: a failure
+  // cannot leave the entry posted without its balances applied.
+  await db.transaction(async (tx) => {
+    await tx
+      .update(journalEntries)
+      .set({ status: "posted", updatedAt: new Date() })
+      .where(eq(journalEntries.id, id));
 
-  await updateAccountBalances(entry);
+    await updateAccountBalances(entry, tx);
+  });
 
   return getJournalEntryById(id);
 }
@@ -356,20 +380,24 @@ export async function voidJournalEntry(id: string, reason: string) {
   if (entry.status === "voided")
     throw new Error("Journal entry is already voided");
 
-  await db
-    .update(journalEntries)
-    .set({
-      status: "voided",
-      voidReason: reason,
-      updatedAt: new Date(),
-    })
-    .where(eq(journalEntries.id, id));
+  // Status flip, balance reversal and the /payment reversal transaction all
+  // commit (or roll back) together so the ledger and /payment never diverge.
+  await db.transaction(async (tx) => {
+    await tx
+      .update(journalEntries)
+      .set({
+        status: "voided",
+        voidReason: reason,
+        updatedAt: new Date(),
+      })
+      .where(eq(journalEntries.id, id));
 
-  if (entry.status === "posted") {
-    await reverseAccountBalances(entry);
-  }
+    if (entry.status === "posted") {
+      await reverseAccountBalances(entry, tx);
+    }
 
-  await reverseLinkedPaymentTransaction(entry, reason);
+    await reverseLinkedPaymentTransaction(entry, reason, tx);
+  });
 
   return getJournalEntryById(id);
 }
@@ -405,10 +433,13 @@ async function reverseLinkedPaymentTransaction(
     entryNumber: string;
     referenceType: string | null;
     referenceId: string | null;
+    lines?: { accountId: string; debit: string; credit: string }[];
   },
-  reason: string
+  reason: string,
+  client: DbClient = db
 ) {
   const refType = entry.referenceType || "";
+  const isOrderPayment = refType === "order_payment";
 
   let linkedTx: {
     type: PaymentTxType;
@@ -419,25 +450,94 @@ async function reverseLinkedPaymentTransaction(
     accountId: string | null;
   } | null = null;
 
-  if (refType === INITIAL_INVESTMENT_REF) {
-    linkedTx = await getTransactionByRef(`${INITIAL_INVESTMENT_REF}-${entry.id}`);
+  if (isOrderPayment) {
+    // Customer-payment entries book Debit Cash/Bank, Credit Receivable. The
+    // original /payment receipt still exists, so on void we insert a matching
+    // deduction in the same balance bucket, returning /payment to zero.
+    const lines = entry.lines || [];
+    const fundLine = lines.find(
+      (l) => l.accountId === "1000" || l.accountId === "1010"
+    );
+    if (fundLine) {
+      const isBank = fundLine.accountId === "1010";
+      linkedTx = {
+        type: isBank ? "online_paid" : "cash_paid",
+        amount: String(Number(fundLine.debit || fundLine.credit) || 0),
+        paymentMethod: isBank ? "bank" : "cash",
+        receivedFrom: null,
+        paidTo: null,
+        accountId: null,
+      };
+    }
+  } else if (refType === INITIAL_INVESTMENT_REF) {
+    const [row] = await client
+      .select()
+      .from(transactions)
+      .where(eq(transactions.transactionId, `${INITIAL_INVESTMENT_REF}-${entry.id}`))
+      .limit(1);
+    if (row) {
+      linkedTx = {
+        type: row.type as PaymentTxType,
+        amount: row.amount,
+        paymentMethod: row.paymentMethod as PaymentMethod,
+        receivedFrom: row.receivedFrom,
+        paidTo: row.paidTo,
+        accountId: row.accountId,
+      };
+    }
   } else if (refType.startsWith("payment_")) {
-    linkedTx = await getTransactionById(entry.referenceId || "");
+    const [row] = await client
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, entry.referenceId || ""))
+      .limit(1);
+    if (row) {
+      linkedTx = {
+        type: row.type as PaymentTxType,
+        amount: row.amount,
+        paymentMethod: row.paymentMethod as PaymentMethod,
+        receivedFrom: row.receivedFrom,
+        paidTo: row.paidTo,
+        accountId: row.accountId,
+      };
+    }
   } else if (refType.startsWith("supplier_")) {
-    linkedTx = await getTransactionByRef(`SUPPLIER-SETTLE-${entry.referenceId}`);
+    const [row] = await client
+      .select()
+      .from(transactions)
+      .where(eq(transactions.transactionId, `SUPPLIER-SETTLE-${entry.referenceId}`))
+      .limit(1);
+    if (row) {
+      linkedTx = {
+        type: row.type as PaymentTxType,
+        amount: row.amount,
+        paymentMethod: row.paymentMethod as PaymentMethod,
+        receivedFrom: row.receivedFrom,
+        paidTo: row.paidTo,
+        accountId: row.accountId,
+      };
+    }
   }
 
   if (!linkedTx) return;
 
-  let type = REVERSAL_TYPE[linkedTx.type];
-  if (linkedTx.type === "refund") {
-    type = linkedTx.paymentMethod === "cash" ? "cash_received" : "online_received";
+  let type: PaymentTxType;
+  if (isOrderPayment) {
+    // linkedTx already carries the desired deduction direction for customer
+    // payments; do not map it again through REVERSAL_TYPE.
+    type = linkedTx.type;
+  } else {
+    type = REVERSAL_TYPE[linkedTx.type];
+    if (linkedTx.type === "refund") {
+      type =
+        linkedTx.paymentMethod === "cash" ? "cash_received" : "online_received";
+    }
   }
 
   const isReceived = type.endsWith("received");
   const fallbackParty = `Void of ${entry.entryNumber}`;
 
-  await createTransaction({
+  await client.insert(transactions).values({
     id: crypto.randomUUID(),
     type,
     amount: linkedTx.amount,
@@ -452,17 +552,20 @@ async function reverseLinkedPaymentTransaction(
 
 // Account Balances
 
-async function updateAccountBalances(entry: {
-  lines: { accountId: string; debit: string; credit: string }[];
-  date: Date;
-}) {
+async function updateAccountBalances(
+  entry: {
+    lines: { accountId: string; debit: string; credit: string }[];
+    date: Date;
+  },
+  client: DbClient = db
+) {
   const period = entry.date.toISOString().substring(0, 7);
   const accountIds = entry.lines.map((l) => l.accountId);
 
   // Batch-fetch existing balances and accounts once (avoids per-line N+1)
   const existingRows =
     accountIds.length > 0
-      ? await db
+      ? await client
           .select()
           .from(accountBalances)
           .where(
@@ -474,7 +577,7 @@ async function updateAccountBalances(entry: {
       : [];
   const existingByAccount = new Map(existingRows.map((r) => [r.accountId, r]));
 
-  const accounts = await getChartOfAccounts();
+  const accounts = await client.select().from(chartOfAccounts);
   const accountMap = new Map(accounts.map((a) => [a.id, a]));
 
   for (const line of entry.lines) {
@@ -493,7 +596,7 @@ async function updateAccountBalances(entry: {
         ? newDebitTotal - newCreditTotal
         : newCreditTotal - newDebitTotal;
 
-      await db
+      await client
         .update(accountBalances)
         .set({
           debitTotal: String(newDebitTotal),
@@ -505,7 +608,7 @@ async function updateAccountBalances(entry: {
     } else {
       const balance = isDebitNormal ? debit - credit : credit - debit;
 
-      await db.insert(accountBalances).values({
+      await client.insert(accountBalances).values({
         id: crypto.randomUUID(),
         accountId: line.accountId,
         period,
@@ -517,16 +620,19 @@ async function updateAccountBalances(entry: {
   }
 }
 
-async function reverseAccountBalances(entry: {
-  lines: { accountId: string; debit: string; credit: string }[];
-  date: Date;
-}) {
+async function reverseAccountBalances(
+  entry: {
+    lines: { accountId: string; debit: string; credit: string }[];
+    date: Date;
+  },
+  client: DbClient = db
+) {
   const period = entry.date.toISOString().substring(0, 7);
   const accountIds = entry.lines.map((l) => l.accountId);
 
   const existingRows =
     accountIds.length > 0
-      ? await db
+      ? await client
           .select()
           .from(accountBalances)
           .where(
@@ -538,7 +644,7 @@ async function reverseAccountBalances(entry: {
       : [];
   const existingByAccount = new Map(existingRows.map((r) => [r.accountId, r]));
 
-  const accounts = await getChartOfAccounts();
+  const accounts = await client.select().from(chartOfAccounts);
   const accountMap = new Map(accounts.map((a) => [a.id, a]));
 
   for (const line of entry.lines) {
@@ -558,7 +664,7 @@ async function reverseAccountBalances(entry: {
         ? newDebitTotal - newCreditTotal
         : newCreditTotal - newDebitTotal;
 
-      await db
+      await client
         .update(accountBalances)
         .set({
           debitTotal: String(newDebitTotal),
@@ -855,6 +961,9 @@ export async function getCashFlowStatement(
 
       if (account.type === "revenue") {
         operatingInflow += credit;
+        // A refund is booked as a debit to revenue (credit to Cash/Bank), so
+        // count it as an operating outflow rather than silently ignoring it.
+        if (debit > 0) operatingOutflow += debit;
       } else if (account.subType === "cogs") {
         operatingOutflow += debit;
       } else if (account.subType === "operating_expense") {
@@ -1364,6 +1473,12 @@ export async function ensureStandardAccounts() {
   }
 }
 
+// Cash flows land on account 1000 (Cash); every other payment method
+// (bank/esewa/khalti/fonepay/card) is bucketed into account 1010 (Bank).
+function resolveFundAccountId(paymentMethod?: string | null): string {
+  return paymentMethod === "cash" ? "1000" : "1010";
+}
+
 type AutoLine = {
   accountId: string;
   debit: number;
@@ -1372,6 +1487,9 @@ type AutoLine = {
 };
 
 // Creates AND posts a journal entry directly, idempotent per reference.
+// If an entry already exists for the reference it is returned as-is, UNLESS it
+// was voided - in that case a fresh replacement entry is created so the source
+// event can be re-recorded after a void (e.g. an order re-delivered).
 export async function postAutoEntry(input: {
   date: string;
   description: string;
@@ -1380,7 +1498,7 @@ export async function postAutoEntry(input: {
   lines: AutoLine[];
 }) {
   const existing = await db
-    .select({ id: journalEntries.id })
+    .select({ id: journalEntries.id, status: journalEntries.status })
     .from(journalEntries)
     .where(
       and(
@@ -1389,7 +1507,7 @@ export async function postAutoEntry(input: {
       )
     )
     .limit(1);
-  if (existing[0]) return existing[0].id;
+  if (existing[0] && existing[0].status !== "voided") return existing[0].id;
 
   const totalDebit = input.lines.reduce((s, l) => s + l.debit, 0);
   const totalCredit = input.lines.reduce((s, l) => s + l.credit, 0);
@@ -1400,36 +1518,43 @@ export async function postAutoEntry(input: {
   }
 
   const id = crypto.randomUUID();
-  await db.insert(journalEntries).values({
-    id,
-    entryNumber: await generateEntryNumber(),
-    date: new Date(input.date),
-    description: input.description,
-    referenceType: input.referenceType,
-    referenceId: input.referenceId,
-    status: "posted",
-    totalDebit: totalDebit.toFixed(2),
-    totalCredit: totalCredit.toFixed(2),
-  });
+  // Header, lines and account balances are applied atomically, and the entry
+  // number is allocated under a lock so concurrent auto-entries cannot collide.
+  await db.transaction(async (tx) => {
+    await tx.insert(journalEntries).values({
+      id,
+      entryNumber: await nextEntryNumber(tx),
+      date: new Date(input.date),
+      description: input.description,
+      referenceType: input.referenceType,
+      referenceId: input.referenceId,
+      status: "posted",
+      totalDebit: totalDebit.toFixed(2),
+      totalCredit: totalCredit.toFixed(2),
+    });
 
-  await db.insert(journalEntryLines).values(
-    input.lines.map((l) => ({
-      id: crypto.randomUUID(),
-      journalEntryId: id,
-      accountId: l.accountId,
-      debit: l.debit.toFixed(2),
-      credit: l.credit.toFixed(2),
-      description: l.description,
-    }))
-  );
+    await tx.insert(journalEntryLines).values(
+      input.lines.map((l) => ({
+        id: crypto.randomUUID(),
+        journalEntryId: id,
+        accountId: l.accountId,
+        debit: l.debit.toFixed(2),
+        credit: l.credit.toFixed(2),
+        description: l.description,
+      }))
+    );
 
-  await updateAccountBalances({
-    lines: input.lines.map((l) => ({
-      accountId: l.accountId,
-      debit: l.debit.toFixed(2),
-      credit: l.credit.toFixed(2),
-    })),
-    date: new Date(input.date),
+    await updateAccountBalances(
+      {
+        lines: input.lines.map((l) => ({
+          accountId: l.accountId,
+          debit: l.debit.toFixed(2),
+          credit: l.credit.toFixed(2),
+        })),
+        date: new Date(input.date),
+      },
+      tx
+    );
   });
 
   return id;
@@ -1531,10 +1656,48 @@ export async function recordOrderSale(order: {
 
   const total = Number(order.total) || 0;
 
-  // Revenue is recognised as a receivable at delivery; cash is booked when
-  // the customer actually pays (see recordCustomerPayment).
+  // Determine how much of this order was already paid at checkout (cash vs
+  // online). Those amounts land directly in the correct fund account (Cash or
+  // Bank) at delivery, and only the unpaid remainder is booked as a receivable.
+  // This avoids booking a receivable for money already received and keeps the
+  // ledger in sync with /payment for partial payments made before delivery.
+  const orderTxs = await db
+    .select({
+      type: transactions.type,
+      amount: transactions.amount,
+      paymentMethod: transactions.paymentMethod,
+    })
+    .from(transactions)
+    .where(eq(transactions.receivedFrom, `Order #${order.id}`));
+
+  let cashReceived = 0;
+  let onlineReceived = 0;
+  for (const t of orderTxs) {
+    const amt = Number(t.amount) || 0;
+    if (t.type === "cash_received") cashReceived += amt;
+    else if (t.type === "online_received") onlineReceived += amt;
+  }
+
+  // Cap the booked receipts at the order total so an overpayment (credited
+  // separately to the customer) cannot produce an unbalanced entry.
+  if (cashReceived + onlineReceived > total) {
+    const excess = cashReceived + onlineReceived - total;
+    const reduceCash = Math.min(cashReceived, excess);
+    cashReceived -= reduceCash;
+    onlineReceived -= excess - reduceCash;
+  }
+  const receivable = Math.max(0, total - cashReceived - onlineReceived);
+
   const lines: AutoLine[] = [];
-  lines.push({ accountId: "1200", debit: total, credit: 0, description: "Accounts receivable" });
+  if (cashReceived > 0) {
+    lines.push({ accountId: "1000", debit: cashReceived, credit: 0, description: "Cash received on delivery" });
+  }
+  if (onlineReceived > 0) {
+    lines.push({ accountId: "1010", debit: onlineReceived, credit: 0, description: "Bank received on delivery" });
+  }
+  if (receivable > 0) {
+    lines.push({ accountId: "1200", debit: receivable, credit: 0, description: "Accounts receivable" });
+  }
   lines.push({ accountId: "4000", debit: 0, credit: total, description: "Sales revenue" });
 
   if (cogs > 0) {
@@ -1561,13 +1724,15 @@ export async function recordSupplierSettlement(settlement: {
   const amount = Number(settlement.amount) || 0;
 
   const [row] = await db
-    .select({ name: suppliers.name })
+    .select({ name: suppliers.name, paymentMethod: supplierSettlements.paymentMethod })
     .from(supplierSettlements)
     .innerJoin(suppliers, eq(supplierSettlements.supplierId, suppliers.id))
     .where(eq(supplierSettlements.id, settlement.id))
     .limit(1);
 
   const supplierName = row?.name || `Supplier #${settlement.id}`;
+  const fundAccountId = resolveFundAccountId(row?.paymentMethod);
+  const fundLabel = fundAccountId === "1000" ? "Cash" : "Bank";
 
   const lines: AutoLine[] =
     settlement.type === "purchase"
@@ -1577,7 +1742,7 @@ export async function recordSupplierSettlement(settlement: {
         ]
       : [
           { accountId: "2000", debit: amount, credit: 0, description: `AP cleared - ${supplierName}` },
-          { accountId: "1000", debit: 0, credit: amount, description: `Cash paid to ${supplierName}` },
+          { accountId: fundAccountId, debit: 0, credit: amount, description: `${fundLabel} paid to ${supplierName}` },
         ];
 
   return postAutoEntry({
@@ -1621,7 +1786,7 @@ export async function recordSettlementAdjustment(settlement: {
     : "unknown";
 
   const [supplierRow] = await db
-    .select({ name: suppliers.name })
+    .select({ name: suppliers.name, paymentMethod: supplierSettlements.paymentMethod })
     .from(supplierSettlements)
     .innerJoin(suppliers, eq(supplierSettlements.supplierId, suppliers.id))
     .where(eq(supplierSettlements.id, settlement.id))
@@ -1629,6 +1794,8 @@ export async function recordSettlementAdjustment(settlement: {
 
   const supplierName = supplierRow?.name || `Supplier #${settlement.id}`;
   const typeLabel = settlement.type === "purchase" ? "Purchase from" : "Payment to";
+  const fundAccountId = resolveFundAccountId(supplierRow?.paymentMethod);
+  const fundLabel = fundAccountId === "1000" ? "Cash" : "Bank";
 
   const isIncrease = delta > 0;
   const absDelta = Math.abs(delta);
@@ -1657,10 +1824,10 @@ export async function recordSettlementAdjustment(settlement: {
             description: `AP ${isIncrease ? "increase" : "decrease"} rectifying ${originalRef} (${supplierName})`,
           },
           {
-            accountId: "1000",
+            accountId: fundAccountId,
             debit: isIncrease ? 0 : absDelta,
             credit: isIncrease ? absDelta : 0,
-            description: `Cash ${isIncrease ? "decrease" : "increase"} rectifying ${originalRef} (${supplierName})`,
+            description: `${fundLabel} ${isIncrease ? "decrease" : "increase"} rectifying ${originalRef} (${supplierName})`,
           },
         ];
 
@@ -1678,10 +1845,14 @@ export async function recordCustomerPayment(input: {
   orderId: number;
   amount: number;
   referenceId: string;
+  paymentMethod?: string;
 }) {
   await ensureStandardAccounts();
   const amount = Number(input.amount) || 0;
   if (amount <= 0) return null;
+
+  const fundAccountId = resolveFundAccountId(input.paymentMethod);
+  const fundLabel = fundAccountId === "1000" ? "Cash" : "Bank";
 
   return postAutoEntry({
     date: new Date().toISOString().slice(0, 10),
@@ -1689,7 +1860,7 @@ export async function recordCustomerPayment(input: {
     referenceType: "order_payment",
     referenceId: input.referenceId,
     lines: [
-      { accountId: "1000", debit: amount, credit: 0, description: "Cash received" },
+      { accountId: fundAccountId, debit: amount, credit: 0, description: `${fundLabel} received` },
       { accountId: "1200", debit: 0, credit: amount, description: "Accounts receivable cleared" },
     ],
   });
@@ -1711,6 +1882,8 @@ export async function postTransactionEntry(tx: {
   id: string;
   type: string;
   amount: number | string;
+  paymentMethod?: string | null;
+  accountId?: string | null;
   notes?: string | null;
   paidTo?: string | null;
   receivedFrom?: string | null;
@@ -1724,7 +1897,7 @@ export async function postTransactionEntry(tx: {
   if (!refType) return null;
 
   const existing = await db
-    .select({ id: journalEntries.id })
+    .select({ id: journalEntries.id, status: journalEntries.status })
     .from(journalEntries)
     .where(
       and(
@@ -1733,20 +1906,26 @@ export async function postTransactionEntry(tx: {
       )
     )
     .limit(1);
-  if (existing.length > 0) return existing[0];
+  // A voided entry is re-recorded via postAutoEntry below; only an existing
+  // posted/draft entry short-circuits the idempotency check.
+  if (existing.length > 0 && existing[0].status !== "voided") return existing[0];
+
+  const note = tx.notes?.trim();
+
+  const fundAccountId = resolveFundAccountId(tx.paymentMethod);
+  const fundLabel = fundAccountId === "1000" ? "Cash" : "Bank";
 
   const description =
     type === "cash_received" || type === "online_received"
-      ? `Cash received${tx.receivedFrom ? ` from ${tx.receivedFrom}` : ""}`
-      : `Cash paid${tx.paidTo ? ` to ${tx.paidTo}` : ""}`;
-  const note = tx.notes?.trim();
+      ? `${fundLabel} received${tx.receivedFrom ? ` from ${tx.receivedFrom}` : ""}`
+      : `${fundLabel} paid${tx.paidTo ? ` to ${tx.paidTo}` : ""}`;
 
   let lines: { accountId: string; debit: number; credit: number; description: string }[];
   switch (type) {
     case "cash_received":
     case "online_received":
       lines = [
-        { accountId: "1000", debit: amount, credit: 0, description: "Cash received" },
+        { accountId: fundAccountId, debit: amount, credit: 0, description: `${fundLabel} received` },
         { accountId: "4000", debit: 0, credit: amount, description: "Sales revenue" },
       ];
       break;
@@ -1755,7 +1934,7 @@ export async function postTransactionEntry(tx: {
     case "expense":
       lines = [
         { accountId: "5100", debit: amount, credit: 0, description: "Operating expenses" },
-        { accountId: "1000", debit: 0, credit: amount, description: "Cash paid" },
+        { accountId: fundAccountId, debit: 0, credit: amount, description: `${fundLabel} paid` },
       ];
       break;
     case "bank_transfer":
@@ -1767,7 +1946,7 @@ export async function postTransactionEntry(tx: {
     case "refund":
       lines = [
         { accountId: "4000", debit: amount, credit: 0, description: "Sales refund" },
-        { accountId: "1000", debit: 0, credit: amount, description: "Cash refunded" },
+        { accountId: fundAccountId, debit: 0, credit: amount, description: `${fundLabel} refunded` },
       ];
       break;
     default:

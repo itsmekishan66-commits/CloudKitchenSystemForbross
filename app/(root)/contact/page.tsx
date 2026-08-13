@@ -4,12 +4,36 @@ import {
   FaMapMarkerAlt,
   FaClock,
 } from "react-icons/fa";
+import type { Metadata } from "next";
 import { getSiteSettings } from "@/lib/get-site-settings";
 import ContactForm from "./ContactForm";
 
+export async function generateMetadata(): Promise<Metadata> {
+  const { siteName, location } = await getSiteSettings();
+  const area = location || "Biratnagar";
+
+  return {
+    title: "Contact Us",
+    description: `Contact ${siteName} — order questions, feedback, or partnerships. ${area}'s cloud kitchen delivery.`,
+    keywords: [
+      `contact ${siteName}`,
+      "food delivery contact",
+      "order food online",
+      "cloud kitchen delivery",
+      "food delivery phone number",
+      `food delivery in ${area}`,
+      "cloud kitchen near me",
+      "online food ordering",
+    ],
+    openGraph: {
+      title: `Contact ${siteName}`,
+      description: `Get in touch with ${siteName} — order questions, feedback, or partnership inquiries.`,
+    },
+  };
+}
+
 export default async function ContactPage() {
-  // const { siteName, contactEmail, contactPhone, location, contactContent } = await getSiteSettings();
-  const { contactEmail, contactPhone, location, contactContent } = await getSiteSettings();
+  const { siteName, contactEmail, contactPhone, location, contactContent } = await getSiteSettings();
 
   const c = (contactContent as Record<string, unknown>) || {};
   const heroHeading = (c.heroHeading as string) || "We'd Love To";
@@ -32,8 +56,43 @@ export default async function ContactPage() {
   const displayPhone = contactPhone || "+977 9800000000";
   const displayLocation = location || "Biratnagar, Nepal";
 
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
   return (
     <main className="bg-black text-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "BreadcrumbList",
+                itemListElement: [
+                  { "@type": "ListItem", position: 1, name: "Home", item: `${baseUrl}/` },
+                  { "@type": "ListItem", position: 2, name: "Contact", item: `${baseUrl}/contact` },
+                ],
+              },
+              {
+                "@type": "ContactPage",
+                name: `${siteName} | Contact Us`,
+                description: heroDescription,
+                mainEntity: {
+                  "@type": "Organization",
+                  name: siteName,
+                  telephone: displayPhone,
+                  email: displayEmail,
+                  address: {
+                    "@type": "PostalAddress",
+                    addressLocality: displayLocation,
+                    addressCountry: "NP",
+                  },
+                },
+              },
+            ],
+          }).replace(/</g, "\\u003c"),
+        }}
+      />
 
       {/* Hero */}
       <section className="bg-linear-to-br from-gray-900 via-black to-gray-800">

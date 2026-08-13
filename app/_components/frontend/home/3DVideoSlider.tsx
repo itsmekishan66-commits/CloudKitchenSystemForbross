@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const defaultCards = [
@@ -59,6 +59,7 @@ export default function Home() {
   const [active, setActive] = useState(2);
   const [isMobile, setIsMobile] = useState(false);
   const [cards, setCards] = useState(defaultCards);
+  const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
 
   useEffect(() => {
     fetch("/api/site-settings")
@@ -84,6 +85,17 @@ export default function Home() {
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
+
+  useEffect(() => {
+    Object.entries(videoRefs.current).forEach(([idx, el]) => {
+      if (!el) return;
+      if (Number(idx) === 0) {
+        el.play().catch(() => {});
+      } else {
+        el.pause();
+      }
+    });
+  }, [active, cards]);
 
   const range = isMobile ? 1 : 2;
 
@@ -127,7 +139,17 @@ export default function Home() {
               >
                 {/* Background video or image */}
                 {card.video ? (
-                  <video src={card.video} autoPlay loop muted playsInline preload="none" className="absolute inset-0 h-full w-full object-cover" />
+                  <video
+                    src={card.video}
+                    loop
+                    muted
+                    playsInline
+                    preload="none"
+                    ref={(el) => {
+                      videoRefs.current[cardIndex] = el;
+                    }}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
                 ) : (
                   <img src={card.image} alt={card.title} className="absolute inset-0 h-full w-full object-cover" />
                 )}

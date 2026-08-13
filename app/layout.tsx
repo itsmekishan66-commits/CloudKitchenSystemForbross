@@ -6,35 +6,59 @@ import { getSiteSettings } from "@/lib/get-site-settings";
 import { auth } from "@/auth";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { siteName, logo } = await getSiteSettings();
+  const { siteName, location } = await getSiteSettings();
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const area = location || "Biratnagar";
 
   return {
-    metadataBase: new URL(
-      process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-    ),
+    metadataBase: new URL(siteUrl),
     title: {
-      default: `${siteName} | Cloud Kitchen Delivery`,
+      default: `${siteName} | Cloud Kitchen Delivery in ${area}`,
       template: `%s | ${siteName}`,
     },
     description:
-      `Fresh meals prepared in ${siteName} and delivered fast to your door.`,
+      `Order fresh, hot meals from ${siteName} — ${area}'s cloud kitchen. Fast food delivery of burgers, pizza, momos, biryani and more, delivered to your door.`,
+    keywords: [
+      siteName,
+      "cloud kitchen",
+      `${siteName} ${area}`,
+      "food delivery",
+      `food delivery in ${area}`,
+      "online food order",
+      "order food online",
+      "restaurant food delivery",
+      "home food delivery",
+      "fast food delivery",
+      "fresh meals delivered",
+      "meal delivery service",
+      "cloud kitchen near me",
+    ],
+    authors: [{ name: siteName }],
+    category: "food",
     openGraph: {
-      title: siteName,
+      title: `${siteName} | Cloud Kitchen Delivery`,
       description:
-        "Fresh cloud kitchen meals prepared daily and delivered fast.",
+        "Fresh cloud kitchen meals prepared daily and delivered fast. Order online for quick delivery.",
       url: "/",
       siteName: siteName,
-      images: logo
-        ? [{ url: logo, width: 1200, height: 630, alt: `${siteName} featured meal` }]
-        : [{ url: "/images/hero-bg.png", width: 1200, height: 630, alt: `${siteName} featured meal` }],
+      locale: "en_US",
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
-      title: siteName,
+      title: `${siteName} | Cloud Kitchen Delivery`,
       description:
         "Fresh cloud kitchen meals prepared daily and delivered fast.",
-      images: logo ? [logo] : ["/images/hero-bg.png"],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
   };
 }

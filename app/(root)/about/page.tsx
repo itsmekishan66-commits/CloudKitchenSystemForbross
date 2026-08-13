@@ -7,7 +7,28 @@ import {
   FaUsers,
 } from "react-icons/fa";
 import Image from "next/image";
+import type { Metadata } from "next";
 import { getSiteSettings } from "@/lib/get-site-settings";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { siteName, location } = await getSiteSettings();
+  const area = location || "Biratnagar";
+
+  return {
+    title: "About Us",
+    description: `Learn about ${siteName} — ${area}'s cloud kitchen. Our story, fresh ingredients, fast delivery, and commitment to quality meals.`,
+    keywords: [
+      `about ${siteName}`,
+      "cloud kitchen",
+      "cloud kitchen business",
+      "fresh food delivery",
+      "quality food delivery",
+      "restaurant quality meals",
+      `best food delivery in ${area}`,
+      "how cloud kitchens work",
+    ],
+  };
+}
 
 const iconMap: Record<string, React.ReactNode> = {
   "Premium Ingredients": <FaUtensils />,
@@ -17,7 +38,8 @@ const iconMap: Record<string, React.ReactNode> = {
 };
 
 export default async function AboutPage() {
-  const { aboutContent } = await getSiteSettings();
+  const { siteName, aboutContent } = await getSiteSettings();
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
   const a = aboutContent as Record<string, unknown>;
   const heroBadge = (a.heroBadge as string) || "Nepal's Favorite Cloud Kitchen";
@@ -33,7 +55,7 @@ export default async function AboutPage() {
   const featuresSubtitle = (a.featuresSubtitle as string) || "";
   const features = (a.features as Array<{ title: string; desc: string }>) || [];
   const processTitle = (a.processTitle as string) || "How It Works";
-  const process = (a.process as Array<{ number: string; title: string; desc: string }>) || [];
+  const processSteps = (a.process as Array<{ number: string; title: string; desc: string }>) || [];
   const testimonialsTitle = (a.testimonialsTitle as string) || "Customer Reviews";
   const testimonials = (a.testimonials as Array<{ text: string; name: string; title: string }>) || [];
   const ctaTitle = (a.ctaTitle as string) || "Ready to Taste Something Amazing?";
@@ -42,6 +64,33 @@ export default async function AboutPage() {
 
   return (
     <main className="bg-black text-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "BreadcrumbList",
+                itemListElement: [
+                  { "@type": "ListItem", position: 1, name: "Home", item: `${baseUrl}/` },
+                  { "@type": "ListItem", position: 2, name: "About", item: `${baseUrl}/about` },
+                ],
+              },
+              {
+                "@type": "AboutPage",
+                name: `${siteName} | About Us`,
+                description: heroDescription,
+                mainEntity: {
+                  "@type": "Organization",
+                  name: siteName,
+                  description: heroDescription,
+                },
+              },
+            ],
+          }).replace(/</g, "\\u003c"),
+        }}
+      />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-linear-to-br from-gray-900 via-black to-gray-800">
@@ -163,15 +212,15 @@ export default async function AboutPage() {
       )}
 
       {/* Process */}
-      {process.length > 0 && (
+      {processSteps.length > 0 && (
         <section className="py-16 sm:py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="text-center mb-12 sm:mb-16">
               <h2 className="text-3xl sm:text-4xl font-bold text-white">{processTitle}</h2>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {process.map((step, idx) => (
-                <div key={step.number} className={`text-center p-6 sm:p-8 border border-gray-700 rounded-3xl ${process.length % 2 === 1 && idx === process.length - 1 ? 'col-span-2 lg:col-span-1' : ''}`}>
+              {processSteps.map((step, idx) => (
+                <div key={step.number} className={`text-center p-6 sm:p-8 border border-gray-700 rounded-3xl ${processSteps.length % 2 === 1 && idx === processSteps.length - 1 ? 'col-span-2 lg:col-span-1' : ''}`}>
                   <div className="text-4xl sm:text-6xl font-bold text-gray-700">{step.number}</div>
                   <h3 className="text-sm sm:text-2xl font-bold mt-4 text-white">{step.title}</h3>
                   <p className="text-gray-400 mt-3 text-sm sm:text-base">{step.desc}</p>

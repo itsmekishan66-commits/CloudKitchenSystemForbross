@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import CheckoutForm from "./_components/checkoutForm";
 import { ShoppingCart } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Checkout",
+  robots: { index: false, follow: false },
+};
 
 export default function CheckoutPage() {
   return (

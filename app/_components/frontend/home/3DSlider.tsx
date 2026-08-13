@@ -179,7 +179,8 @@ export default function CurvedLoopCarousel() {
                                     <Image src={safeImageUrl(item.image)} alt={item.title}
                                         fill
                                         className="object-cover"
-                                        priority
+                                        priority={offset === 0}
+                                        loading={offset === 0 ? undefined : "lazy"}
                                     />
 
                                     <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent" />

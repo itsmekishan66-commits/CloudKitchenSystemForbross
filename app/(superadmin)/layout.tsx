@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import Sidebar from "./_components/Sidebar";
 import { getCurrentUser } from "@/lib/auth";
 import { getUserPermissions } from "@/lib/getUserPermissions";
@@ -6,6 +7,10 @@ import { PermissionsProvider } from "@/lib/permission-context";
 import { ConfirmProvider } from "@/app/_components/ConfirmPopup";
 import { Toaster } from "react-hot-toast";
 import { rolePermissions, type Role } from "@/lib/rbac";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function SuperAdminLayout({
     children,

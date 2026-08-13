@@ -7,8 +7,21 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/admin/"],
+      disallow: [
+        "/login",
+        "/register",
+        "/forgot-password",
+        "/reset-password",
+        "/checkout",
+        "/success",
+        "/unauthorized",
+        "/dashboard",
+        "/user",
+        "/api",
+      ],
     },
     sitemap: `${baseUrl}/sitemap.xml`,
   };
 }
+
+export const revalidate = 86400;

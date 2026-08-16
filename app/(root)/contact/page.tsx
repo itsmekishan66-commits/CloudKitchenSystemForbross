@@ -96,7 +96,7 @@ export default async function ContactPage() {
 
       {/* Hero */}
       <section className="bg-linear-to-br from-gray-900 via-black to-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-18 text-center">
 
           <h1 className="mt-6 text-3xl sm:text-5xl lg:text-6xl font-bold text-white">
             {heroHeading}

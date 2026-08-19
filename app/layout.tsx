@@ -2,6 +2,7 @@ import "./globals.css";
 
 import type { Metadata } from "next";
 import Providers from "./providers";
+// import OfflineOverlay from "./_components/OfflineOverlay";
 import { getSiteSettings } from "@/lib/get-site-settings";
 import { auth } from "@/auth";
 
@@ -69,12 +70,14 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
+  // const { siteName, contactPhone } = await getSiteSettings();
 
   return (
     <html lang="en">
       <body>
         <Providers session={session}>
           {children}
+          {/* <OfflineOverlay siteName={siteName} contactPhone={contactPhone} /> */}
         </Providers>
       </body>
     </html>

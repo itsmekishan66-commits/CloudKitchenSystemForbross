@@ -1,6 +1,6 @@
 "use client";
 import { CircleArrowDown, Edit, Eye, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
@@ -35,7 +35,15 @@ export default function CustomersClient() {
   const confirm = useConfirm();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("customer");
+  // Role tabs live in the URL (?tab=...) so a refresh keeps the active tab.
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlTab = searchParams.get("tab");
+  const filter = urlTab === null
+    ? "customer"
+    : ["", "customer", "staff", "kitchen-manager", "payment-manager", "support-staff", "admin", "super-admin"].includes(urlTab)
+      ? urlTab
+      : "customer";
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const perPage = 20;
@@ -47,6 +55,12 @@ export default function CustomersClient() {
   const [error, setError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const router = useRouter();
+
+  const selectFilter = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
   
   //to download the file
    const handleDownload = (type: string) => {
@@ -259,7 +273,7 @@ export default function CustomersClient() {
         {tabs.map((t) => (
           <button
             key={t.value}
-            onClick={() => setFilter(t.value)}
+            onClick={() => selectFilter(t.value)}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
               filter === t.value
                 ? "bg-orange-500 text-white shadow"

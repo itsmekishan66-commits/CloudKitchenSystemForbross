@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Heart, Star, ShoppingBag } from "lucide-react";
+import Pagination from "@/app/_components/Pagination";
 
 type Favorite = {
   title: string;
@@ -12,6 +13,8 @@ type Favorite = {
 export default function FavoritesPage() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const perPage = 9;
 
   useEffect(() => {
     fetch("/api/user/favorites")
@@ -20,6 +23,11 @@ export default function FavoritesPage() {
       .catch(() => setFavorites([]))
       .finally(() => setLoading(false));
   }, []);
+
+  const pagedFavorites = useMemo(
+    () => favorites.slice((page - 1) * perPage, page * perPage),
+    [favorites, page],
+  );
 
   if (loading) {
     return (
@@ -53,7 +61,7 @@ export default function FavoritesPage() {
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {favorites.map((food, index) => (
+          {pagedFavorites.map((food, index) => (
             <div
               key={food.title}
               className="relative bg-zinc-900 rounded-2xl border border-zinc-800 p-6 hover:shadow-lg hover:shadow-zinc-800/50 transition-all group"
@@ -94,6 +102,14 @@ export default function FavoritesPage() {
           ))}
         </div>
       )}
+
+      <Pagination
+        total={favorites.length}
+        perPage={perPage}
+        page={page}
+        onPage={setPage}
+        label="Favorites"
+      />
     </div>
   );
 }

@@ -30,6 +30,7 @@ export async function getCurrentUser(): Promise<UserWithRole | null> {
       emailVerified: users.emailVerified,
       verificationOtp: users.verificationOtp,
       verificationOtpExpires: users.verificationOtpExpires,
+      lastLogin: users.lastLogin,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
       role: sql<string>`coalesce(${roles.name}, 'customer')`,

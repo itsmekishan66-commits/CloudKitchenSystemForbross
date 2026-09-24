@@ -22,6 +22,9 @@ export const users = mysqlTable("users", {
   emailVerified: boolean("email_verified").notNull().default(false),
   verificationOtp: varchar("verification_otp", { length: 6 }),
   verificationOtpExpires: timestamp("verification_otp_expires"),
+  // Tracks the most recent successful credential sign-in (updated on login);
+  // NULL for users who have never signed in or changed long ago.
+  lastLogin: timestamp("last_login"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
 });

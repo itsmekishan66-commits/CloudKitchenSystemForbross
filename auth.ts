@@ -2,6 +2,9 @@ import NextAuth from "next-auth";
 import type { User } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { scryptSync, timingSafeEqual } from "crypto";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { users } from "@/db/schemas";
 import { getUserByEmail } from "@/db/services";
 import { getUserRole } from "@/lib/getUserRole";
 
@@ -23,6 +26,14 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 
         const verified = verifyPassword(String(credentials.password).trim(), dbUser.passwordHash);
         if (!verified) return null;
+
+        // Record the successful sign-in for the admin "Last Login" column.
+        // Best-effort: a failed tracking update must not block the login.
+        try {
+          await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, dbUser.id));
+        } catch (err) {
+          console.error("Failed to update lastLogin", err);
+        }
 
         return {
           id: String(dbUser.id),

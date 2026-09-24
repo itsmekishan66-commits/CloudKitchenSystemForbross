@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 import Checkbox from "@/app/_components/Checkbox";
@@ -128,7 +129,17 @@ export default function SuppliersClient() {
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [products, setProducts] = useState<SupplierProduct[]>([]);
   const [settlements, setSettlements] = useState<SupplierSettlement[]>([]);
-  const [detailTab, setDetailTab] = useState<"products" | "settlements">("products");
+  // Detail tabs live in the URL (?tab=...) so a refresh keeps the active tab.
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const urlTab = searchParams.get("tab");
+  const detailTab: "products" | "settlements" = urlTab === "settlements" ? "settlements" : "products";
+  const selectDetailTab = (tab: "products" | "settlements") => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   // Product form modal
   const [showProductModal, setShowProductModal] = useState(false);
@@ -463,7 +474,7 @@ export default function SuppliersClient() {
   // Select supplier for detail view
   function selectSupplier(s: Supplier) {
     setSelectedSupplier(s);
-    setDetailTab("products");
+    selectDetailTab("products");
     loadProducts(s.id);
     loadSettlements(s.id);
   }
@@ -555,10 +566,10 @@ export default function SuppliersClient() {
 
         {/* Tabs */}
         <div className="flex flex-wrap gap-2 mb-6">
-          <button onClick={() => setDetailTab("products")} className={`px-2 py-1 md:px-4 md:py-2 rounded-lg font-medium ${detailTab === "products" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
+          <button onClick={() => selectDetailTab("products")} className={`px-2 py-1 md:px-4 md:py-2 rounded-lg font-medium ${detailTab === "products" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
             <Package size={16} className="inline mr-1" /> Products ({products.length})
           </button>
-          <button onClick={() => setDetailTab("settlements")} className={`px-2 py-1 md:px-4 md:py-2 rounded-lg font-medium ${detailTab === "settlements" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
+          <button onClick={() => selectDetailTab("settlements")} className={`px-2 py-1 md:px-4 md:py-2 rounded-lg font-medium ${detailTab === "settlements" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
             <Landmark size={16} className="inline mr-1" /> Settlements & Dues
           </button>
         </div>

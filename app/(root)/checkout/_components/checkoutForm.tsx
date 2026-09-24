@@ -25,6 +25,25 @@ type AppliedCoupon = {
   discountValue: number;
 };
 
+/** Build a hidden form and POST it to eSewa (browser-side form submission). */
+function submitEsewaForm(action: string, fields: Record<string, string>) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = action;
+  form.style.display = "none";
+
+  for (const [name, value] of Object.entries(fields)) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+
+  document.body.appendChild(form);
+  form.submit();
+}
+
 export default function CheckoutForm() {
   const router = useRouter();
   const { items, totalPrice, clearCart } = useCart();
@@ -192,22 +211,54 @@ export default function CheckoutForm() {
 
       setLoading(true);
 
+      const orderPayload = {
+        customerName: form.customerName,
+        phone: form.phone,
+        address: form.streetAddress,
+        zoneId: selectedZoneId,
+        deliveryCharge,
+        paymentMethod,
+        items,
+        total: grandTotal,
+        couponCode: appliedCoupon?.code || undefined,
+        couponDiscount,
+      };
+
       try {
+        if (paymentMethod === "ESEWA" || paymentMethod === "KHALTI") {
+          // Online gateway payment (pay-on-success): the order is NOT
+          // created here. We validate+prices the payload server-side and
+          // open a payment session; the order is created only after the
+          // gateway confirms the payment on the return/success page.
+          // The cart is only cleared once the payment is confirmed (so a
+          // cancelled or failed payment does not wipe the cart).
+          const provider = paymentMethod === "ESEWA" ? "esewa" : "khalti";
+
+          const initResponse = await fetch(`/api/payments/${provider}/initiate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(orderPayload),
+          });
+          const initData = await initResponse.json();
+
+          if (!initResponse.ok) {
+            setError(initData.error ?? "Unable to start online payment. Please try again.");
+            return;
+          }
+
+          if (paymentMethod === "ESEWA") {
+            submitEsewaForm(initData.formAction, initData.fields);
+          } else {
+            window.location.href = initData.paymentUrl;
+          }
+          return;
+        }
+
+        // COD — placed directly, as usual.
         const response = await fetch("/api/orders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customerName: form.customerName,
-            phone: form.phone,
-            address: form.streetAddress,
-            zoneId: selectedZoneId,
-            deliveryCharge,
-            paymentMethod,
-            items,
-            total: grandTotal,
-            couponCode: appliedCoupon?.code || undefined,
-            couponDiscount,
-          }),
+          body: JSON.stringify(orderPayload),
         });
 
         const data = (await response.json()) as OrderResponse;
@@ -217,8 +268,10 @@ export default function CheckoutForm() {
           return;
         }
 
+        const orderId = data.orderId;
+
         clearCart();
-        router.push(`/success?orderId=${data.orderId ?? ""}`);
+        router.push(`/success?orderId=${orderId ?? ""}`);
       } catch {
         setError("Unable to reach the server. Please try again.");
       } finally {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -148,9 +148,19 @@ export default function AccountDetailClient({ accountId }: { accountId: string }
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "received" | "paid">("all");
   const [page, setPage] = useState(1);
   const PER_PAGE = 10;
+  // Tabs live in the URL (?tab=...) so a refresh keeps the active tab.
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlTab = searchParams.get("tab");
+  const activeTab: "all" | "received" | "paid" =
+    urlTab === "received" || urlTab === "paid" ? urlTab : "all";
+  const selectTab = (tab: "all" | "received" | "paid") => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -392,7 +402,7 @@ export default function AccountDetailClient({ accountId }: { accountId: string }
         className="flex items-center gap-2 bg-white rounded-2xl border border-gray-100 p-2"
       >
         <button
-          onClick={() => { setActiveTab("all"); setPage(1); }}
+          onClick={() => { selectTab("all"); setPage(1); }}
           className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
             activeTab === "all"
               ? "bg-orange-500 text-white"
@@ -402,7 +412,7 @@ export default function AccountDetailClient({ accountId }: { accountId: string }
           All Transactions
         </button>
         <button
-          onClick={() => { setActiveTab("received"); setPage(1); }}
+          onClick={() => { selectTab("received"); setPage(1); }}
           className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
             activeTab === "received"
               ? "bg-emerald-500 text-white"
@@ -412,7 +422,7 @@ export default function AccountDetailClient({ accountId }: { accountId: string }
           Received Only
         </button>
         <button
-          onClick={() => { setActiveTab("paid"); setPage(1); }}
+          onClick={() => { selectTab("paid"); setPage(1); }}
           className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
             activeTab === "paid"
               ? "bg-red-500 text-white"

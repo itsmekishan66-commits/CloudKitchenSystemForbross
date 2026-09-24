@@ -61,6 +61,7 @@ export async function getUsers(options?: { excludeRole?: string; excludeGuests?:
       isGuest: users.isGuest,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
+      lastLogin: users.lastLogin,
       role: roles.name,
     })
     .from(users)

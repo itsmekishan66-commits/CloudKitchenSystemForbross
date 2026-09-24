@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LifeBuoy, Plus, X, Clock, AlertCircle, CheckCircle2, CircleDot, Loader2, Send } from "lucide-react";
 import toast from "react-hot-toast";
+import Pagination from "@/app/_components/Pagination";
 import { formatDate, formatDateTime } from "@/utils/format";
 
 interface SupportTicket {
@@ -45,6 +46,8 @@ const priorityMeta: Record<string, string> = {
 export default function SupportPage() {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const perPage = 8;
 
   const [formOpen, setFormOpen] = useState(false);
   const [subject, setSubject] = useState("");
@@ -71,6 +74,11 @@ export default function SupportPage() {
       active = false;
     };
   }, []);
+
+  const pagedTickets = useMemo(
+    () => tickets.slice((page - 1) * perPage, page * perPage),
+    [tickets, page],
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -168,7 +176,7 @@ export default function SupportPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {tickets.map((ticket) => {
+          {pagedTickets.map((ticket) => {
             const StatusIcon = statusMeta[ticket.status]?.icon ?? CircleDot;
             return (
               <button
@@ -202,6 +210,14 @@ export default function SupportPage() {
           })}
         </div>
       )}
+
+      <Pagination
+        total={tickets.length}
+        perPage={perPage}
+        page={page}
+        onPage={setPage}
+        label="Tickets"
+      />
 
       {/* New ticket modal */}
       {formOpen && (

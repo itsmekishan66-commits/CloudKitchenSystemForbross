@@ -53,6 +53,6 @@ export function isValidOrderStatus(
 
 export function isValidPaymentMethod(
   method: string
-): method is "COD" | "ONLINE" {
-  return ["COD", "ONLINE"].includes(method);
+): method is "COD" | "ONLINE" | "ESEWA" | "KHALTI" {
+  return ["COD", "ONLINE", "ESEWA", "KHALTI"].includes(method);
 }

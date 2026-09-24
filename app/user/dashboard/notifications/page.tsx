@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   Clock,
@@ -11,6 +11,7 @@ import {
   Package,
 } from "lucide-react";
 import Link from "next/link";
+import Pagination from "@/app/_components/Pagination";
 
 type Notification = {
   id: number;
@@ -73,6 +74,8 @@ function relativeTime(dateStr: string) {
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const perPage = 8;
 
   useEffect(() => {
     fetch("/api/user/orders")
@@ -92,6 +95,11 @@ export default function NotificationsPage() {
       .catch(() => setNotifications([]))
       .finally(() => setLoading(false));
   }, []);
+
+  const pagedNotifications = useMemo(
+    () => notifications.slice((page - 1) * perPage, page * perPage),
+    [notifications, page],
+  );
 
   if (loading) {
     return (
@@ -125,7 +133,7 @@ export default function NotificationsPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {notifications.map((notif) => {
+          {pagedNotifications.map((notif) => {
             const Icon = getStatusIcon(notif.status);
 
             return (
@@ -167,6 +175,14 @@ export default function NotificationsPage() {
           })}
         </div>
       )}
+
+      <Pagination
+        total={notifications.length}
+        perPage={perPage}
+        page={page}
+        onPage={setPage}
+        label="Notifications"
+      />
     </div>
   );
 }

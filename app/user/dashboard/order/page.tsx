@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Package,
   Search,
@@ -12,6 +13,7 @@ import {
   Star,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import Pagination from "@/app/_components/Pagination";
 
 type OrderItem = {
   id: number;
@@ -202,10 +204,12 @@ function OrderCard({
   order,
   onReviewSubmitted,
   userReviews,
+  highlighted = false,
 }: {
   order: Order;
   onReviewSubmitted: () => void;
   userReviews: Map<number, number>;
+  highlighted?: boolean;
 }) {
   const [ratingModal, setRatingModal] = useState<{
     menuItemId: number;
@@ -213,7 +217,14 @@ function OrderCard({
   } | null>(null);
 
   return (
-    <div className="bg-zinc-900 rounded-2xl shadow-sm border border-zinc-800 overflow-hidden transition-all hover:shadow-md">
+    <div
+      id={`order-${order.id}`}
+      className={`bg-zinc-900 rounded-2xl shadow-sm border overflow-hidden transition-all duration-500 ${
+        highlighted
+          ? "border-orange-500 ring-2 ring-orange-500/60 shadow-lg shadow-orange-500/30 scale-[1.01]"
+          : "border-zinc-800 hover:shadow-md"
+      }`}
+    >
       <div className="p-5 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-orange-900/30 flex items-center justify-center">
@@ -295,12 +306,20 @@ function OrderCard({
 }
 
 export default function OrdersPage() {
+  const searchParams = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [refreshKey, setRefreshKey] = useState(0);
   const [userReviews, setUserReviews] = useState<Map<number, number>>(new Map());
+  const [highlightedId, setHighlightedId] = useState<number | null>(() => {
+    const raw = searchParams.get("highlight");
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) ? n : null;
+  });
+  const [page, setPage] = useState(1);
+  const perPage = 5;
 
   useEffect(() => {
     fetch("/api/user/orders")
@@ -333,6 +352,36 @@ export default function OrdersPage() {
     return matchesSearch && matchesFilter;
   });
 
+  const pagedOrders = filteredOrders.slice((page - 1) * perPage, page * perPage);
+
+  // When arriving with ?highlight=<orderId> (from the Payments page),
+  // jump to the page containing that order so its card is rendered.
+  useEffect(() => {
+    if (loading || highlightedId === null) return;
+    const timer = setTimeout(() => {
+      const idx = filteredOrders.findIndex((o) => o.id === highlightedId);
+      if (idx >= 0) setPage(Math.floor(idx / perPage) + 1);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [loading, highlightedId, filteredOrders]);
+
+  // Once the correct page is rendered, scroll to it and keep it highlighted.
+  useEffect(() => {
+    if (loading || highlightedId === null) return;
+    const timer = setTimeout(() => {
+      document
+        .getElementById(`order-${highlightedId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [loading, highlightedId, page]);
+
+  useEffect(() => {
+    if (highlightedId === null) return;
+    const timer = setTimeout(() => setHighlightedId(null), 4000);
+    return () => clearTimeout(timer);
+  }, [highlightedId]);
+
   const statuses = ["All", "Pending", "Preparing", "Out For Delivery", "Delivered", "Cancelled"];
 
   if (loading) {
@@ -360,7 +409,10 @@ export default function OrdersPage() {
             type="text"
             placeholder="Search by order ID or item..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="w-full pl-10 pr-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm text-white placeholder-zinc-400"
           />
         </div>
@@ -368,7 +420,10 @@ export default function OrdersPage() {
           {statuses.map((s) => (
             <button
               key={s}
-              onClick={() => setFilter(s)}
+              onClick={() => {
+                setFilter(s);
+                setPage(1);
+              }}
               className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${filter === s
                   ? "bg-orange-500 text-white shadow-md"
                   : "bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700"
@@ -404,16 +459,25 @@ export default function OrdersPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredOrders.map((order) => (
+          {pagedOrders.map((order) => (
             <OrderCard
               key={order.id}
               order={order}
               onReviewSubmitted={() => setRefreshKey((k) => k + 1)}
               userReviews={userReviews}
+              highlighted={order.id === highlightedId}
             />
           ))}
         </div>
       )}
+
+      <Pagination
+        total={filteredOrders.length}
+        perPage={perPage}
+        page={page}
+        onPage={setPage}
+        label="Orders"
+      />
     </div>
   );
 }

@@ -6,6 +6,23 @@ import { useRouter } from "next/navigation";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 import Checkbox from "@/app/_components/Checkbox";
 
+// Payment method badge colors for orders.
+const PAYMENT_METHOD_BADGE: Record<string, { label: string; className: string }> = {
+  COD: { label: "COD", className: "bg-gray-100 text-gray-600" },
+  ONLINE: { label: "ONLINE", className: "bg-blue-50 text-blue-700" },
+  ESEWA: { label: "ESEWA", className: "bg-green-50 text-green-700" },
+  KHALTI: { label: "KHALTI", className: "bg-purple-50 text-purple-700" },
+};
+
+function PaymentMethodBadge({ method }: { method: string }) {
+  const cfg = PAYMENT_METHOD_BADGE[method] || { label: method, className: "bg-gray-100 text-gray-600" };
+  return (
+    <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${cfg.className}`}>
+      {cfg.label}
+    </span>
+  );
+}
+
 interface OrderItem {
   id: number;
   title: string;
@@ -383,7 +400,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   <p><span className="text-gray-400">Address:</span> {order.address}</p>
                   {order.landmarkName && <p><span className="text-gray-400">Landmark:</span> {order.landmarkName}</p>}
                   {order.userEmail && <p><span className="text-gray-400">Email:</span> {order.userEmail}</p>}
-                  <p><span className="text-gray-400">Payment:</span> {order.paymentMethod}</p>
+                  <p><span className="text-gray-400">Payment:</span> <PaymentMethodBadge method={order.paymentMethod} /></p>
                   {order.notes && <p><span className="text-gray-400">Note:</span> {order.notes}</p>}
                   {!order.isGuest && order.userId && Number(order.userCreditBalance || 0) > 0 && (
                     <p><span className="text-gray-400">Credit:</span> Rs {Number(order.userCreditBalance).toFixed(2)}</p>

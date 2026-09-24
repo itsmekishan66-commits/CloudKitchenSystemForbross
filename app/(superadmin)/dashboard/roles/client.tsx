@@ -17,16 +17,33 @@ interface User {
   role: string;
   roleId: number | null;
   createdAt: string;
+  lastLogin: string | null;
 }
+
+// Users created by db/seed/users.ts ("legacy" demo accounts). These are system
+// accounts, so their Edit/Delete actions are hidden in the table.
+const SEEDED_EMAILS = new Set([
+  "admin@example.com",
+  "manager@example.com",
+  "payment@example.com",
+  "staff@example.com",
+  "supportstaff@example.com",
+  "customer@example.com",
+]);
 
 export default function RolesClient() {
   const permissions = usePermissions();
   const can = (p: string) => permissions.includes(p);
   const confirm = useConfirm();
+
+  // "Legacy" users = super-admin (env-configured, no static email) or any
+  // account seeded by db/seed/users.ts. They keep role/perms but are protected
+  // from edit/delete in the table.
+  const isSeededUser = (user: User) =>
+    user.role === "super-admin" || SEEDED_EMAILS.has((user.email ?? "").toLowerCase());
   const [showCreateRole, setShowCreateRole] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const perPage = 20;
@@ -214,23 +231,6 @@ export default function RolesClient() {
   }, [editUser]);
 
   // updates a user's role via PATCH API and refreshes the list
-  async function updateRole(id: number, role: string) {
-    setMessage("");
-    try {
-      const res = await fetch("/api/superadmin/roles", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, role }),
-      });
-      const data = await res.json();
-      if (data.error) { setMessage(data.error); return; }
-      setMessage(`User #${id} role updated to ${role}`);
-      loadUsers();
-    } catch {
-      setMessage("Failed to update role");
-    }
-  }
-
   const roleColors: Record<string, string> = {
     "super-admin": "bg-red-200 text-red-700",
     "admin": "bg-purple-200 text-purple-700",
@@ -273,10 +273,6 @@ export default function RolesClient() {
         </div>
       </div>
 
-      {message && (
-        <div className="mb-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-700">{message}</div>
-      )}
-
       <div className="rounded-xl bg-white shadow overflow-x-auto no-scrollbar">
         <table className="w-full">
           <thead className="bg-gray-200">
@@ -284,7 +280,7 @@ export default function RolesClient() {
               <th className="p-4 text-left">Name</th>
               <th className="p-4 text-left">Email</th>
               <th className="p-4 text-left">Current Role</th>
-              <th className="p-4 text-left">Change Role</th>
+              <th className="p-4 text-left">Last Login</th>
               <th className="p-4 text-left">Actions</th>
             </tr>
           </thead>
@@ -302,49 +298,17 @@ export default function RolesClient() {
                     </span>
                   </td>
                   <td className="p-4">
-                    {user.role === "super-admin" ? (
-                      <span className="text-sm text-gray-400 italic">Cannot change</span>
-                    ) : can("UPDATE_ROLES") ? (
-                      <select
-                        key={`${user.id}-${user.role}`}
-                        defaultValue={user.role}
-                        onChange={async (e) => {
-                          const newRole = e.target.value;
-                          if (newRole !== user.role) {
-                            const ok = await confirm({
-                              title: "Confirm Role Change",
-                              message: `Are you sure you want to change ${user.name}'s role from "${user.role}" to "${newRole}"?`,
-                              confirmText: "Confirm",
-                              variant: "warning",
-                            });
-                            if (ok) updateRole(user.id, newRole);
-                          }
-                        }}
-                        className="rounded border px-2 py-1 text-sm"
-                      >
-                        {![
-                          "customer", "staff", "kitchen-manager",
-                          "payment-manager", "support-staff", "admin", "super-admin"
-                        ].includes(user.role) && (
-                          <option value={user.role}>{user.role}</option>
-                        )}
-                        <option value="customer">Customer</option>
-                        <option value="staff">Staff</option>
-                        <option value="kitchen-manager">Kitchen Manager</option>
-                        <option value="payment-manager">Payment Manager</option>
-                        <option value="support-staff">Support Staff</option>
-                        <option value="admin">Admin</option>
-                        <option value="super-admin">Super Admin</option>
-                      </select>
-                    ) : (
-                      <span className={`rounded-full px-3 py-1 text-sm ${roleColors[user.role] ?? "bg-gray-200 text-gray-700"}`}>
-                        {user.role}
+                    {user.lastLogin ? (
+                      <span className="text-sm text-gray-600 whitespace-nowrap">
+                        {new Date(user.lastLogin).toLocaleString()}
                       </span>
+                    ) : (
+                      <span className="text-sm text-gray-400 italic">Never logged in</span>
                     )}
                   </td>
                   <td className="p-4">
                     <div className="flex gap-4">
-                      {can("UPDATE_ROLES") && (
+                      {can("UPDATE_ROLES") && !isSeededUser(user) && (
                       <button
                         onClick={() => {
                           setEditUser(user);
@@ -355,7 +319,7 @@ export default function RolesClient() {
                         <Edit size={22} />
                       </button>
                       )}
-                      {can("DELETE_ROLES") && (
+                      {can("DELETE_ROLES") && !isSeededUser(user) && (
                       <button
                         onClick={async () => {
                           const ok = await confirm({

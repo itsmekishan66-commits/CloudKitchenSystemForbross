@@ -190,6 +190,20 @@
       "when": 1786091801743,
       "tag": "0026_strong_captain_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "5",
+      "when": 1790160751387,
+      "tag": "0027_material_ironclad",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "5",
+      "when": 1790243622417,
+      "tag": "0028_open_xorn",
+      "breakpoints": true
     }
   ]
 }

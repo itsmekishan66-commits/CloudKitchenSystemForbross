@@ -1,4 +1,7 @@
+"use client";
+import { useState } from "react";
 import { Heart, Star } from "lucide-react";
+import Pagination from "@/app/_components/Pagination";
 
 type FavoriteFood = {
   title: string;
@@ -7,6 +10,11 @@ type FavoriteFood = {
 };
 
 export default function FavoriteFoods({ favorites }: { favorites: FavoriteFood[] }) {
+  const [page, setPage] = useState(1);
+  const perPage = 6;
+  const start = (page - 1) * perPage;
+  const visibleFavorites = favorites.slice(start, start + perPage);
+
   if (favorites.length === 0) {
     return (
       <div className="bg-zinc-900 rounded-2xl p-8 shadow-sm border border-zinc-800 text-center">
@@ -25,12 +33,12 @@ export default function FavoriteFoods({ favorites }: { favorites: FavoriteFood[]
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
-        {favorites.map((food, index) => (
+        {visibleFavorites.map((food, index) => (
           <div
             key={food.title}
             className="relative border border-zinc-800 rounded-xl p-4 hover:shadow-md hover:shadow-zinc-800/50 transition-shadow"
           >
-            {index === 0 && (
+            {start + index === 0 && (
               <div className="absolute -top-2 -right-2 bg-yellow-400 rounded-full p-1.5 shadow-lg">
                 <Star size={14} className="text-white fill-white" />
               </div>
@@ -53,6 +61,14 @@ export default function FavoriteFoods({ favorites }: { favorites: FavoriteFood[]
           </div>
         ))}
       </div>
+
+      <Pagination
+        total={favorites.length}
+        perPage={perPage}
+        page={page}
+        onPage={setPage}
+        label="Favorites"
+      />
     </div>
   );
 }

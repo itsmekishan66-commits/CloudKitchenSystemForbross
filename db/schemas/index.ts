@@ -13,6 +13,7 @@ export * from "./rolePermissions";
 export * from "./site-settings";
 export * from "./contact-messages";
 export * from "./payment";
+export * from "./payment-transactions";
 export * from "./suppliers";
 export * from "./delivery-zones";
 export * from "./pending-registrations";

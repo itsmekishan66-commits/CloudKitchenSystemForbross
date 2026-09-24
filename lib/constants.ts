@@ -9,7 +9,7 @@ export const ORDER_STATUSES = [
   "Cancelled",
 ] as const;
 
-export const PAYMENT_METHODS = ["COD", "ONLINE"] as const;
+export const PAYMENT_METHODS = ["COD", "ONLINE", "ESEWA", "KHALTI"] as const;
 
 // this is the code we used for static data before , which is now not useful as we adding roles and permission dynamically
 // export const USER_ROLES = [

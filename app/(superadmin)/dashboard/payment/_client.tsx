@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 import { motion } from "framer-motion";
@@ -77,6 +77,43 @@ interface PaymentAccount {
   status: string;
 }
 
+type GatewayTxnStatus =
+  | "initiated"
+  | "success"
+  | "failed"
+  | "cancelled"
+  | "expired"
+  | "pending";
+
+interface GatewayTransaction {
+  id: number;
+  orderId: number | null;
+  provider: "esewa" | "khalti";
+  transactionUuid: string;
+  pidx: string | null;
+  gatewayRefId: string | null;
+  amount: number;
+  status: GatewayTxnStatus;
+  createdAt: string;
+  updatedAt: string;
+  customerName: string | null;
+  orderPaymentMethod: string | null;
+}
+
+interface GatewayStatus {
+  esewa: { configured: boolean; mode: "test" | "live" };
+  khalti: { configured: boolean; mode: "test" | "live" };
+}
+
+const gatewayStatusConfig: Record<GatewayTxnStatus, { label: string; color: string; bg: string }> = {
+  initiated: { label: "Initiated", color: "text-amber-700", bg: "bg-amber-50" },
+  success: { label: "Success", color: "text-emerald-700", bg: "bg-emerald-50" },
+  failed: { label: "Failed", color: "text-red-700", bg: "bg-red-50" },
+  cancelled: { label: "Cancelled", color: "text-gray-600", bg: "bg-gray-100" },
+  expired: { label: "Expired", color: "text-gray-500", bg: "bg-gray-100" },
+  pending: { label: "Pending", color: "text-blue-700", bg: "bg-blue-50" },
+};
+
 interface DueGroup {
   personName: string;
   dues: Due[];
@@ -136,6 +173,22 @@ const statusConfig = {
   partial: { label: "Partial", color: "text-blue-700", bg: "bg-blue-50", dot: "bg-blue-400" },
   paid: { label: "Paid", color: "text-emerald-700", bg: "bg-emerald-50", dot: "bg-emerald-400" },
 };
+
+/**
+ * For eSewa/Khalti online receipts, tell apart payments that came in from the
+ * website checkout (gateway) vs ones recorded manually in the back-office
+ * (e.g. a COD order the customer later paid online).
+ */
+function paymentSourceBadge(t: Transaction) {
+  if (t.type !== "online_received" || (t.paymentMethod !== "esewa" && t.paymentMethod !== "khalti")) {
+    return null;
+  }
+  const id = t.transactionId || "";
+  const isGateway = id.startsWith("ESEWA-") || id.startsWith("KHALTI-");
+  return isGateway
+    ? { label: "Website", color: "text-green-700", bg: "bg-green-50" }
+    : { label: "Manual entry", color: "text-amber-700", bg: "bg-amber-50" };
+}
 
 function Pagination({
   total,
@@ -417,7 +470,17 @@ export default function PaymentPage() {
   const [accounts, setAccounts] = useState<(PaymentAccount & { totalReceived: number; totalPaid: number; closingBalance: number })[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [activeTab, setActiveTab] = useState<"overview" | "accounts">("overview");
+  // Tabs live in the URL (?tab=...) so a refresh keeps the active tab.
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlTab = searchParams.get("tab");
+  const activeTab: "overview" | "accounts" | "gateway" =
+    urlTab === "accounts" || urlTab === "gateway" ? urlTab : "overview";
+  const selectTab = (tab: "overview" | "accounts" | "gateway") => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
   const [showAccountForm, setShowAccountForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState<PaymentAccount | null>(null);
   const [accountForm, setAccountForm] = useState({ accountName: "", holderName: "", method: "esewa", accountNumber: "", phoneNumber: "", bankName: "", branch: "", openingBalance: "", qrCode: "", notes: "" });
@@ -426,6 +489,34 @@ export default function PaymentPage() {
   const [qrError, setQrError] = useState("");
   const [accountSearch, setAccountSearch] = useState("");
   const [accountErrors, setAccountErrors] = useState<Record<string, string>>({});
+
+  const [gatewayTransactions, setGatewayTransactions] = useState<GatewayTransaction[]>([]);
+  const [gatewayStatus, setGatewayStatus] = useState<GatewayStatus | null>(null);
+  const [gatewayPage, setGatewayPage] = useState(1);
+
+  async function fetchGatewayData() {
+    setGatewayPage(1);
+    try {
+      const res = await fetch("/api/payments/gateway-transactions");
+      if (!res.ok) {
+        setGatewayTransactions([]);
+        setGatewayStatus(null);
+        return;
+      }
+      const data = await res.json();
+      setGatewayTransactions(
+        (data.transactions || []).map((t: Record<string, unknown>) => ({
+          ...t,
+          amount: Number(t.amount),
+          createdAt: t.createdAt ? (t.createdAt as string).slice(0, 10) : "",
+          updatedAt: t.updatedAt ? (t.updatedAt as string).slice(0, 10) : "",
+        })) as GatewayTransaction[]
+      );
+      setGatewayStatus(data.status || null);
+    } catch (err) {
+      console.error("Failed to load gateway transactions", err);
+    }
+  }
 
   async function fetchPayments() {
     const [pRes, aRes] = await Promise.all([
@@ -477,6 +568,15 @@ export default function PaymentPage() {
       cancelled = true;
     };
   }, []);
+
+  // Load gateway data whenever the Gateway tab becomes active — this covers
+  // both tab clicks (URL change) and a refresh landing on ?tab=gateway.
+  useEffect(() => {
+    if (activeTab === "gateway") {
+      const t = setTimeout(() => { void fetchGatewayData(); }, 0);
+      return () => clearTimeout(t);
+    }
+  }, [activeTab]);
 
   const PER_PAGE = 10;
 
@@ -916,6 +1016,7 @@ export default function PaymentPage() {
   const paginatedDues = useMemo(() => supplierGroups.slice(0, duesPage * PER_PAGE), [supplierGroups, duesPage]);
   const paginatedAccountBalances = useMemo(() => accounts.slice(0, accountBalancesPage * PER_PAGE), [accounts, accountBalancesPage]);
   const paginatedAccounts = useMemo(() => filteredAccounts.slice(0, accountsPage * PER_PAGE), [filteredAccounts, accountsPage]);
+  const paginatedGatewayTransactions = useMemo(() => gatewayTransactions.slice(0, gatewayPage * PER_PAGE), [gatewayTransactions, gatewayPage]);
 
   // const hasMoreTx = paginatedTx.length < filteredTransactions.length;
   // const hasMoreReceivables = paginatedReceivables.length < customerGroups.length;
@@ -974,16 +1075,22 @@ export default function PaymentPage() {
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-full sm:w-fit flex-wrap">
         <button
-          onClick={() => setActiveTab("overview")}
-          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "overview" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+          onClick={() => selectTab("overview")}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "overview" ? "bg-orange-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
         >
           Overview
         </button>
         <button
-          onClick={() => setActiveTab("accounts")}
-          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "accounts" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+          onClick={() => selectTab("accounts")}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "accounts" ? "bg-orange-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
         >
           Payment Accounts
+        </button>
+        <button
+          onClick={() => selectTab("gateway")}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "gateway" ? "bg-orange-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+        >
+          Gateway
         </button>
       </div>
 
@@ -1405,6 +1512,14 @@ export default function PaymentPage() {
                           <div className="flex items-center gap-1.5">
                             <PaymentIcon size={12} className="text-black" />
                             <span className="text-sm capitalize text-gray-500">{t.paymentMethod}</span>
+                            {(() => {
+                              const src = paymentSourceBadge(t);
+                              return src ? (
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${src.color} ${src.bg} uppercase tracking-wide`}>
+                                  {src.label}
+                                </span>
+                              ) : null;
+                            })()}
                           </div>
                         </td>
                         <td className="px-5 py-4 text-sm text-gray-400">{t.createdAt}</td>
@@ -1786,7 +1901,149 @@ export default function PaymentPage() {
       </div>
       )}
 
-      {/* Add/Edit Account Modal */}
+      {/* Gateway Tab */}
+      {activeTab === "gateway" && (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-lg font-bold">Gateway Transactions</h2>
+          <p className="text-sm text-gray-500">Online payments verified via eSewa / Khalti (website checkout)</p>
+        </div>
+
+        {/* Gateway config status cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[
+            {
+              title: "eSewa",
+              configured: gatewayStatus?.esewa.configured ?? false,
+              mode: gatewayStatus?.esewa.mode ?? "test",
+              icon: Smartphone,
+              color: "bg-green-100",
+              iconColor: "text-green-600",
+            },
+            {
+              title: "Khalti",
+              configured: gatewayStatus?.khalti.configured ?? false,
+              mode: gatewayStatus?.khalti.mode ?? "test",
+              icon: Smartphone,
+              color: "bg-purple-100",
+              iconColor: "text-purple-600",
+            },
+          ].map((card) => {
+            const Icon = card.icon;
+            return (
+              <div key={card.title} className="bg-white rounded-2xl p-5 border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl ${card.color} flex items-center justify-center`}>
+                      <Icon size={18} className={card.iconColor} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">{card.title}</p>
+                      <p className="text-xs text-gray-400">
+                        {card.configured ? "Configured" : "Not configured"}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${card.configured ? "text-emerald-700 bg-emerald-50" : "text-gray-500 bg-gray-100"}`}>
+                    {card.mode === "test" ? "Test Mode" : "Live Mode"}
+                  </span>
+                </div>
+                {!card.configured && (
+                  <p className="mt-3 text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
+                    Set the {card.title === "eSewa" ? "ESEWA_SECRET_KEY" : "KHALTI_SECRET_KEY"} environment variable to accept live {card.title} payments.
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Gateway transactions table */}
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center shadow-md">
+                <Smartphone size={16} className="text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Gateway Payment Log</h3>
+                <p className="text-xs text-gray-400">{gatewayTransactions.length} sessions</p>
+              </div>
+            </div>
+          </div>
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-50">
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Provider</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Order</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">UUID / PIDX</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Gateway Ref</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Amount</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Status</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedGatewayTransactions.map((t, i) => {
+                  const sc = gatewayStatusConfig[t.status] || gatewayStatusConfig.pending;
+                  const providerLabel = t.provider === "esewa" ? "eSewa" : "Khalti";
+                  const providerColor = t.provider === "esewa" ? "text-green-700 bg-green-50" : "text-purple-700 bg-purple-50";
+                  return (
+                    <motion.tr
+                      key={t.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: i * 0.03 }}
+                      className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors"
+                    >
+                      <td className="px-5 py-4">
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${providerColor}`}>
+                          {providerLabel}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="text-sm font-medium">
+                          {t.orderId ? `Order #${t.orderId}` : "Order #—"}
+                        </p>
+                        {t.customerName && (
+                          <p className="text-xs text-gray-400">{t.customerName}</p>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-xs font-mono text-gray-500 max-w-40 truncate" title={t.transactionUuid}>
+                        {t.transactionUuid}
+                        {t.pidx && (
+                          <span className="block text-[10px] text-gray-400">pidx: {t.pidx}</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-xs font-mono text-gray-500">
+                        {t.gatewayRefId || "-"}
+                      </td>
+                      <td className="px-5 py-4 text-right text-sm font-semibold">Rs {t.amount.toLocaleString()}</td>
+                      <td className="px-5 py-4">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${sc.color} ${sc.bg}`}>
+                          {sc.label}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-sm text-gray-400">{t.createdAt}</td>
+                    </motion.tr>
+                  );
+                })}
+                {gatewayTransactions.length === 0 && (
+                  <tr><td colSpan={7} className="text-center text-gray-400 py-8 text-sm">No gateway transactions yet</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="p-4 border-t border-gray-50 flex items-center justify-between">
+            <span className="text-xs text-gray-400">
+              Showing {paginatedGatewayTransactions.length} of {gatewayTransactions.length}
+            </span>
+            <Pagination total={gatewayTransactions.length} perPage={PER_PAGE} page={gatewayPage} onPage={setGatewayPage} />
+          </div>
+        </div>
+      </div>
+      )}
       {showAccountForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-[95vw] sm:max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">

@@ -9,7 +9,7 @@ export const orders = mysqlTable("orders", {
   customerName: varchar("customer_name", { length: 160 }).notNull(),
   phone: varchar("phone", { length: 40 }).notNull(),
   address: varchar("address", { length: 255 }).notNull(),
-  paymentMethod: mysqlEnum("payment_method", ["COD", "ONLINE"]).notNull().default("COD"),
+  paymentMethod: mysqlEnum("payment_method", ["COD", "ONLINE", "ESEWA", "KHALTI"]).notNull().default("COD"),
   status: mysqlEnum("status", ["Pending", "Preparing", "Out For Delivery", "Delivered", "Cancelled",]).notNull().default("Pending"),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   deliveryCharge: decimal("delivery_charge", { precision: 10, scale: 2 }).notNull().default("0"),

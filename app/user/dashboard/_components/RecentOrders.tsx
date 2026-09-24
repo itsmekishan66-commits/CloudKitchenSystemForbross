@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Package, Star } from "lucide-react";
 import toast from "react-hot-toast";
+import Pagination from "@/app/_components/Pagination";
 
 type OrderItem = {
   title: string;
@@ -167,7 +168,6 @@ export default function RecentOrders({ orders }: { orders: Order[] }) {
   const [userReviews, setUserReviews] = useState<Map<number, number>>(new Map());
   const [refreshKey, setRefreshKey] = useState(0);
   const perPage = 7;
-  const totalPages = Math.ceil(orders.length / perPage);
   const start = (page - 1) * perPage;
   const visibleOrders = orders.slice(start, start + perPage);
 
@@ -184,25 +184,21 @@ export default function RecentOrders({ orders }: { orders: Order[] }) {
       .catch(() => setUserReviews(new Map()));
   }, [refreshKey]);
 
-  if (orders.length === 0) {
-    return (
-      <div className="bg-zinc-900 rounded-2xl p-8 shadow-sm border border-zinc-800 text-center">
-        <Package size={48} className="mx-auto text-zinc-600 mb-4" />
-        <h2 className="font-bold text-xl mb-2 text-white">Recent Orders</h2>
-        <p className="text-zinc-400">No orders yet. Start ordering your favorite meals!</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-zinc-900 rounded-2xl shadow-sm border border-zinc-800 p-6">
+    <div className="bg-zinc-900 rounded-2xl shadow-sm border border-zinc-800 p-4">
       <div className="flex items-center justify-between mb-6">
         <h2 className="font-bold text-xl text-white">Recent Orders</h2>
         <span className="text-sm text-zinc-400">{orders.length} orders</span>
       </div>
 
-      <div className="space-y-1">
-        {visibleOrders.map((order) => (
+      {orders.length === 0 ? (
+        <div className="text-center py-8">
+          <Package size={48} className="mx-auto text-zinc-600 mb-4" />
+          <p className="text-zinc-400">No orders yet. Start ordering your favorite meals!</p>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {visibleOrders.map((order) => (
           <div key={order.id} className="rounded-xl hover:bg-zinc-800 transition-colors">
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-4">
@@ -273,31 +269,16 @@ export default function RecentOrders({ orders }: { orders: Order[] }) {
             )}
           </div>
         ))}
-      </div>
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 mt-4 border-t border-zinc-800">
-          <p className="text-sm text-zinc-400">
-            Page {page} of {totalPages}
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
         </div>
       )}
+
+      <Pagination
+        total={orders.length}
+        perPage={perPage}
+        page={page}
+        onPage={setPage}
+        label="Recent Orders"
+      />
 
       {ratingModal && (
         <RatingModal

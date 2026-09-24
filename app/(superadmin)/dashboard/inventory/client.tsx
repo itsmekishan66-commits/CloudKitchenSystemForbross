@@ -1,6 +1,7 @@
 "use client";
 import { CircleArrowDown, Package, Truck, AlertTriangle, Edit, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 import toast from "react-hot-toast";
@@ -70,7 +71,20 @@ export default function InventoryClient() {
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"inventory" | "supplier-stock" | "inventory-stock" | "cooked-stock">("inventory");
+  // Tabs live in the URL (?tab=...) so a refresh keeps the active tab.
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const urlTab = searchParams.get("tab");
+  const activeTab: "inventory" | "supplier-stock" | "inventory-stock" | "cooked-stock" =
+    urlTab === "supplier-stock" || urlTab === "inventory-stock" || urlTab === "cooked-stock"
+      ? urlTab
+      : "inventory";
+  const selectTab = (tab: "inventory" | "supplier-stock" | "inventory-stock" | "cooked-stock") => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
   const [page, setPage] = useState(1);
   const perPage = 20;
 
@@ -304,16 +318,16 @@ export default function InventoryClient() {
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 mb-6">
-        <button onClick={() => setActiveTab("inventory")} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${activeTab === "inventory" ? "bg-orange-500 text-white shadow-md" : "bg-white text-gray-600 border hover:bg-gray-50"}`}>
+        <button onClick={() => selectTab("inventory")} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${activeTab === "inventory" ? "bg-orange-500 text-white shadow-md" : "bg-white text-gray-600 border hover:bg-gray-50"}`}>
           <Package size={16} /> Inventory Items
         </button>
-        <button onClick={() => setActiveTab("supplier-stock")} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${activeTab === "supplier-stock" ? "bg-orange-500 text-white shadow-md" : "bg-white text-gray-600 border hover:bg-gray-50"}`}>
+        <button onClick={() => selectTab("supplier-stock")} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${activeTab === "supplier-stock" ? "bg-orange-500 text-white shadow-md" : "bg-white text-gray-600 border hover:bg-gray-50"}`}>
           <Truck size={16} /> Supplier Stock
         </button>
-        <button onClick={() => setActiveTab("inventory-stock")} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${activeTab === "inventory-stock" ? "bg-orange-500 text-white shadow-md" : "bg-white text-gray-600 border hover:bg-gray-50"}`}>
+        <button onClick={() => selectTab("inventory-stock")} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${activeTab === "inventory-stock" ? "bg-orange-500 text-white shadow-md" : "bg-white text-gray-600 border hover:bg-gray-50"}`}>
           <Package size={16} /> Inventory Stock
         </button>
-        <button onClick={() => setActiveTab("cooked-stock")} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${activeTab === "cooked-stock" ? "bg-orange-500 text-white shadow-md" : "bg-white text-gray-600 border hover:bg-gray-50"}`}>
+        <button onClick={() => selectTab("cooked-stock")} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${activeTab === "cooked-stock" ? "bg-orange-500 text-white shadow-md" : "bg-white text-gray-600 border hover:bg-gray-50"}`}>
           <Package size={16} /> Cooked Food Stock
         </button>
       </div>

@@ -1,19 +1,43 @@
 "use client";
 import { CircleArrowDown, Edit, Eye, Trash2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
+import toast from "react-hot-toast";
 
-const ROLE_OPTIONS = [
-  // {label: "Super Admin", value: "super-admin"},
+// Roles that must never be assignable from the user form
+const FORBIDDEN_ROLE_OPTIONS = new Set(["admin", "super-admin"]);
+
+// Legacy / seeded accounts created by db/seed/users.ts. These must never be
+// edited or deleted from the UI (they are demo/seed data).
+const LEGACY_USER_EMAILS = new Set([
+  "superadmin@example.com",
+  "admin@example.com",
+  "manager@example.com",
+  "payment@example.com",
+  "staff@example.com",
+  "supportstaff@example.com",
+  "customer@example.com",
+]);
+const isLegacyUser = (email: string | null | undefined) =>
+  !!email && LEGACY_USER_EMAILS.has(email.toLowerCase());
+
+// Fallback if the roles API fails — still excludes admin & super-admin
+const FALLBACK_ROLE_OPTIONS = [
   { label: "Customer", value: "customer" },
   { label: "Staff", value: "staff" },
   { label: "Kitchen Manager", value: "kitchen-manager" },
   { label: "Payment Manager", value: "payment-manager" },
   { label: "Support Staff", value: "support-staff" },
-  { label: "Admin", value: "admin" },
 ];
+
+// "kitchen-manager" -> "Kitchen Manager"
+const upperRole = (role: string) =>
+  role
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 
 interface User {
   id: number;
@@ -55,24 +79,7 @@ export default function CustomersClient() {
   const [error, setError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const router = useRouter();
-
-  const selectFilter = (value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", value);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  };
-  
-  //to download the file
-   const handleDownload = (type: string) => {
-    if (type) {
-      window.open(`/api/exports/${type}?source=users`, "_blank");
-    }
-  };
-
- 
-
-  useEffect(() => { 
-     const fetchUsers = () => {
+  const fetchUsers = useCallback(async () => {
     const params = filter ? `?role=${filter}` : "";
     setLoading(true);
     fetch(`/api/users${params}`)
@@ -82,9 +89,57 @@ export default function CustomersClient() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  };
-    fetchUsers(); 
   }, [filter]);
+
+  useEffect(() => {
+    setTimeout(() => {
+      fetchUsers();
+    });
+  }, [fetchUsers]);
+  const [roleOptions, setRoleOptions] =
+    useState<{ label: string; value: string }[]>(FALLBACK_ROLE_OPTIONS);
+
+  useEffect(() => {
+    fetch("/api/roles")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) return;
+        const options = (data.roles ?? [])
+          .filter((r: { name: string }) => !FORBIDDEN_ROLE_OPTIONS.has(r.name))
+          .map((r: { name: string }) => ({
+            label: upperRole(r.name),
+            value: r.name,
+          }));
+        if (options.length > 0) setRoleOptions(options);
+      })
+      .catch(console.error);
+  }, []);
+
+  // Options for the edit modal: includes the current role even if it's
+  // protected (e.g. "admin"), so admins can retain their own role.
+  const editRoleOptions = useMemo(() => {
+    if (!editUser) return roleOptions;
+    if (editUser.role === "super-admin") return roleOptions;
+    const hasCurrent = roleOptions.some((o) => o.value === editUser.role);
+    if (hasCurrent) return roleOptions;
+    return [
+      { label: upperRole(editUser.role), value: editUser.role },
+      ...roleOptions,
+    ];
+  }, [editUser, roleOptions]);
+
+  const selectFilter = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  //to download the file
+  const handleDownload = (type: string) => {
+    if (type) {
+      window.open(`/api/exports/${type}?source=users`, "_blank");
+    }
+  };
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -127,12 +182,20 @@ export default function CustomersClient() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Failed to create user"); return; }
+      if (!res.ok) {
+        setError(data.error ?? "Failed to create user");
+        toast.error(data.error ?? "Failed to create user");
+        return;
+      }
       setShowAddModal(false);
       setForm(emptyForm);
+      toast.success("User created successfully");
       router.refresh();
-      // fetchUsers();
-    } catch { setError("Something went wrong"); }
+      fetchUsers();
+    } catch {
+      setError("Something went wrong");
+      toast.error("Something went wrong");
+    }
     finally { setSubmitting(false); }
   };
 
@@ -184,13 +247,21 @@ export default function CustomersClient() {
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Failed to update user"); return; }
+      if (!res.ok) {
+        setError(data.error ?? "Failed to update user");
+        toast.error(data.error ?? "Failed to update user");
+        return;
+      }
       setEditUser(null);
       setForm(emptyForm);
+      toast.success("User updated successfully");
 
       router.refresh();
-      // fetchUsers();
-    } catch { setError("Something went wrong"); }
+      fetchUsers();
+    } catch {
+      setError("Something went wrong");
+      toast.error("Something went wrong");
+    }
     finally { setSubmitting(false); }
   };
 
@@ -198,9 +269,20 @@ export default function CustomersClient() {
     setSubmitting(true);
     try {
       const res = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
-      if (!res.ok) { setError("Failed to delete user"); return; }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const message = data.error ?? "Failed to delete user";
+        setError(message);
+        toast.error(message);
+        return;
+      }
+      toast.success("User deleted");
       router.refresh();
-    } catch { setError("Something went wrong"); }
+      fetchUsers();
+    } catch {
+      setError("Something went wrong");
+      toast.error("Something went wrong");
+    }
     finally { setSubmitting(false); }
   };
 
@@ -235,7 +317,7 @@ export default function CustomersClient() {
     { label: "Super Admins", value: "super-admin" },
   ];
 
- if (loading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500" />
@@ -250,21 +332,21 @@ export default function CustomersClient() {
         <h1 className="text-xl sm:text-2xl font-bold">Customers & Users <span className="text-sm sm:text-base font-normal text-gray-400 ml-2">({users.length} {filter === "" ? "total" : filter})</span></h1>
         <div className="flex items-center flex-wrap gap-3">
           {can("DOWNLOAD_USERS") && (
-          <button className="flex gap-2 rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
-            <select onChange={(e) => handleDownload(e.target.value)} className="text-sm bg-transparent cursor-pointer">
-              <option className="text-black" value="">Export</option>
-              <option className="text-black" value="pdf">PDF</option>
-              <option className="text-black" value="csv">CSV</option>
-              <option className="text-black" value="excel">Excel</option>
-            </select>
-          </button>
+            <button className="flex gap-2 rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
+              <select onChange={(e) => handleDownload(e.target.value)} className="text-sm bg-transparent cursor-pointer">
+                <option className="text-black" value="">Export</option>
+                <option className="text-black" value="pdf">PDF</option>
+                <option className="text-black" value="csv">CSV</option>
+                <option className="text-black" value="excel">Excel</option>
+              </select>
+            </button>
           )}
           {can("CREATE_USERS") && (
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="rounded-lg bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-md font-medium text-white shadow hover:bg-orange-600 transition-colors">
-            + Add User
-          </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="rounded-lg bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-md font-medium text-white shadow hover:bg-orange-600 transition-colors">
+              + Add User
+            </button>
           )}
         </div>
       </div>
@@ -274,11 +356,10 @@ export default function CustomersClient() {
           <button
             key={t.value}
             onClick={() => selectFilter(t.value)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              filter === t.value
-                ? "bg-orange-500 text-white shadow"
-                : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-            }`}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${filter === t.value
+              ? "bg-orange-500 text-white shadow"
+              : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}
           >
             {t.label}
           </button>
@@ -288,9 +369,9 @@ export default function CustomersClient() {
       <div className="mb-4">
         <input
           type="text"
-           value={search}
-           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-           placeholder="Search users..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          placeholder="Search users..."
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
         />
       </div>
@@ -324,37 +405,37 @@ export default function CustomersClient() {
                   <td className="p-4 text-gray-500">{new Date(user.createdAt).toLocaleDateString()}</td>
                   <td className="p-4">
                     <div className="flex gap-4">
-                      {can("UPDATE_USERS") && (
-                      <button
-                        onClick={() => openEdit(user)}
-                        className="rounded text-blue-500 text-sm"
-                      >
-                        <Edit size={22} />
-                      </button>
+                      {!isLegacyUser(user.email) && can("UPDATE_USERS") && (
+                        <button
+                          onClick={() => openEdit(user)}
+                          className="rounded text-blue-500 text-sm"
+                        >
+                          <Edit size={22} />
+                        </button>
                       )}
-                      {can("DELETE_USERS") && (
-                      <button
-                        onClick={async () => {
-                          const ok = await confirm({
-                            title: "Delete User",
-                            message: `Are you sure you want to delete ${user.name} (${user.email})? The user will be hidden from the system but their data will be preserved.`,
-                            confirmText: "Delete",
-                            variant: "danger",
-                          });
-                          if (ok) handleDeleteConfirm(user);
-                        }}
-                        className="rounded text-red-500 text-sm"
-                      >
-                        <Trash2 size={22} />
-                      </button>
+                      {!isLegacyUser(user.email) && can("DELETE_USERS") && (
+                        <button
+                          onClick={async () => {
+                            const ok = await confirm({
+                              title: "Delete User",
+                              message: `Are you sure you want to delete ${user.name} (${user.email})? The user will be hidden from the system but their data will be preserved.`,
+                              confirmText: "Delete",
+                              variant: "danger",
+                            });
+                            if (ok) handleDeleteConfirm(user);
+                          }}
+                          className="rounded text-red-500 text-sm"
+                        >
+                          <Trash2 size={22} />
+                        </button>
                       )}
-                      {can("VIEW_USERS") && user.role==="customer" && (
-                      <button
-                        onClick={() => router.push(`/dashboard/customers/${user.id}`)}
-                        className="text-black"
-                      >
-                        <Eye size={22} />
-                      </button>
+                      {can("VIEW_USERS") && user.role === "customer" && (
+                        <button
+                          onClick={() => router.push(`/dashboard/customers/${user.id}`)}
+                          className="text-black"
+                        >
+                          <Eye size={22} />
+                        </button>
                       )}
                     </div>
                   </td>
@@ -391,48 +472,57 @@ export default function CustomersClient() {
 
       {/* Add User Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-[95vw] sm:max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Add User</h2>
-              <button onClick={() => { setShowAddModal(false); setError(""); }} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto p-4">
+          <div className="w-full max-w-[95vw] sm:max-w-lg rounded-2xl bg-white p-6 shadow-xl my-4">
+            <div className="mb-5 flex items-center justify-between border-b pb-4">
+              <h2 className="text-lg font-bold text-gray-900">Add User</h2>
+              <button onClick={() => { setShowAddModal(false); setError(""); }} className="rounded-md p-2 hover:bg-gray-200">✕</button>
             </div>
             <form onSubmit={handleAddSubmit} noValidate className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
-                <input name="name" value={form.name} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
-                {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Name <span className="text-red-500">*</span></label>
+                  <input name="name" value={form.name} onChange={handleInput} placeholder="Full name" className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                  {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Phone</label>
+                  <input name="phone" value={form.phone} onChange={handleInput} placeholder="Phone number" className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                </div>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
-                <input name="email" type="email" value={form.email} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                <label className="mb-1 block text-sm font-medium text-gray-700">Email <span className="text-red-500">*</span></label>
+                <input name="email" type="email" value={form.email} onChange={handleInput} placeholder="user@example.com" className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
                 {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Password</label>
-                <input name="password" type="password" value={form.password} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
-                {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Phone</label>
-                <input name="phone" value={form.phone} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Password <span className="text-red-500">*</span></label>
+                  <input name="password" type="password" value={form.password} onChange={handleInput} placeholder="Min. 8 characters" className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                  {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Role <span className="text-red-500">*</span></label>
+                  <select name="role" value={form.role} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 bg-white">
+                    {roleOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Address</label>
-                <input name="address" value={form.address} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Role</label>
-                <select name="role" value={form.role} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100">
-                  {ROLE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                <input name="address" value={form.address} onChange={handleInput} placeholder="Street, city, etc." className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
-              <button type="submit" disabled={submitting} className="w-full rounded-lg bg-orange-500 px-5 py-3 text-sm font-medium text-white shadow hover:bg-orange-600 disabled:opacity-50 transition-colors">
-                {submitting ? "Creating..." : "Create User"}
-              </button>
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-2">
+                <button type="button" onClick={() => { setShowAddModal(false); setError(""); }} className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={submitting} className="rounded-lg bg-orange-500 px-5 py-2.5 text-sm font-medium text-white shadow hover:bg-orange-600 disabled:opacity-50 transition-colors">
+                  {submitting ? "Creating..." : "Create User"}
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -440,54 +530,63 @@ export default function CustomersClient() {
 
       {/* Edit User Modal */}
       {editUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-[95vw] sm:max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Edit User</h2>
-              <button onClick={() => { setEditUser(null); setError(""); setForm(emptyForm); }} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto p-4">
+          <div className="w-full max-w-[95vw] sm:max-w-lg rounded-2xl bg-white p-6 shadow-xl my-4">
+            <div className="mb-5 flex items-center justify-between border-b pb-4">
+              <h2 className="text-lg font-bold text-gray-900">Edit User</h2>
+              <button onClick={() => { setEditUser(null); setError(""); setForm(emptyForm); }} className="rounded-md p-2 hover:bg-gray-200">✕</button>
             </div>
             <form onSubmit={handleEditSubmit} noValidate className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
-                <input name="name" value={form.name} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
-                {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Name <span className="text-red-500">*</span></label>
+                  <input name="name" value={form.name} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                  {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Phone</label>
+                  <input name="phone" value={form.phone} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                </div>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Email <span className="text-red-500">*</span></label>
                 <input name="email" type="email" value={form.email} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
                 {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Password <span className="text-gray-400 font-normal">(leave blank to keep current)</span></label>
-                <input name="password" type="password" value={form.password} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
-                {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Phone</label>
-                <input name="phone" value={form.phone} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Password <span className="text-gray-400 font-normal">(leave blank to keep current)</span></label>
+                  <input name="password" type="password" value={form.password} onChange={handleInput} placeholder="Min. 8 characters" className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
+                  {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Role</label>
+                  {editUser?.role === "super-admin" ? (
+                    <div className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                      super-admin <span className="text-gray-400 ml-1">(cannot be changed)</span>
+                    </div>
+                  ) : (
+                    <select name="role" value={form.role} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 bg-white">
+                      {editRoleOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Address</label>
                 <input name="address" value={form.address} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Role</label>
-                {editUser?.role === "super-admin" ? (
-                  <div className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                    super-admin <span className="text-gray-400 ml-1">(cannot be changed)</span>
-                  </div>
-                ) : (
-                  <select name="role" value={form.role} onChange={handleInput} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100">
-                    {ROLE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
-              <button type="submit" disabled={submitting} className="w-full rounded-lg bg-orange-500 px-5 py-3 text-sm font-medium text-white shadow hover:bg-orange-600 disabled:opacity-50 transition-colors">
-                {submitting ? "Saving..." : "Save Changes"}
-              </button>
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-2">
+                <button type="button" onClick={() => { setEditUser(null); setError(""); setForm(emptyForm); }} className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={submitting} className="rounded-lg bg-orange-500 px-5 py-2.5 text-sm font-medium text-white shadow hover:bg-orange-600 disabled:opacity-50 transition-colors">
+                  {submitting ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
             </form>
           </div>
         </div>

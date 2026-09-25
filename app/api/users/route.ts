@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 // import { and, eq, sql } from "drizzle-orm";
-import { unstable_cache, revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { hashPassword } from "@/lib/auth";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
-import { CACHE_TAGS } from "@/lib/cache-tags";
 import { users, roles } from "@/db/schemas";
 import { createUser, getRoleIdByName, getUserByEmailIncludingDeleted } from "@/db/services";
 
@@ -55,8 +53,6 @@ export async function POST(request: Request) {
       address: address || null,
     });
 
-    revalidateTag(CACHE_TAGS.USERS, "max");
-    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "max");
     return NextResponse.json({ ok: true, userId });
   } catch (error) {
     console.error("Failed to create user", error);
@@ -96,13 +92,7 @@ export async function GET(request: Request) {
         .orderBy(users.name);
     };
 
-    const getCachedUsers = unstable_cache(
-      fetchAllUsers,
-      [CACHE_TAGS.USERS],
-      { revalidate: 60, tags: [CACHE_TAGS.USERS] }
-    );
-
-    let filtered = await getCachedUsers();
+    let filtered = await fetchAllUsers();
 
     if (roleFilter) {
       filtered = filtered.filter((u) => u.role === roleFilter);

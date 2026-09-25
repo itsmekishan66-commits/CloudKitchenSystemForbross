@@ -1,21 +1,22 @@
 "use server";
 
-// this is the code for assigning roles and permissions dynamicall// creates a new role + user with that role in DB
-import { createRole } from "@/db/services/roles";
-import { assignPermissionsForRole } from "@/db/services/permissions";
+// Role & Permission management actions
+import { createRole, updateRole, deleteRole, getRoleById } from "@/db/services/roles";
+import { assignPermissionsForRole, getPermissionsForRole } from "@/db/services/permissions";
 import { createUser } from "@/db/services/users";
 import { hashPassword } from "@/lib/auth";
 import { db } from "@/db";
 import { permissions } from "@/db/schemas";
 import { inArray } from "drizzle-orm";
+import { updateTag } from "next/cache";
 
-export async function createRoleWithPermissionsAction(
+// Creates a new role with permissions (without creating a user)
+export async function createRoleAction(
     name: string,
     permissionNames: string[],
-    userData: { userName: string; userEmail: string; userPhone: string; userAddress: string; userPassword: string }
+    description?: string
 ) {
-    // create role
-    const roleId = await createRole(name, `${name} role`);
+    const roleId = await createRole(name, description);
 
     // get permissions IDs from names
     const permissionRows = await db.select({ id: permissions.id }).from(permissions).where(
@@ -26,8 +27,25 @@ export async function createRoleWithPermissionsAction(
     // assign permissions to role
     await assignPermissionsForRole(roleId, permissionsIds);
 
-    
-    // create user with this role
+    updateTag("roles");
+    return roleId;
+}
+
+// Legacy: creates a new role with permissions AND assigns it to a new user
+export async function createRoleWithPermissionsAction(
+    name: string,
+    permissionNames: string[],
+    userData: { userName: string; userEmail: string; userPhone: string; userAddress: string; userPassword: string }
+) {
+    const roleId = await createRole(name, `${name} role`);
+
+    const permissionRows = await db.select({ id: permissions.id }).from(permissions).where(
+        inArray(permissions.name, permissionNames));
+
+    const permissionsIds = permissionRows.map((p) => p.id);
+
+    await assignPermissionsForRole(roleId, permissionsIds);
+
     const passwordHash = userData.userPassword ? await hashPassword(userData.userPassword) : null;
     await createUser({
         name: userData.userName,
@@ -38,11 +56,11 @@ export async function createRoleWithPermissionsAction(
         roleId,
     });
 
+    updateTag("roles");
     return roleId;
 }
 
 export async function getRolePermissionsAction(roleId: number) {
-    const { getPermissionsForRole } = await import("@/db/services/permissions");
     const rows = await getPermissionsForRole(roleId);
     return rows.map((r) => r.name);
 }
@@ -52,6 +70,21 @@ export async function updateRolePermissionsAction(roleId: number, permissionName
         inArray(permissions.name, permissionNames));
     const permissionsIds = permissionRows.map((p) => p.id);
     await assignPermissionsForRole(roleId, permissionsIds);
+    updateTag("roles");
+}
+
+export async function updateRoleAction(roleId: number, name: string, description?: string) {
+    await updateRole(roleId, name, description);
+    updateTag("roles");
+}
+
+export async function deleteRoleAction(roleId: number) {
+    await deleteRole(roleId);
+    updateTag("roles");
+}
+
+export async function getRoleAction(roleId: number) {
+    return getRoleById(roleId);
 }
 
 export async function deleteUserAction(userId: number) {

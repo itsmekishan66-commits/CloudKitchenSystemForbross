@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePermissions } from "@/lib/permission-context";
+import Pagination from "@/app/_components/Pagination";
 import { toast } from "react-hot-toast";
 import PageNote from "../_components/PageNote";
 
@@ -185,6 +186,8 @@ export default function JournalEntriesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 30;
   const [showForm, setShowForm] = useState(false);
   const [viewingEntry, setViewingEntry] = useState<JournalEntry | null>(null);
   const [voidReason, setVoidReason] = useState("");
@@ -271,6 +274,15 @@ export default function JournalEntriesPage() {
       return matchesStatus && matchesSearch;
     });
   }, [entries, search, statusFilter]);
+
+  // Page is clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const totalPages = Math.max(1, Math.ceil(filteredEntries.length / PER_PAGE));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const visibleEntries = filteredEntries.slice(
+    (currentPage - 1) * PER_PAGE,
+    (currentPage - 1) * PER_PAGE + PER_PAGE
+  );
 
   function addLine() {
     setForm((prev) => ({
@@ -476,12 +488,12 @@ export default function JournalEntriesPage() {
               placeholder="Search entries..."
               className="bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 w-full sm:w-56 transition-all"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             />
           </div>
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
             className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30"
           >
             <option value="all">All Status</option>
@@ -798,7 +810,7 @@ export default function JournalEntriesPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredEntries.map((entry) => {
+              {visibleEntries.map((entry) => {
                 const sc = statusConfig[entry.status] || statusConfig.draft;
                 const source = getSource(entry.referenceType);
                 const isSourceLink =
@@ -895,7 +907,7 @@ export default function JournalEntriesPage() {
                   </tr>
                 );
               })}
-              {filteredEntries.length === 0 && (
+              {visibleEntries.length === 0 && (
                 <tr>
                   <td
                     colSpan={8}
@@ -907,6 +919,16 @@ export default function JournalEntriesPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="border-t border-gray-50">
+          <Pagination
+            total={filteredEntries.length}
+            perPage={PER_PAGE}
+            page={currentPage}
+            onPage={setPage}
+            label="Journal entries"
+          />
         </div>
       </motion.div>
 

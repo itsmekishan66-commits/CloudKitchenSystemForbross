@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 interface PaginationProps {
   total: number;
   perPage: number;
@@ -15,8 +17,14 @@ export default function Pagination({ total, perPage, page, onPage, label }: Pagi
   const pages: number[] = [];
   for (let p = windowStart; p <= windowEnd; p++) pages.push(p);
 
+  // Keep the current page valid when the total shrinks (delete, filter, tab switch)
+  useEffect(() => {
+    if (page > totalPages) onPage(totalPages);
+    if (page < 1) onPage(1);
+  }, [page, totalPages, onPage]);
+
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 mt-4 border-t border-gray-200">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 mt-4 border-t border-gray-200">
       {label && <p className="text-sm text-gray-500">{label} ({total})</p>}
       {!label && <p className="text-sm text-gray-500">Page {page} of {totalPages} ({total} items)</p>}
       <div className="flex items-center gap-1 flex-wrap">

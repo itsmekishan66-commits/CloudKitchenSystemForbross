@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  IndianRupee, ShoppingCart, Users, TrendingUp, TrendingDown,
+  NepaliRupee, ShoppingCart, Users, TrendingUp, TrendingDown,
   Wallet, Clock, CalendarDays, BarChart3, PieChart, Download,
   ArrowUpRight, ArrowDownRight, Calendar,
 } from "lucide-react";
@@ -115,7 +115,7 @@ export default function ReportsClient() {
   );
 
   const kpiCards = [
-    { title: "Total Revenue", value: formatCurrency(data.totalRevenue), change: data.revenueOverTime.length > 1 ? (((data.revenueOverTime[data.revenueOverTime.length - 1].revenue - data.revenueOverTime[0].revenue) / Math.max(data.revenueOverTime[0].revenue, 1)) * 100).toFixed(1) : "0", icon: IndianRupee, bg: "bg-orange-50", tc: "text-orange-600" },
+    { title: "Total Revenue", value: formatCurrency(data.totalRevenue), change: data.revenueOverTime.length > 1 ? (((data.revenueOverTime[data.revenueOverTime.length - 1].revenue - data.revenueOverTime[0].revenue) / Math.max(data.revenueOverTime[0].revenue, 1)) * 100).toFixed(1) : "0", icon: NepaliRupee, bg: "bg-orange-50", tc: "text-orange-600" },
     { title: "Total Orders", value: data.totalOrders.toLocaleString(), change: data.ordersOverTime.length > 1 ? (((data.ordersOverTime[data.ordersOverTime.length - 1].orders - data.ordersOverTime[0].orders) / Math.max(data.ordersOverTime[0].orders, 1)) * 100).toFixed(1) : "0", icon: ShoppingCart, bg: "bg-blue-50", tc: "text-blue-600" },
     { title: "Avg Order Value", value: `Rs.${data.avgOrderValue.toFixed(2)}`, change: null, icon: Wallet, bg: "bg-purple-50", tc: "text-purple-600" },
     { title: "Total Customers", value: data.totalCustomers.toLocaleString(), change: null, icon: Users, bg: "bg-green-50", tc: "text-green-600" },

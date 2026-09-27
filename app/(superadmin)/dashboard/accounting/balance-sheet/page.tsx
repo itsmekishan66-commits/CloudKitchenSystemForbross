@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Scale, Download, Calendar, FileText } from "lucide-react";
 import Link from "next/link";
 import PageNote from "../_components/PageNote";
+import Pagination from "@/app/_components/Pagination";
 
 interface BalanceSheetData {
   asOfDate: string;
@@ -38,6 +39,13 @@ export default function BalanceSheetPage() {
   );
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
+  // Assets, Liabilities and Equity are three separate lists on this report, so
+  // each keeps its own page. Assets/Liabilities paginate by account category
+  // (the block that carries its own subtotal); Equity paginates by account.
+  const [assetPage, setAssetPage] = useState(1);
+  const [liabilityPage, setLiabilityPage] = useState(1);
+  const [equityPage, setEquityPage] = useState(1);
+  const PER_PAGE = 20;
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -72,6 +80,32 @@ export default function BalanceSheetPage() {
 
   const loading = state?.date !== asOfDate && !error;
 
+  // Pages are clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const assetCategories = state?.value.assets.categories ?? [];
+  const assetTotalPages = Math.max(1, Math.ceil(assetCategories.length / PER_PAGE));
+  const assetCurrentPage = Math.min(Math.max(1, assetPage), assetTotalPages);
+  const visibleAssetCategories = assetCategories.slice(
+    (assetCurrentPage - 1) * PER_PAGE,
+    (assetCurrentPage - 1) * PER_PAGE + PER_PAGE
+  );
+
+  const liabilityCategories = state?.value.liabilities.categories ?? [];
+  const liabilityTotalPages = Math.max(1, Math.ceil(liabilityCategories.length / PER_PAGE));
+  const liabilityCurrentPage = Math.min(Math.max(1, liabilityPage), liabilityTotalPages);
+  const visibleLiabilityCategories = liabilityCategories.slice(
+    (liabilityCurrentPage - 1) * PER_PAGE,
+    (liabilityCurrentPage - 1) * PER_PAGE + PER_PAGE
+  );
+
+  const equityAccounts = state?.value.equity.accounts ?? [];
+  const equityTotalPages = Math.max(1, Math.ceil(equityAccounts.length / PER_PAGE));
+  const equityCurrentPage = Math.min(Math.max(1, equityPage), equityTotalPages);
+  const visibleEquityAccounts = equityAccounts.slice(
+    (equityCurrentPage - 1) * PER_PAGE,
+    (equityCurrentPage - 1) * PER_PAGE + PER_PAGE
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -105,7 +139,12 @@ export default function BalanceSheetPage() {
             <input
               type="date"
               value={asOfDate}
-              onChange={(e) => setAsOfDate(e.target.value)}
+              onChange={(e) => {
+                setAsOfDate(e.target.value);
+                setAssetPage(1);
+                setLiabilityPage(1);
+                setEquityPage(1);
+              }}
               className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30"
             />
           </div>
@@ -172,7 +211,7 @@ export default function BalanceSheetPage() {
                 </h4>
               </div>
               <div className="space-y-4">
-                {data.assets.categories.map((category) => (
+                {visibleAssetCategories.map((category) => (
                   <div key={category.category}>
                     <h5 className="text-xs font-semibold text-gray-500 uppercase mb-2">
                       {category.category}
@@ -202,9 +241,18 @@ export default function BalanceSheetPage() {
                     </div>
                   </div>
                 ))}
-                {data.assets.categories.length === 0 && (
+                {assetCategories.length === 0 && (
                   <p className="text-sm text-gray-400">No assets recorded</p>
                 )}
+              </div>
+              <div className="border-t border-gray-100">
+                <Pagination
+                  total={assetCategories.length}
+                  perPage={PER_PAGE}
+                  page={assetCurrentPage}
+                  onPage={setAssetPage}
+                  label="Asset categories"
+                />
               </div>
               <div className="bg-blue-50 rounded-xl p-4 mt-4 flex justify-between items-center">
                 <span className="text-sm font-bold text-blue-900">
@@ -227,7 +275,7 @@ export default function BalanceSheetPage() {
                   </h4>
                 </div>
                 <div className="space-y-4">
-                  {data.liabilities.categories.map((category) => (
+                  {visibleLiabilityCategories.map((category) => (
                     <div key={category.category}>
                       <h5 className="text-xs font-semibold text-gray-500 uppercase mb-2">
                         {category.category}
@@ -257,11 +305,20 @@ export default function BalanceSheetPage() {
                       </div>
                     </div>
                   ))}
-                {data.liabilities.categories.length === 0 && (
+                {liabilityCategories.length === 0 && (
                   <p className="text-sm text-gray-400">
                     No liabilities recorded
                   </p>
                 )}
+              </div>
+              <div className="border-t border-gray-100">
+                <Pagination
+                  total={liabilityCategories.length}
+                  perPage={PER_PAGE}
+                  page={liabilityCurrentPage}
+                  onPage={setLiabilityPage}
+                  label="Liability categories"
+                />
               </div>
               <div className="bg-red-50 rounded-xl p-4 mt-4 flex justify-between items-center">
                 <span className="text-sm font-bold text-red-900">
@@ -283,7 +340,7 @@ export default function BalanceSheetPage() {
                   </h4>
                 </div>
                 <div className="space-y-1">
-                  {data.equity.accounts.map((account) => (
+                  {visibleEquityAccounts.map((account) => (
                     <div
                       key={account.id}
                       className="flex justify-between text-sm py-1"
@@ -304,11 +361,20 @@ export default function BalanceSheetPage() {
                       </span>
                     </div>
                   ))}
-                  {data.equity.accounts.length === 0 && (
+                  {equityAccounts.length === 0 && (
                     <p className="text-sm text-gray-400">
                       No equity recorded
                     </p>
                   )}
+                </div>
+                <div className="border-t border-gray-100">
+                  <Pagination
+                    total={equityAccounts.length}
+                    perPage={PER_PAGE}
+                    page={equityCurrentPage}
+                    onPage={setEquityPage}
+                    label="Equity accounts"
+                  />
                 </div>
                 <div className="bg-purple-50 rounded-xl p-4 mt-4 flex justify-between items-center">
                   <span className="text-sm font-bold text-purple-900">

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 import Checkbox from "@/app/_components/Checkbox";
+import Pagination from "@/app/_components/Pagination";
 
 interface Kitchen {
   id: number;
@@ -71,8 +72,11 @@ export default function KitchenClient() {
     return kitchens.filter((k) => k.name.toLowerCase().includes(q) || (k.location ?? "").toLowerCase().includes(q) || (k.managerName ?? "").toLowerCase().includes(q));
   }, [kitchens, search]);
 
-  const totalPages = Math.ceil(filteredKitchens.length / perPage);
-  const start = (page - 1) * perPage;
+  // Page is clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const totalPages = Math.max(1, Math.ceil(filteredKitchens.length / perPage));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * perPage;
   const visibleKitchens = filteredKitchens.slice(start, start + perPage);
 
   async function loadKitchens() {
@@ -284,29 +288,13 @@ if (loading) {
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
-          <p className="text-sm text-gray-500">
-            Page {page} of {totalPages} ({filteredKitchens.length} kitchens)
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        total={filteredKitchens.length}
+        perPage={perPage}
+        page={currentPage}
+        onPage={setPage}
+        label="Kitchens"
+      />
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

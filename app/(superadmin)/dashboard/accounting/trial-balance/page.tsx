@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { Scale, CheckCircle2, AlertTriangle, Calendar } from "lucide-react";
 import PageNote from "../_components/PageNote";
+import Pagination from "@/app/_components/Pagination";
 
 interface TrialBalanceAccount {
   id: string;
@@ -31,6 +32,18 @@ export default function TrialBalancePage() {
     new Date().toISOString().substring(0, 10)
   );
   const [error, setError] = useState(false);
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 30;
+
+  // Page is clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const accounts = data?.accounts ?? [];
+  const totalPages = Math.max(1, Math.ceil(accounts.length / PER_PAGE));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const visibleAccounts = accounts.slice(
+    (currentPage - 1) * PER_PAGE,
+    (currentPage - 1) * PER_PAGE + PER_PAGE
+  );
 
   useEffect(() => {
     let active = true;
@@ -86,7 +99,7 @@ export default function TrialBalancePage() {
             type="date"
             value={asOfDate}
             max={new Date().toISOString().substring(0, 10)}
-            onChange={(e) => setAsOfDate(e.target.value)}
+            onChange={(e) => { setAsOfDate(e.target.value); setPage(1); }}
             className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30"
           />
         </div>
@@ -151,7 +164,7 @@ export default function TrialBalancePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {data.accounts.map((account) => (
+                {visibleAccounts.map((account) => (
                   <tr key={account.code} className="hover:bg-orange-50/40">
                     <td className="px-6 py-3 font-mono text-xs text-gray-500">
                       {account.code}
@@ -195,6 +208,16 @@ export default function TrialBalancePage() {
             </table>
           </div>
         )}
+
+        <div className="border-t border-gray-50">
+          <Pagination
+            total={accounts.length}
+            perPage={PER_PAGE}
+            page={currentPage}
+            onPage={setPage}
+            label="Account balances"
+          />
+        </div>
       </motion.div>
 
       <PageNote

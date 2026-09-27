@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 import toast from "react-hot-toast";
+import Pagination from "@/app/_components/Pagination";
 
 interface InventoryItem {
   id: number;
@@ -87,6 +88,10 @@ export default function InventoryClient() {
   };
   const [page, setPage] = useState(1);
   const perPage = 20;
+  // The low-stock alert banner above the table is a list of its own, so it
+  // gets its own page state.
+  const [alertPage, setAlertPage] = useState(1);
+  const alertPerPage = 10;
 
   function updateForm(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -116,8 +121,11 @@ export default function InventoryClient() {
     return items.filter((i) => i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q));
   }, [items, search]);
 
-  const totalPages = Math.ceil(filteredItems.length / perPage);
-  const start = (page - 1) * perPage;
+  // Page is clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / perPage));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * perPage;
   const visibleItems = filteredItems.slice(start, start + perPage);
 
   async function loadItems() {
@@ -292,6 +300,12 @@ export default function InventoryClient() {
   }
 
   const lowStockItems = items.filter((item) => Number(item.quantity) <= Number(item.minStockLevel));
+  const alertTotalPages = Math.max(1, Math.ceil(lowStockItems.length / alertPerPage));
+  const alertCurrentPage = Math.min(Math.max(1, alertPage), alertTotalPages);
+  const visibleLowStock = lowStockItems.slice(
+    (alertCurrentPage - 1) * alertPerPage,
+    (alertCurrentPage - 1) * alertPerPage + alertPerPage
+  );
 
   if (loading) {
     return <div className="rounded-xl bg-white p-6 text-gray-600 shadow">Loading inventory...</div>;
@@ -336,10 +350,19 @@ export default function InventoryClient() {
         <div className="mb-4 rounded-xl bg-red-50 p-4 border border-red-200">
           <h3 className="font-bold text-red-700">Low Stock Alert ({lowStockItems.length} items)</h3>
           <ul className="mt-2 space-y-1">
-            {lowStockItems.map((item) => (
+            {visibleLowStock.map((item) => (
               <li key={item.id} className="text-sm text-red-600">{item.name} - {item.quantity} {item.unit} left (min: {item.minStockLevel})</li>
             ))}
           </ul>
+          <div className="rounded-xl bg-white border border-red-100">
+            <Pagination
+              total={lowStockItems.length}
+              perPage={alertPerPage}
+              page={alertCurrentPage}
+              onPage={setAlertPage}
+              label="Low stock items"
+            />
+          </div>
         </div>
       )}
 
@@ -353,7 +376,7 @@ export default function InventoryClient() {
           <input
             type="text"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); setAlertPage(1); }}
             placeholder="Search inventory..."
             className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
           />
@@ -397,29 +420,13 @@ export default function InventoryClient() {
           </table>
         </div>
 
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
-            <p className="text-sm text-gray-500">
-              Page {page} of {totalPages} ({filteredItems.length} items)
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          total={filteredItems.length}
+          perPage={perPage}
+          page={currentPage}
+          onPage={setPage}
+          label="Inventory items"
+        />
       </>
       )}
 
@@ -520,6 +527,10 @@ export default function InventoryClient() {
 
 function SupplierStockView({ data, loading }: { data: SupplierStockItem[]; loading: boolean }) {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [alertPage, setAlertPage] = useState(1);
+  const perPage = 20;
+  const alertPerPage = 10;
 
   const filtered = useMemo(() => {
     if (!search.trim()) return data;
@@ -533,6 +544,18 @@ function SupplierStockView({ data, loading }: { data: SupplierStockItem[]; loadi
 
   const lowStockItems = filtered.filter((i) => Number(i.quantity) <= Number(i.minStockLevel));
 
+  const currentPage = Math.min(Math.max(1, page), Math.max(1, Math.ceil(filtered.length / perPage)));
+  const visibleRows = filtered.slice((currentPage - 1) * perPage, (currentPage - 1) * perPage + perPage);
+
+  const alertCurrentPage = Math.min(
+    Math.max(1, alertPage),
+    Math.max(1, Math.ceil(lowStockItems.length / alertPerPage))
+  );
+  const visibleLowStock = lowStockItems.slice(
+    (alertCurrentPage - 1) * alertPerPage,
+    (alertCurrentPage - 1) * alertPerPage + alertPerPage
+  );
+
   if (loading) {
     return <div className="rounded-xl bg-white p-10 text-center text-gray-400 shadow">Loading supplier stock...</div>;
   }
@@ -545,13 +568,20 @@ function SupplierStockView({ data, loading }: { data: SupplierStockItem[]; loadi
             <AlertTriangle size={16} /> Low Stock Alert ({lowStockItems.length} items)
           </h3>
           <ul className="mt-2 space-y-1">
-            {lowStockItems.map((item) => (
+            {visibleLowStock.map((item) => (
               <li key={item.productId} className="text-sm text-red-600">
                 {item.supplierName} — {item.productName}: {item.quantity} {item.purchaseUnit || "packs"} left
                 (min: {item.minStockLevel})
               </li>
             ))}
           </ul>
+          <Pagination
+            total={lowStockItems.length}
+            perPage={alertPerPage}
+            page={alertCurrentPage}
+            onPage={setAlertPage}
+            label="Low stock alerts"
+          />
         </div>
       )}
 
@@ -559,7 +589,7 @@ function SupplierStockView({ data, loading }: { data: SupplierStockItem[]; loadi
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); setAlertPage(1); }}
           placeholder="Search by product, supplier, or unit..."
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
         />
@@ -579,10 +609,10 @@ function SupplierStockView({ data, loading }: { data: SupplierStockItem[]; loadi
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {visibleRows.length === 0 ? (
               <tr><td colSpan={7} className="p-8 text-center text-gray-400">No supplier stock found</td></tr>
             ) : (
-              filtered.map((item) => {
+              visibleRows.map((item) => {
                 const qty = Number(item.quantity);
                 const min = Number(item.minStockLevel);
                 const unitsPerPack = Number(item.unitsPerPack) || 1;
@@ -612,9 +642,16 @@ function SupplierStockView({ data, loading }: { data: SupplierStockItem[]; loadi
             )}
           </tbody>
         </table>
-        <div className="p-3 text-xs text-gray-400 border-t bg-gray-50">
+        {/* <div className="p-3 text-xs text-gray-400 border-t bg-gray-50">
           Showing {filtered.length} product{filtered.length !== 1 ? "s" : ""} from suppliers
-        </div>
+        </div> */}
+        <Pagination
+          total={filtered.length}
+          perPage={perPage}
+          page={currentPage}
+          onPage={setPage}
+          label="Supplier stock"
+        />
       </div>
     </div>
   );
@@ -627,6 +664,10 @@ function CookedFoodStockView({ items, loading, onRefresh }: { items: CookedStock
   const [showCookedModal, setShowCookedModal] = useState(false);
   const [cookedForm, setCookedForm] = useState({ menuItemId: "", quantity: "", minStockLevel: "", description: "" });
   const [savingCooked, setSavingCooked] = useState(false);
+  const [page, setPage] = useState(1);
+  const [alertPage, setAlertPage] = useState(1);
+  const perPage = 20;
+  const alertPerPage = 10;
 
   const filtered = useMemo(() => {
     if (!search.trim()) return items;
@@ -637,6 +678,18 @@ function CookedFoodStockView({ items, loading, onRefresh }: { items: CookedStock
   }, [items, search]);
 
   const lowStockItems = filtered.filter((i) => Number(i.quantity) <= Number(i.minStockLevel));
+
+  const currentPage = Math.min(Math.max(1, page), Math.max(1, Math.ceil(filtered.length / perPage)));
+  const visibleRows = filtered.slice((currentPage - 1) * perPage, (currentPage - 1) * perPage + perPage);
+
+  const alertCurrentPage = Math.min(
+    Math.max(1, alertPage),
+    Math.max(1, Math.ceil(lowStockItems.length / alertPerPage))
+  );
+  const visibleLowStock = lowStockItems.slice(
+    (alertCurrentPage - 1) * alertPerPage,
+    (alertCurrentPage - 1) * alertPerPage + alertPerPage
+  );
 
   function openEditCooked(item: CookedStockItem) {
     setEditingCooked(item);
@@ -702,12 +755,19 @@ function CookedFoodStockView({ items, loading, onRefresh }: { items: CookedStock
             <AlertTriangle size={16} /> Low Stock Alert ({lowStockItems.length} items)
           </h3>
           <ul className="mt-2 space-y-1">
-            {lowStockItems.map((item) => (
+            {visibleLowStock.map((item) => (
               <li key={item.id} className="text-sm text-red-600">
                 {item.foodName} — {item.quantity} left (min: {item.minStockLevel})
               </li>
             ))}
           </ul>
+          <Pagination
+            total={lowStockItems.length}
+            perPage={alertPerPage}
+            page={alertCurrentPage}
+            onPage={setAlertPage}
+            label="Low stock alerts"
+          />
         </div>
       )}
 
@@ -715,7 +775,7 @@ function CookedFoodStockView({ items, loading, onRefresh }: { items: CookedStock
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); setAlertPage(1); }}
           placeholder="Search by food name..."
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
         />
@@ -735,10 +795,10 @@ function CookedFoodStockView({ items, loading, onRefresh }: { items: CookedStock
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {visibleRows.length === 0 ? (
               <tr><td colSpan={7} className="p-8 text-center text-gray-400">No cooked food stock found</td></tr>
             ) : (
-              filtered.map((item) => {
+              visibleRows.map((item) => {
                 const isLow = Number(item.quantity) <= Number(item.minStockLevel);
                 return (
                   <tr key={item.id} className={`border-t ${isLow ? "bg-red-50" : ""}`}>
@@ -768,9 +828,16 @@ function CookedFoodStockView({ items, loading, onRefresh }: { items: CookedStock
             )}
           </tbody>
         </table>
-        <div className="p-3 text-xs text-gray-400 border-t bg-gray-50">
+        {/* <div className="p-3 text-xs text-gray-400 border-t bg-gray-50">
           Showing {filtered.length} item{filtered.length !== 1 ? "s" : ""}
-        </div>
+        </div> */}
+        <Pagination
+          total={filtered.length}
+          perPage={perPage}
+          page={currentPage}
+          onPage={setPage}
+          label="Cooked food stock"
+        />
       </div>
 
       {showCookedModal && (
@@ -806,6 +873,10 @@ function CookedFoodStockView({ items, loading, onRefresh }: { items: CookedStock
 
 function InventoryStockView({ items, loading }: { items: InventoryItem[]; loading: boolean }) {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [alertPage, setAlertPage] = useState(1);
+  const perPage = 20;
+  const alertPerPage = 10;
 
   const filtered = useMemo(() => {
     if (!search.trim()) return items;
@@ -817,6 +888,18 @@ function InventoryStockView({ items, loading }: { items: InventoryItem[]; loadin
   }, [items, search]);
 
   const lowStockItems = filtered.filter((i) => Number(i.quantity) <= Number(i.minStockLevel));
+
+  const currentPage = Math.min(Math.max(1, page), Math.max(1, Math.ceil(filtered.length / perPage)));
+  const visibleRows = filtered.slice((currentPage - 1) * perPage, (currentPage - 1) * perPage + perPage);
+
+  const alertCurrentPage = Math.min(
+    Math.max(1, alertPage),
+    Math.max(1, Math.ceil(lowStockItems.length / alertPerPage))
+  );
+  const visibleLowStock = lowStockItems.slice(
+    (alertCurrentPage - 1) * alertPerPage,
+    (alertCurrentPage - 1) * alertPerPage + alertPerPage
+  );
 
   if (loading) {
     return <div className="rounded-xl bg-white p-10 text-center text-gray-400 shadow">Loading inventory stock...</div>;
@@ -830,12 +913,19 @@ function InventoryStockView({ items, loading }: { items: InventoryItem[]; loadin
             <AlertTriangle size={16} /> Low Stock Alert ({lowStockItems.length} items)
           </h3>
           <ul className="mt-2 space-y-1">
-            {lowStockItems.map((item) => (
+            {visibleLowStock.map((item) => (
               <li key={item.id} className="text-sm text-red-600">
                 {item.name} — {item.quantity} {item.unit} left (min: {item.minStockLevel})
               </li>
             ))}
           </ul>
+          <Pagination
+            total={lowStockItems.length}
+            perPage={alertPerPage}
+            page={alertCurrentPage}
+            onPage={setAlertPage}
+            label="Low stock alerts"
+          />
         </div>
       )}
 
@@ -843,7 +933,7 @@ function InventoryStockView({ items, loading }: { items: InventoryItem[]; loadin
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); setAlertPage(1); }}
           placeholder="Search by name or category..."
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
         />
@@ -862,10 +952,10 @@ function InventoryStockView({ items, loading }: { items: InventoryItem[]; loadin
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {visibleRows.length === 0 ? (
               <tr><td colSpan={6} className="p-8 text-center text-gray-400">No inventory stock found</td></tr>
             ) : (
-              filtered.map((item) => {
+              visibleRows.map((item) => {
                 const isLow = Number(item.quantity) <= Number(item.minStockLevel);
                 return (
                   <tr key={item.id} className={`border-t ${isLow ? "bg-red-50" : ""}`}>
@@ -891,9 +981,16 @@ function InventoryStockView({ items, loading }: { items: InventoryItem[]; loadin
             )}
           </tbody>
         </table>
-        <div className="p-3 text-xs text-gray-400 border-t bg-gray-50">
+        {/* <div className="p-3 text-xs text-gray-400 border-t bg-gray-50">
           Showing {filtered.length} item{filtered.length !== 1 ? "s" : ""}
-        </div>
+        </div> */}
+        <Pagination
+          total={filtered.length}
+          perPage={perPage}
+          page={currentPage}
+          onPage={setPage}
+          label="Inventory stock"
+        />
       </div>
     </div>
   );

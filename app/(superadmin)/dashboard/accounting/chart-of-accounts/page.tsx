@@ -18,6 +18,7 @@ import { usePermissions } from "@/lib/permission-context";
 import { toast } from "react-hot-toast";
 import PageNote from "../_components/PageNote";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
+import Pagination from "@/app/_components/Pagination";
 
 interface Account {
   id: string;
@@ -99,6 +100,12 @@ export default function ChartOfAccountsPage() {
     revenue: true,
     expense: true,
   });
+  // Each account-type accordion is a list of its own, so each keeps its own page.
+  const PER_PAGE = 30;
+  const [typePages, setTypePages] = useState<Record<string, number>>({});
+  const setTypePage = (type: string, p: number) =>
+    setTypePages((prev) => ({ ...prev, [type]: p }));
+  const resetTypePages = () => setTypePages({});
 
   useEffect(() => {
     fetchAccounts();
@@ -291,7 +298,7 @@ export default function ChartOfAccountsPage() {
               placeholder="Search accounts..."
               className="bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 w-full sm:w-64 transition-all"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); resetTypePages(); }}
             />
           </div>
           {can("CREATE_ACCOUNTING") && (
@@ -485,6 +492,17 @@ export default function ChartOfAccountsPage() {
       {Object.entries(groupedAccounts).map(([type, accounts]) => {
         const tc = typeConfig[type];
         const isExpanded = expandedTypes[type];
+        // Page is clamped so the slice never renders empty while Pagination's
+        // own correction effect catches up.
+        const listTotalPages = Math.max(1, Math.ceil(accounts.length / PER_PAGE));
+        const listPage = Math.min(
+          Math.max(1, typePages[type] ?? 1),
+          listTotalPages
+        );
+        const visibleAccounts = accounts.slice(
+          (listPage - 1) * PER_PAGE,
+          (listPage - 1) * PER_PAGE + PER_PAGE
+        );
         return (
           <motion.div
             key={type}
@@ -516,14 +534,19 @@ export default function ChartOfAccountsPage() {
               )}
             </button>
             <AnimatePresence>
-              {isExpanded && accounts.length > 0 && (
+              {isExpanded && (
                 <motion.div
                   initial={{ height: 0 }}
                   animate={{ height: "auto" }}
                   exit={{ height: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="border-t border-gray-50">
+                  {accounts.length === 0 ? (
+                    <div className="p-6 text-center text-gray-400 text-sm border-t border-gray-50">
+                      No {type} accounts found
+                    </div>
+                  ) : (
+                    <div className="border-t border-gray-50">
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-gray-50">
@@ -548,7 +571,7 @@ export default function ChartOfAccountsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {accounts.map((account) => (
+                        {visibleAccounts.map((account) => (
                           <tr
                             key={account.id}
                             className={`border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors ${
@@ -646,15 +669,21 @@ export default function ChartOfAccountsPage() {
                         ))}
                       </tbody>
                     </table>
+                    </div>
+                  )}
+
+                  <div className="border-t border-gray-50">
+                    <Pagination
+                      total={accounts.length}
+                      perPage={PER_PAGE}
+                      page={listPage}
+                      onPage={(p) => setTypePage(type, p)}
+                      label={`${type.charAt(0).toUpperCase()}${type.slice(1)}s`}
+                    />
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
-            {isExpanded && accounts.length === 0 && (
-              <div className="p-6 text-center text-gray-400 text-sm border-t border-gray-50">
-                No {type} accounts found
-              </div>
-            )}
           </motion.div>
         );
       })}

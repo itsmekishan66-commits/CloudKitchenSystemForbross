@@ -408,8 +408,8 @@ export default function CustomersClient() {
       .filter((u) =>
         q
           ? u.name.toLowerCase().includes(q) ||
-            (u.email ?? "").toLowerCase().includes(q) ||
-            (u.phone ?? "").toLowerCase().includes(q)
+          (u.email ?? "").toLowerCase().includes(q) ||
+          (u.phone ?? "").toLowerCase().includes(q)
           : true,
       );
   }, [users, recoverySearch, recoveryRole]);
@@ -486,95 +486,95 @@ export default function CustomersClient() {
       </div>
 
       {!isRecovery && (
-      <>
-      <div className="mb-4">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          placeholder="Search users..."
-          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-        />
-      </div>
+        <>
+          <div className="mb-4">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Search users..."
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+            />
+          </div>
 
-      <div className="rounded-xl bg-white shadow overflow-x-auto no-scrollbar">
-        <table className="w-full">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="p-4 text-left">Name</th>
-              <th className="p-4 text-left">Email</th>
-              <th className="p-4 text-left">Phone</th>
-              <th className="p-4 text-left">Role</th>
-              <th className="p-4 text-left">Joined</th>
-              <th className="p-4 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleUsers.length === 0 ? (
-              <tr><td colSpan={6} className="p-8 text-center text-gray-400">No users found</td></tr>
-            ) : (
-              visibleUsers.map((user) => (
-                <tr key={user.id} className="border-t">
-                  <td className="p-4 font-medium">{user.name}</td>
-                  <td className="p-4 text-gray-500">{user.email}</td>
-                  <td className="p-4 text-gray-500">{user.phone ?? "-"}</td>
-                  <td className="p-4">
-                    <span className={`rounded-full px-3 py-1 text-sm ${roleBadge(user)}`}>
-                      {roleLabel(user)}
-                    </span>
-                  </td>
-                  <td className="p-4 text-gray-500">{new Date(user.createdAt).toLocaleDateString()}</td>
-                  <td className="p-4">
-                    <div className="flex gap-4">
-                      {!isLegacyUser(user.email) && can("UPDATE_USERS") && (
-                        <button
-                          onClick={() => openEdit(user)}
-                          className="rounded text-blue-500 text-sm"
-                        >
-                          <Edit size={22} />
-                        </button>
-                      )}
-                      {!isLegacyUser(user.email) && can("DELETE_USERS") && (
-                        <button
-                          onClick={async () => {
-                            const ok = await confirm({
-                              title: "Delete User",
-                              message: `Are you sure you want to delete ${user.name} (${user.email})? The user will be hidden from the system but their data will be preserved.`,
-                              confirmText: "Delete",
-                              variant: "danger",
-                            });
-                            if (ok) handleDeleteConfirm(user);
-                          }}
-                          className="rounded text-red-500 text-sm"
-                        >
-                          <Trash2 size={22} />
-                        </button>
-                      )}
-                      {can("VIEW_USERS") && user.role === "customer" && (
-                        <button
-                          onClick={() => router.push(`/dashboard/customers/${user.id}`)}
-                          className="text-black"
-                        >
-                          <Eye size={22} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
+          <div className="rounded-xl bg-white shadow overflow-x-auto no-scrollbar">
+            <table className="w-full">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="p-4 text-left">Name</th>
+                  <th className="p-4 text-left">Email</th>
+                  <th className="p-4 text-left">Phone</th>
+                  <th className="p-4 text-left">Role</th>
+                  <th className="p-4 text-left">Joined</th>
+                  <th className="p-4 text-left">Actions</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                {visibleUsers.length === 0 ? (
+                  <tr><td colSpan={6} className="p-8 text-center text-gray-400">No users found</td></tr>
+                ) : (
+                  visibleUsers.map((user) => (
+                    <tr key={user.id} className="border-t">
+                      <td className="p-4 font-medium">{user.name}</td>
+                      <td className="p-4 text-gray-500">{user.email}</td>
+                      <td className="p-4 text-gray-500">{user.phone ?? "-"}</td>
+                      <td className="p-4">
+                        <span className={`rounded-full px-3 py-1 text-sm ${roleBadge(user)}`}>
+                          {roleLabel(user)}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-500">{new Date(user.createdAt).toLocaleDateString()}</td>
+                      <td className="p-4">
+                        <div className="flex gap-4">
+                          {!isLegacyUser(user.email) && can("UPDATE_USERS") && (
+                            <button
+                              onClick={() => openEdit(user)}
+                              className="rounded text-blue-500 text-sm"
+                            >
+                              <Edit size={22} />
+                            </button>
+                          )}
+                          {!isLegacyUser(user.email) && can("DELETE_USERS") && (
+                            <button
+                              onClick={async () => {
+                                const ok = await confirm({
+                                  title: "Delete User",
+                                  message: `Are you sure you want to delete ${user.name} (${user.email})? The user will be hidden from the system but their data will be preserved.`,
+                                  confirmText: "Delete",
+                                  variant: "danger",
+                                });
+                                if (ok) handleDeleteConfirm(user);
+                              }}
+                              className="rounded text-red-500 text-sm"
+                            >
+                              <Trash2 size={22} />
+                            </button>
+                          )}
+                          {can("VIEW_USERS") && user.role === "customer" && (
+                            <button
+                              onClick={() => router.push(`/dashboard/customers/${user.id}`)}
+                              className="text-black"
+                            >
+                              <Eye size={22} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-      <Pagination
-        total={filteredUsers.length}
-        perPage={perPage}
-        page={currentPage}
-        onPage={setPage}
-        label="Users"
-      />
-      </>
+          <Pagination
+            total={filteredUsers.length}
+            perPage={perPage}
+            page={currentPage}
+            onPage={setPage}
+            label="Users"
+          />
+        </>
       )}
 
       {/* Recovery — danger zone. Lists only soft-deleted users and lets a
@@ -643,56 +643,54 @@ export default function CustomersClient() {
                   visibleRecoveryUsers.map((user) => {
                     const isActive = !user.deleted;
                     return (
-                    <tr key={user.id} className="border-t hover:bg-red-50/40">
-                      <td className="p-4 font-medium">{user.name}</td>
-                      <td className="p-4 text-gray-500">{user.email}</td>
-                      <td className="p-4 text-gray-500">{user.phone ?? "-"}</td>
-                      <td className="p-4">
-                        <span className={`rounded-full px-3 py-1 text-sm ${roleBadge(user)}`}>
-                          {roleLabel(user)}
-                        </span>
-                      </td>
-                      <td className="p-4 text-gray-500">
-                        {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : "-"}
-                      </td>
-                      <td className="p-4">
-                        {/* Two-sided toggle: left = activate, right = deactivate.
+                      <tr key={user.id} className="border-t hover:bg-red-50/40">
+                        <td className="p-4 font-medium">{user.name}</td>
+                        <td className="p-4 text-gray-500">{user.email}</td>
+                        <td className="p-4 text-gray-500">{user.phone ?? "-"}</td>
+                        <td className="p-4">
+                          <span className={`rounded-full px-3 py-1 text-sm ${roleBadge(user)}`}>
+                            {roleLabel(user)}
+                          </span>
+                        </td>
+                        <td className="p-4 text-gray-500">
+                          {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : "-"}
+                        </td>
+                        <td className="p-4">
+                          {/* Two-sided toggle: left = activate, right = deactivate.
                             Whichever side is current owns the colour — green while
                             the account is active, red while it is deactivated. */}
-                        <div className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 p-0.5">
-                          <button
-                            type="button"
-                            aria-pressed={isActive}
-                            disabled={isActive || togglingId === user.id}
-                            onClick={() => handleStatusToggle(user, "active")}
-                            title="Restore this user"
-                            className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed ${
-                              isActive
-                                ? "bg-green-500 text-white shadow"
-                                : "text-gray-500 hover:bg-green-50 hover:text-green-700 disabled:opacity-50"
-                            }`}
-                          >
-                            <Power size={12} />
-                            Active
-                          </button>
-                          <button
-                            type="button"
-                            aria-pressed={!isActive}
-                            disabled={!isActive || togglingId === user.id}
-                            onClick={() => handleStatusToggle(user, "inactive")}
-                            title="Hide this user again"
-                            className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed ${
-                              isActive
-                                ? "text-gray-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
-                                : "bg-red-500 text-white shadow"
-                            }`}
-                          >
-                            <Power size={12} />
-                            Deactivate
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                          <div className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 p-0.5">
+                            <button
+                              type="button"
+                              aria-pressed={isActive}
+                              disabled={isActive || togglingId === user.id}
+                              onClick={() => handleStatusToggle(user, "active")}
+                              title="Restore this user"
+                              className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed ${isActive
+                                  ? "bg-green-500 text-white shadow"
+                                  : "text-gray-500 hover:bg-green-50 hover:text-green-700 disabled:opacity-50"
+                                }`}
+                            >
+                              <Power size={12} />
+                              Active
+                            </button>
+                            <button
+                              type="button"
+                              aria-pressed={!isActive}
+                              disabled={!isActive || togglingId === user.id}
+                              onClick={() => handleStatusToggle(user, "inactive")}
+                              title="Hide this user again"
+                              className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed ${isActive
+                                  ? "text-gray-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                                  : "bg-red-500 text-white shadow"
+                                }`}
+                            >
+                              <Power size={12} />
+                              Deactivate
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
                     );
                   })
                 )}

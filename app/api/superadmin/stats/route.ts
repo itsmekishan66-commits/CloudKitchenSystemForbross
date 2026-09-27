@@ -52,6 +52,9 @@ const fetchDashboardStats = async () => {
         customerName: orders.customerName,
         status: orders.status,
         total: orders.total,
+        paymentMethod: orders.paymentMethod,
+        paymentSettled: orders.paymentSettled,
+        dueAmount: orders.dueAmount,
         createdAt: orders.createdAt,
       })
       .from(orders)

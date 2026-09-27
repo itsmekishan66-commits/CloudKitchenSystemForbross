@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 import Checkbox from "@/app/_components/Checkbox";
+import Pagination from "@/app/_components/Pagination";
 import { Truck, Plus, ArrowLeft, Package, ShoppingBag, FileText, Edit, Trash2, Landmark} from "lucide-react";
 
 interface Supplier {
@@ -129,6 +130,9 @@ export default function SuppliersClient() {
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [products, setProducts] = useState<SupplierProduct[]>([]);
   const [settlements, setSettlements] = useState<SupplierSettlement[]>([]);
+  // Each detail tab keeps its own page, so switching tabs starts at page 1.
+  const [productsPage, setProductsPage] = useState(1);
+  const [settlementsPage, setSettlementsPage] = useState(1);
   // Detail tabs live in the URL (?tab=...) so a refresh keeps the active tab.
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -139,6 +143,9 @@ export default function SuppliersClient() {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", tab);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    // Each tab keeps its own page, but starting on a fresh tab starts at page 1.
+    if (tab === "products") setProductsPage(1);
+    else setSettlementsPage(1);
   };
 
   // Product form modal
@@ -160,9 +167,32 @@ export default function SuppliersClient() {
     return suppliers.filter((s) => s.name.toLowerCase().includes(q) || (s.contactPerson ?? "").toLowerCase().includes(q) || (s.email ?? "").toLowerCase().includes(q));
   }, [suppliers, search]);
 
-  const totalPages = Math.ceil(filteredSuppliers.length / perPage);
-  const start = (page - 1) * perPage;
+  // Page is clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const totalPages = Math.max(1, Math.ceil(filteredSuppliers.length / perPage));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * perPage;
   const visibleSuppliers = filteredSuppliers.slice(start, start + perPage);
+
+  // The supplier detail view has its own two tabs (Products, Settlements),
+  // each with an independently paginated list.
+  const detailPerPage = 20;
+  const productsCurrentPage = Math.min(
+    Math.max(1, productsPage),
+    Math.max(1, Math.ceil(products.length / detailPerPage))
+  );
+  const visibleProducts = products.slice(
+    (productsCurrentPage - 1) * detailPerPage,
+    (productsCurrentPage - 1) * detailPerPage + detailPerPage
+  );
+  const settlementsCurrentPage = Math.min(
+    Math.max(1, settlementsPage),
+    Math.max(1, Math.ceil(settlements.length / detailPerPage))
+  );
+  const visibleSettlements = settlements.slice(
+    (settlementsCurrentPage - 1) * detailPerPage,
+    (settlementsCurrentPage - 1) * detailPerPage + detailPerPage
+  );
 
   async function loadSuppliers() {
     try {
@@ -474,6 +504,7 @@ export default function SuppliersClient() {
   // Select supplier for detail view
   function selectSupplier(s: Supplier) {
     setSelectedSupplier(s);
+    setSettlementsPage(1);
     selectDetailTab("products");
     loadProducts(s.id);
     loadSettlements(s.id);
@@ -587,7 +618,7 @@ export default function SuppliersClient() {
                 </button>
               )}
             </div>
-            {products.length === 0 ? (
+            {visibleProducts.length === 0 ? (
               <p className="p-6 text-center text-gray-400">No products added yet</p>
             ) : (
               <div className="overflow-x-auto no-scrollbar">
@@ -605,7 +636,7 @@ export default function SuppliersClient() {
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map((p) => {
+                  {visibleProducts.map((p) => {
                     const unitsPerPack = p.unitsPerPack ?? 1;
                     // const costPerPiece = Number(p.costPrice) / unitsPerPack;
                     const packLabel = p.productType === "direct_sellable"
@@ -641,6 +672,14 @@ export default function SuppliersClient() {
               </table>
               </div>
             )}
+
+            <Pagination
+              total={products.length}
+              perPage={detailPerPage}
+              page={productsCurrentPage}
+              onPage={setProductsPage}
+              label="Products"
+            />
           </div>
         )}
 
@@ -689,7 +728,7 @@ export default function SuppliersClient() {
                   </button>
                 )}
               </div>
-              {settlements.length === 0 ? (
+              {visibleSettlements.length === 0 ? (
                 <p className="p-6 text-center text-gray-400">No settlement records yet</p>
               ) : (
                 <div className="overflow-x-auto">
@@ -706,7 +745,7 @@ export default function SuppliersClient() {
                     </tr>
                   </thead>
                   <tbody>
-                    {settlements.map((s) => (
+                    {visibleSettlements.map((s) => (
                       <tr key={s.id} className="border-t hover:bg-gray-50">
                         <td className="p-3 text-sm">{new Date(s.settlementDate).toLocaleDateString()}</td>
                         <td className="p-3">
@@ -734,6 +773,14 @@ export default function SuppliersClient() {
                 </table>
                 </div>
               )}
+
+              <Pagination
+                total={settlements.length}
+                perPage={detailPerPage}
+                page={settlementsCurrentPage}
+                onPage={setSettlementsPage}
+                label="Settlements"
+              />
             </div>
           </div>
         )}
@@ -1119,29 +1166,13 @@ export default function SuppliersClient() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
-          <p className="text-sm text-gray-500">
-            Page {page} of {totalPages} ({filteredSuppliers.length} suppliers)
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        total={filteredSuppliers.length}
+        perPage={perPage}
+        page={currentPage}
+        onPage={setPage}
+        label="Suppliers"
+      />
 
       {/* Supplier Form Modal */}
       {showSupplierModal && (

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import PageNote from "../_components/PageNote";
+import Pagination from "@/app/_components/Pagination";
 
 interface Investment {
   id: string;
@@ -57,6 +58,17 @@ export default function InitialInvestmentPage() {
   const [total, setTotal] = useState(0);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 30;
+
+  // Page is clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const totalPages = Math.max(1, Math.ceil(investments.length / PER_PAGE));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const visibleInvestments = investments.slice(
+    (currentPage - 1) * PER_PAGE,
+    (currentPage - 1) * PER_PAGE + PER_PAGE
+  );
 
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -375,7 +387,7 @@ export default function InitialInvestmentPage() {
               </tr>
             </thead>
             <tbody>
-              {investments.map((inv) => {
+              {visibleInvestments.map((inv) => {
                 const sc = statusConfig[inv.status] || statusConfig.draft;
                 const fundLine = inv.lines.find((l) => l.debit > 0);
                 return (
@@ -429,7 +441,7 @@ export default function InitialInvestmentPage() {
                   </tr>
                 );
               })}
-              {investments.length === 0 && (
+              {visibleInvestments.length === 0 && (
                 <tr>
                   <td colSpan={6} className="p-10 text-center">
                     <div className="flex flex-col items-center gap-3">
@@ -446,6 +458,16 @@ export default function InitialInvestmentPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="border-t border-gray-50">
+          <Pagination
+            total={investments.length}
+            perPage={PER_PAGE}
+            page={currentPage}
+            onPage={setPage}
+            label="Investments"
+          />
         </div>
       </motion.div>
 

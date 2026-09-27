@@ -5,6 +5,7 @@ import { FiMail, FiPhone, FiMessageSquare  } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
+import Pagination from "@/app/_components/Pagination";
 
 interface Message {
   id: number;
@@ -31,8 +32,11 @@ export default function MessagesClient() {
   const [page, setPage] = useState(1);
   const perPage = 20;
 
-  const totalPages = Math.ceil(messages.length / perPage);
-  const start = (page - 1) * perPage;
+  // Page is clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const totalPages = Math.max(1, Math.ceil(messages.length / perPage));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * perPage;
   const visibleMessages = messages.slice(start, start + perPage);
 
   //to download the file
@@ -182,29 +186,13 @@ export default function MessagesClient() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
-          <p className="text-sm text-gray-500">
-            Page {page} of {totalPages} ({messages.length} messages)
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        total={messages.length}
+        perPage={perPage}
+        page={currentPage}
+        onPage={setPage}
+        label="Messages"
+      />
     </div>
   );
 }

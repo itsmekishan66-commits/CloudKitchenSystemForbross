@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import Pagination from "@/app/_components/Pagination";
 import Link from "next/link";
 import {
   ShoppingBag, Users, UtensilsCrossed, ClipboardList, Package, CreditCard, LifeBuoy, BarChart3,
-  Megaphone, Settings, ShieldCheck, Tags, MessageSquare,
+  Megaphone, Settings, ShieldCheck, Tags, MessageSquare, NepaliRupee,
 } from "lucide-react";
-import { GiReceiveMoney } from "react-icons/gi";
+import { isPrepaidOrder } from "@/lib/constants";
 
 interface DashboardStats {
   totalOrders: number;
@@ -21,6 +23,9 @@ interface DashboardStats {
     customerName: string;
     status: string;
     total: string;
+    paymentMethod: string;
+    paymentSettled: number | boolean | null;
+    dueAmount: string;
     createdAt: string;
   }>;
 }
@@ -29,12 +34,76 @@ interface DashboardClientProps {
   allowedModules: string[];
 }
 
+type RecentOrder = DashboardStats["recentOrders"][number];
+
+// Payment method badge colors for orders.
+const paymentColors: Record<string, string> = {
+  COD: "bg-gray-100 text-gray-600",
+  ONLINE: "bg-blue-100 text-blue-700",
+  ESEWA: "bg-green-100 text-green-700",
+  KHALTI: "bg-purple-100 text-purple-700",
+};
+
+const SETTLED_BADGE = "border-green-200 bg-green-50 text-green-600";
+const DUE_BADGE = "border-amber-200 bg-amber-50 text-amber-600";
+const UNSETTLED_BADGE = "border-red-200 bg-red-50 text-red-600";
+
+/**
+ * Settlement state shown beside the payment method. Orders that are still
+ * being prepared have nothing due yet, so they get no badge at all.
+ */
+function settlementBadge(order: RecentOrder) {
+  if (isPrepaidOrder(order)) return { label: "Settled", className: SETTLED_BADGE };
+  if (order.status !== "Delivered") return null;
+  if (Number(order.dueAmount ?? 0) > 0) return { label: "Due", className: DUE_BADGE };
+  if (order.paymentSettled) return { label: "Settled", className: SETTLED_BADGE };
+  return { label: "Not Settled", className: UNSETTLED_BADGE };
+}
+
+// Both pills are `inline-flex items-center` so their text is optically centred
+// and they line up with each other instead of the "Settled" text sitting on a
+// different baseline than the method badge.
+function PaymentCell({ order }: { order: RecentOrder }) {
+  const settlement = settlementBadge(order);
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span
+        className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide md:text-xs ${paymentColors[order.paymentMethod] ?? "bg-gray-100 text-gray-700"}`}
+      >
+        {order.paymentMethod}
+      </span>
+      {settlement ? (
+        <span
+          className={`inline-flex items-center whitespace-nowrap rounded-md border px-2 py-0.5 text-[10px] font-medium md:text-xs ${settlement.className}`}
+        >
+          {settlement.label}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export default function DashboardClient({ allowedModules }: DashboardClientProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [siteName, setSiteName] = useState("Cloud Kitchen");
   const [page, setPage] = useState(1);
   const perPage = 20;
+
+  // Recent orders are paginated client-side — the slice is hoisted out of the
+  // render IIFEs so the shared Pagination can drive it. The `?? []` fallback
+  // lives inside the memo so its deps stay referentially stable.
+  const orders = stats?.recentOrders ?? [];
+  const ordersTotalPages = Math.max(1, Math.ceil(orders.length / perPage));
+  const ordersCurrentPage = Math.min(Math.max(1, page), ordersTotalPages);
+  const visibleOrders = useMemo(() => {
+    const list = stats?.recentOrders ?? [];
+    return list.slice(
+      (ordersCurrentPage - 1) * perPage,
+      (ordersCurrentPage - 1) * perPage + perPage
+    );
+  }, [stats, ordersCurrentPage, perPage]);
 
   const can = (module: string) => allowedModules.includes(module);
 
@@ -60,7 +129,7 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
   const statCards = stats
     ? [
       { title: "Total Orders", value: stats.totalOrders.toLocaleString(), growth: `${stats.pendingOrders} pending`, icon: ShoppingBag, module: "/dashboard/orders" },
-      { title: "Revenue", value: `Rs.${(stats.revenue / 1000).toFixed(1)}K`, growth: "Total revenue", icon: GiReceiveMoney, module: "/dashboard/payment" },
+      { title: "Revenue", value: `Rs.${(stats.revenue / 1000).toFixed(1)}K`, growth: "Total revenue", icon: NepaliRupee, module: "/dashboard/payment" },
       { title: "Customers", value: stats.totalCustomers.toLocaleString(), growth: "Registered users", icon: Users, module: "/dashboard/customers" },
       { title: "Active Kitchens", value: stats.activeKitchens.toString(), growth: "Currently active", icon: UtensilsCrossed, module: "/dashboard/kitchen" },
     ]
@@ -181,28 +250,23 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
             <div className="lg:col-span-2 rounded-3xl border border-white/20 bg-white/80 p-4 sm:p-5 lg:p-6 shadow-xl backdrop-blur-xl">
               <h2 className="mb-4 sm:mb-5 text-lg sm:text-xl font-bold">Recent Orders</h2>
               <div className="overflow-x-auto rounded-xl">
-                <table className="w-full text-[12px] md:text-xl">
+                <table className="w-full text-[10px] md:text-lg">
                   <thead>
                     <tr className="border-b">
                       <th className="py-3 text-left">Order ID</th>
                       <th className="py-3 text-left">Customer</th>
                       <th className="py-3 text-left">Status</th>
+                      <th className="py-3 text-left">Payment</th>
                       <th className="py-3 text-left">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(() => {
-                      const orders = stats?.recentOrders ?? [];
-                      const start = (page - 1) * perPage;
-                      const visibleOrders = orders.slice(start, start + perPage);
-                      if (visibleOrders.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan={4} className="py-8 text-center text-gray-400">No orders yet</td>
-                          </tr>
-                        );
-                      }
-                      return visibleOrders.map((order) => (
+                    {visibleOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-gray-400">No orders yet</td>
+                      </tr>
+                    ) : (
+                      visibleOrders.map((order) => (
                         <tr key={order.id} className="border-b">
                           <td className="py-4">#{order.id}</td>
                           <td>{order.customerName}</td>
@@ -211,41 +275,23 @@ export default function DashboardClient({ allowedModules }: DashboardClientProps
                               {order.status}
                             </span>
                           </td>
+                          <td>
+                            <PaymentCell order={order} />
+                          </td>
                           <td>Rs.{order.total}</td>
                         </tr>
-                      ));
-                    })()}
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
-              {(() => {
-                const orders = stats?.recentOrders ?? [];
-                const totalPages = Math.ceil(orders.length / perPage);
-                if (totalPages <= 1) return null;
-                return (
-                  <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
-                    <p className="text-sm text-gray-500">
-                      Page {page} of {totalPages} ({orders.length} orders)
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        disabled={page <= 1}
-                        className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={page >= totalPages}
-                        className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()}
+              <Pagination
+                total={orders.length}
+                perPage={perPage}
+                page={page}
+                onPage={setPage}
+                label="Recent orders"
+              />
             </div>
           ) : null}
 

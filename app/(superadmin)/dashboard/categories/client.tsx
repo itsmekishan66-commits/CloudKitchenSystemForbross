@@ -5,6 +5,7 @@ import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 import Checkbox from "@/app/_components/Checkbox";
 import { Edit, Trash2, Search } from "lucide-react";
+import Pagination from "@/app/_components/Pagination";
 
 interface Category {
   id: number;
@@ -62,8 +63,11 @@ export default function CategoriesClient() {
     );
   }, [categories, search]);
 
-  const totalPages = Math.ceil(filteredCategories.length / perPage);
-  const start = (page - 1) * perPage;
+  // Page is clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const totalPages = Math.max(1, Math.ceil(filteredCategories.length / perPage));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * perPage;
   const visibleCategories = filteredCategories.slice(start, start + perPage);
 
   async function loadCategories() {
@@ -256,46 +260,13 @@ export default function CategoriesClient() {
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 mt-4 border-t border-gray-200">
-          <p className="text-sm text-gray-500">
-            Page {page} of {totalPages} ({filteredCategories.length} categories)
-          </p>
-          <div className="flex items-center gap-1 flex-wrap">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="flex items-center gap-1 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-2 rounded-xl transition-colors"
-            >
-              <span aria-hidden="true">←</span> Prev
-            </button>
-            {(() => {
-              const windowStart = Math.floor((page - 1) / 10) * 10 + 1;
-              const windowEnd = Math.min(totalPages, windowStart + 9);
-              const pages: number[] = [];
-              for (let p = windowStart; p <= windowEnd; p++) pages.push(p);
-              return pages.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  className={`min-w-9.5 text-sm font-medium px-3 py-2 rounded-xl transition-colors ${
-                    p === page ? "bg-orange-500 text-white" : "text-gray-700 bg-gray-50 hover:bg-gray-100"
-                  }`}
-                >
-                  {p}
-                </button>
-              ));
-            })()}
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="flex items-center gap-1 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-2 rounded-xl transition-colors"
-            >
-              Next <span aria-hidden="true">→</span>
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        total={filteredCategories.length}
+        perPage={perPage}
+        page={currentPage}
+        onPage={setPage}
+        label="Categories"
+      />
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

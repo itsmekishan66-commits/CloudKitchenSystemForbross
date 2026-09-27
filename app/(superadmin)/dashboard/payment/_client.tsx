@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
+import Pagination from "@/app/_components/Pagination";
 import { motion } from "framer-motion";
 import {
   Wallet,
@@ -191,54 +192,6 @@ function paymentSourceBadge(t: Transaction) {
     : { label: "Manual entry", color: "text-amber-700", bg: "bg-amber-50" };
 }
 
-function Pagination({
-  total,
-  perPage,
-  page,
-  onPage,
-}: {
-  total: number;
-  perPage: number;
-  page: number;
-  onPage: (p: number) => void;
-}) {
-  const totalPages = Math.max(1, Math.ceil(total / perPage));
-  const windowStart = Math.floor((page - 1) / 10) * 10 + 1;
-  const windowEnd = Math.min(totalPages, windowStart + 9);
-  const pages: number[] = [];
-  for (let p = windowStart; p <= windowEnd; p++) pages.push(p);
-
-  return (
-    <div className="flex items-center gap-1 flex-wrap">
-      <button
-        onClick={() => onPage(Math.max(1, page - 1))}
-        disabled={page <= 1}
-        className="flex items-center gap-1 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-2 rounded-xl transition-colors"
-      >
-        <span aria-hidden="true">←</span> Prev
-      </button>
-      {pages.map((p) => (
-        <button
-          key={p}
-          onClick={() => onPage(p)}
-          className={`min-w-9.5 text-sm font-medium px-3 py-2 rounded-xl transition-colors ${
-            p === page ? "bg-orange-500 text-white" : "text-gray-700 bg-gray-50 hover:bg-gray-100"
-          }`}
-        >
-          {p}
-        </button>
-      ))}
-      <button
-        onClick={() => onPage(Math.min(totalPages, page + 1))}
-        disabled={page >= totalPages}
-        className="flex items-center gap-1 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-2 rounded-xl transition-colors"
-      >
-        Next <span aria-hidden="true">→</span>
-      </button>
-    </div>
-  );
-}
-
 function DailyBalancesSection({ transactions }: { transactions: Transaction[] }) {
   const dailyBalances = useMemo(() => {
     const dailyMap = new Map<string, { received: number; paid: number }>();
@@ -342,11 +295,14 @@ function DailyBalancesSection({ transactions }: { transactions: Transaction[] })
           </tfoot>
         </table>
       </div>
-      <div className="p-4 border-t border-gray-50 flex items-center justify-between">
-        <span className="text-xs text-gray-400">
-          Showing {paginatedDaily.length} of {dailyBalances.length}
-        </span>
-        <Pagination total={dailyBalances.length} perPage={DAILY_PER_PAGE} page={dailyPage} onPage={setDailyPage} />
+      <div className="border-t border-gray-50">
+        <Pagination
+          total={dailyBalances.length}
+          perPage={DAILY_PER_PAGE}
+          page={dailyPage}
+          onPage={setDailyPage}
+          label="Daily balances"
+        />
       </div>
       </motion.div>
     );
@@ -434,19 +390,15 @@ function CashPaidSection({ transactions }: { transactions: Transaction[] }) {
           </tfoot>
         </table>
       </div>
-      {cashPaidTxs.length > CASH_PAID_PER_PAGE && (
-        <div className="p-4 border-t border-gray-50 flex items-center justify-between">
-          <span className="text-xs text-gray-400">
-            Showing {paginated.length} of {cashPaidTxs.length}
-          </span>
-          <Pagination
-            total={cashPaidTxs.length}
-            perPage={CASH_PAID_PER_PAGE}
-            page={page}
-            onPage={setPage}
-          />
-        </div>
-      )}
+      <div className="border-t border-gray-50">
+        <Pagination
+          total={cashPaidTxs.length}
+          perPage={CASH_PAID_PER_PAGE}
+          page={page}
+          onPage={setPage}
+          label="Cash paid"
+        />
+      </div>
     </motion.div>
   );
 }
@@ -745,6 +697,16 @@ export default function PaymentPage() {
   const [settlingDue, setSettlingDue] = useState(false);
   const [settleError, setSettleError] = useState("");
   const [detailTarget, setDetailTarget] = useState<{ personName: string; dues: Due[] } | null>(null);
+  // The receivable-detail modal lists per-order dues — a list of its own.
+  const [detailPage, setDetailPage] = useState(1);
+  const DETAIL_PER_PAGE = 10;
+  const detailDues = detailTarget?.dues ?? [];
+  const detailTotalPages = Math.max(1, Math.ceil(detailDues.length / DETAIL_PER_PAGE));
+  const detailCurrentPage = Math.min(Math.max(1, detailPage), detailTotalPages);
+  const visibleDetailDues = detailDues.slice(
+    (detailCurrentPage - 1) * DETAIL_PER_PAGE,
+    (detailCurrentPage - 1) * DETAIL_PER_PAGE + DETAIL_PER_PAGE
+  );
 
   const settleOptions = useMemo(() => {
     const opts: { value: string; label: string; method: PaymentMethod; accountId: string | null; qrCode: string | null; holderName: string }[] = [
@@ -1216,11 +1178,14 @@ export default function PaymentPage() {
               </tbody>
             </table>
           </div>
-          <div className="p-4 border-t border-gray-50 flex items-center justify-between">
-            <span className="text-xs text-gray-400">
-              Showing {paginatedAccountBalances.length} of {accounts.length}
-            </span>
-            <Pagination total={accounts.length} perPage={PER_PAGE} page={accountBalancesPage} onPage={setAccountBalancesPage} />
+          <div className="border-t border-gray-50">
+            <Pagination
+              total={accounts.length}
+              perPage={PER_PAGE}
+              page={accountBalancesPage}
+              onPage={setAccountBalancesPage}
+              label="Account balances"
+            />
           </div>
         </motion.div>
       )}
@@ -1533,11 +1498,14 @@ export default function PaymentPage() {
                 </tbody>
               </table>
             </div>
-            <div className="p-4 border-t border-gray-50 flex items-center justify-between">
-              <span className="text-xs text-gray-400">
-                Showing {paginatedTx.length} of {txFiltered.length}
-              </span>
-              <Pagination total={txFiltered.length} perPage={PER_PAGE} page={txPage} onPage={setTxPage} />
+            <div className="border-t border-gray-50">
+              <Pagination
+                total={txFiltered.length}
+                perPage={PER_PAGE}
+                page={txPage}
+                onPage={setTxPage}
+                label="Transactions"
+              />
             </div>
           </motion.div>
         </div>
@@ -1614,7 +1582,7 @@ export default function PaymentPage() {
                       </td>
                       <td className="px-5 py-4 text-right flex items-center justify-end gap-3">
                         <button
-                          onClick={() => setDetailTarget({ personName: g.personName, dues: dues.filter((x) => x.personName === g.personName) })}
+                          onClick={() => { setDetailPage(1); setDetailTarget({ personName: g.personName, dues: dues.filter((x) => x.personName === g.personName) }); }}
                           title="View details"
                           className="text-gray-400 hover:text-orange-600"
                         >
@@ -1643,11 +1611,14 @@ export default function PaymentPage() {
               </tbody>
             </table>
           </div>
-          <div className="p-4 border-t border-gray-50 flex items-center justify-between">
-            <span className="text-xs text-gray-400">
-              Showing {paginatedReceivables.length} of {customerGroups.length}
-            </span>
-            <Pagination total={customerGroups.length} perPage={PER_PAGE} page={receivablePage} onPage={setReceivablePage} />
+          <div className="border-t border-gray-50">
+            <Pagination
+              total={customerGroups.length}
+              perPage={PER_PAGE}
+              page={receivablePage}
+              onPage={setReceivablePage}
+              label="Receivables"
+            />
           </div>
         </motion.div>
 
@@ -1720,7 +1691,7 @@ export default function PaymentPage() {
                       </td>
                       <td className="px-5 py-4 text-right flex items-center justify-end gap-3">
                         <button
-                          onClick={() => setDetailTarget({ personName: g.personName, dues: dues.filter((x) => x.personName === g.personName) })}
+                          onClick={() => { setDetailPage(1); setDetailTarget({ personName: g.personName, dues: dues.filter((x) => x.personName === g.personName) }); }}
                           title="View details"
                           className="text-gray-400 hover:text-orange-600"
                         >
@@ -1749,11 +1720,14 @@ export default function PaymentPage() {
               </tbody>
             </table>
           </div>
-          <div className="p-4 border-t border-gray-50 flex items-center justify-between">
-            <span className="text-xs text-gray-400">
-              Showing {paginatedDues.length} of {supplierGroups.length}
-            </span>
-            <Pagination total={supplierGroups.length} perPage={PER_PAGE} page={duesPage} onPage={setDuesPage} />
+          <div className="border-t border-gray-50">
+            <Pagination
+              total={supplierGroups.length}
+              perPage={PER_PAGE}
+              page={duesPage}
+              onPage={setDuesPage}
+              label="Payables"
+            />
           </div>
         </motion.div>
       </div>
@@ -1892,11 +1866,14 @@ export default function PaymentPage() {
               </tbody>
             </table>
           </div>
-          <div className="p-4 border-t border-gray-50 flex items-center justify-between">
-            <span className="text-xs text-gray-400">
-              Showing {paginatedAccounts.length} of {filteredAccounts.length}
-            </span>
-            <Pagination total={filteredAccounts.length} perPage={PER_PAGE} page={accountsPage} onPage={setAccountsPage} />
+          <div className="border-t border-gray-50">
+            <Pagination
+              total={filteredAccounts.length}
+              perPage={PER_PAGE}
+              page={accountsPage}
+              onPage={setAccountsPage}
+              label="Payment accounts"
+            />
           </div>
         </div>
       </div>
@@ -2049,11 +2026,14 @@ export default function PaymentPage() {
               </tbody>
             </table>
           </div>
-          <div className="p-4 border-t border-gray-50 flex items-center justify-between">
-            <span className="text-xs text-gray-400">
-              Showing {paginatedGatewayTransactions.length} of {gatewayTransactions.length}
-            </span>
-            <Pagination total={gatewayTransactions.length} perPage={PER_PAGE} page={gatewayPage} onPage={setGatewayPage} />
+          <div className="border-t border-gray-50">
+            <Pagination
+              total={gatewayTransactions.length}
+              perPage={PER_PAGE}
+              page={gatewayPage}
+              onPage={setGatewayPage}
+              label="Gateway transactions"
+            />
           </div>
         </div>
       </div>
@@ -2271,7 +2251,7 @@ export default function PaymentPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {detailTarget.dues.map((d) => {
+                  {visibleDetailDues.map((d) => {
                     const sc = statusConfig[d.status];
                     return (
                       <tr key={d.id} className="border-b border-gray-50 last:border-0">
@@ -2301,6 +2281,16 @@ export default function PaymentPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+
+            <div className="border-t border-gray-50">
+              <Pagination
+                total={detailDues.length}
+                perPage={DETAIL_PER_PAGE}
+                page={detailCurrentPage}
+                onPage={setDetailPage}
+                label="Dues"
+              />
             </div>
           </div>
         </div>

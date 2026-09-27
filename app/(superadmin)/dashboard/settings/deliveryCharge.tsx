@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
+import Pagination from "@/app/_components/Pagination";
 type Zone = {
     id: number;
     landmarkName: string;
@@ -31,6 +32,17 @@ export default function DeliveryZonesClient() {
         minOrderAmount: "",
         isActive: true,
     });
+
+    // The mobile card layout and the desktop table render the same zones, so a
+    // single page state drives both.
+    const [page, setPage] = useState(1);
+    const perPage = 20;
+    const totalPages = Math.max(1, Math.ceil(zones.length / perPage));
+    const currentPage = Math.min(Math.max(1, page), totalPages);
+    const visibleZones = zones.slice(
+        (currentPage - 1) * perPage,
+        (currentPage - 1) * perPage + perPage
+    );
 
     async function loadZones() {
         try {
@@ -166,7 +178,7 @@ export default function DeliveryZonesClient() {
                     <>
                         {/* Mobile: card layout */}
                         <div className="space-y-3 md:hidden">
-                            {zones.map((zone) => (
+                            {visibleZones.map((zone) => (
                                 <div key={zone.id} className="rounded-xl border border-gray-100 bg-white p-4">
                                     <div className="mb-3 flex items-start justify-between">
                                         <div>
@@ -231,7 +243,7 @@ export default function DeliveryZonesClient() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {zones.map((zone) => (
+                                    {visibleZones.map((zone) => (
                                         <tr key={zone.id} className="border-b last:border-0">
                                             <td className="py-4 font-medium">{zone.landmarkName}</td>
                                             <td className="py-4">Rs. {Number(zone.deliveryCharge).toFixed(2)}</td>
@@ -282,6 +294,14 @@ export default function DeliveryZonesClient() {
                         </div>
                     </>
                 )}
+
+                <Pagination
+                    total={zones.length}
+                    perPage={perPage}
+                    page={currentPage}
+                    onPage={setPage}
+                    label="Delivery zones"
+                />
             </div>
 
             {/* Modal */}

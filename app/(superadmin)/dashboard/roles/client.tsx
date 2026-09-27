@@ -216,9 +216,23 @@ export default function RolesClient() {
       )
     : users;
 
-  const userTotalPages = Math.ceil(displayedUsers.length / userPerPage);
-  const userStart = (userPage - 1) * userPerPage;
+  // Page is clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const userTotalPages = Math.max(1, Math.ceil(displayedUsers.length / userPerPage));
+  const userCurrentPage = Math.min(Math.max(1, userPage), userTotalPages);
+  const userStart = (userCurrentPage - 1) * userPerPage;
   const visibleUsers = displayedUsers.slice(userStart, userStart + userPerPage);
+
+  // The "Roles Available" table is a second list on this page, so it gets its
+  // own page state.
+  const [rolesPage, setRolesPage] = useState(1);
+  const rolesPerPage = 20;
+  const rolesTotalPages = Math.max(1, Math.ceil(roles.length / rolesPerPage));
+  const rolesCurrentPage = Math.min(Math.max(1, rolesPage), rolesTotalPages);
+  const visibleRoles = roles.slice(
+    (rolesCurrentPage - 1) * rolesPerPage,
+    (rolesCurrentPage - 1) * rolesPerPage + rolesPerPage
+  );
 
   function openCreateRole() {
     setCreateErrors({});
@@ -398,17 +412,15 @@ export default function RolesClient() {
             )}
           </tbody>
         </table>
-        {userTotalPages > 1 && (
-          <div className="px-4 sm:px-6 py-4 border-t border-gray-100">
-            <Pagination
-              total={displayedUsers.length}
-              perPage={userPerPage}
-              page={userPage}
-              onPage={setUserPage}
-              label="Users"
-            />
-          </div>
-        )}
+        <div className="px-4 sm:px-6 py-4 border-t border-gray-100">
+          <Pagination
+            total={displayedUsers.length}
+            perPage={userPerPage}
+            page={userCurrentPage}
+            onPage={setUserPage}
+            label="Users"
+          />
+        </div>
       </div>
 
       {/* Section 2: Roles Available — Roles Table */}
@@ -426,12 +438,12 @@ export default function RolesClient() {
             </tr>
           </thead>
           <tbody>
-            {roles.length === 0 ? (
+            {visibleRoles.length === 0 ? (
               <tr>
                 <td colSpan={3} className="p-8 text-center text-gray-400">No roles found</td>
               </tr>
             ) : (
-              roles.map((role) => {
+              visibleRoles.map((role) => {
                 const isSystemRole = SYSTEM_ROLES.has(role.name);
                 const description = ROLE_DESCRIPTIONS[role.name] || role.description || "—";
                 
@@ -477,6 +489,16 @@ export default function RolesClient() {
             )}
           </tbody>
         </table>
+
+        <div className="px-4 sm:px-6 py-4 border-t border-gray-100">
+          <Pagination
+            total={roles.length}
+            perPage={rolesPerPage}
+            page={rolesCurrentPage}
+            onPage={setRolesPage}
+            label="Roles"
+          />
+        </div>
       </div>
 
       {/* Modal: Create New Role */}

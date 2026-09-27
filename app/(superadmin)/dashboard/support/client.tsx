@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { X, Plus, Trash2, Send } from "lucide-react";
 import { usePermissions } from "@/lib/permission-context";
 import { formatDate, formatDateTime } from "@/utils/format";
+import Pagination from "@/app/_components/Pagination";
 
 interface SupportTicket {
   id: number;
@@ -66,9 +67,23 @@ export default function SupportClient() {
     );
   }, [tickets, search]);
 
-  const totalPages = Math.ceil(filteredTickets.length / perPage);
-  const start = (page - 1) * perPage;
+  // Page is clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const totalPages = Math.max(1, Math.ceil(filteredTickets.length / perPage));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * perPage;
   const visibleTickets = filteredTickets.slice(start, start + perPage);
+
+  // The ticket detail modal lists the thread replies — a second list, paginated
+  // on its own and reset each time a different ticket is opened.
+  const [repliesPage, setRepliesPage] = useState(1);
+  const repliesPerPage = 10;
+  const repliesTotalPages = Math.max(1, Math.ceil(replies.length / repliesPerPage));
+  const repliesCurrentPage = Math.min(Math.max(1, repliesPage), repliesTotalPages);
+  const visibleReplies = replies.slice(
+    (repliesCurrentPage - 1) * repliesPerPage,
+    (repliesCurrentPage - 1) * repliesPerPage + repliesPerPage
+  );
 
   const loadTickets = useCallback(async () => {
     try {
@@ -125,6 +140,7 @@ export default function SupportClient() {
   async function openDetail(ticket: SupportTicket) {
     setSelected(ticket);
     setReplies([]);
+    setRepliesPage(1);
     setReplyText("");
     try {
       const res = await fetch(`/api/superadmin/support/${ticket.id}/replies`);
@@ -320,29 +336,13 @@ export default function SupportClient() {
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
-          <p className="text-sm text-gray-500">
-            Page {page} of {totalPages} ({filteredTickets.length} tickets)
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        total={filteredTickets.length}
+        perPage={perPage}
+        page={currentPage}
+        onPage={setPage}
+        label="Tickets"
+      />
 
       {/* Create ticket modal */}
       {formOpen && (
@@ -469,7 +469,7 @@ export default function SupportClient() {
                 <p className="text-sm text-gray-400">No replies yet.</p>
               ) : (
                 <div className="space-y-2">
-                  {replies.map((r) => (
+                  {visibleReplies.map((r) => (
                     <div key={r.id} className="rounded-xl border border-gray-100 bg-white p-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-800">{r.senderName ?? (r.userId ? `#${r.userId}` : "System")}</span>
@@ -480,6 +480,14 @@ export default function SupportClient() {
                   ))}
                 </div>
               )}
+
+              <Pagination
+                total={replies.length}
+                perPage={repliesPerPage}
+                page={repliesCurrentPage}
+                onPage={setRepliesPage}
+                label="Replies"
+              />
             </div>
 
             {selected.status === "Resolved" || selected.status === "Closed" ? (

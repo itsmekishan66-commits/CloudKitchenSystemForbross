@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { usePermissions } from "@/lib/permission-context";
 import OrdersTable from "../../_components/OrdersTable";
 import Checkbox from "@/app/_components/Checkbox";
+import Pagination from "@/app/_components/Pagination";
 
 // An order must always have at least one item, so the last item in the list
 // cannot be removed.
@@ -118,8 +119,11 @@ export default function OrdersClient() {
     return orders.filter((o) => o.customerName.toLowerCase().includes(q) || (o.phone ?? "").toLowerCase().includes(q) || (o.address ?? "").toLowerCase().includes(q) || String(o.id).includes(q));
   }, [orders, search]);
 
-  const totalPages = Math.ceil(filteredOrders.length / perPage);
-  const start = (page - 1) * perPage;
+  // Page is clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / perPage));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * perPage;
   const visibleOrders = filteredOrders.slice(start, start + perPage);
 
   async function loadOrders() {
@@ -363,29 +367,13 @@ export default function OrdersClient() {
       </div>
       <OrdersTable orders={visibleOrders} />
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
-          <p className="text-sm text-gray-500">
-            Page {page} of {totalPages} ({filteredOrders.length} orders)
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        total={filteredOrders.length}
+        perPage={perPage}
+        page={currentPage}
+        onPage={setPage}
+        label="Orders"
+      />
 
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

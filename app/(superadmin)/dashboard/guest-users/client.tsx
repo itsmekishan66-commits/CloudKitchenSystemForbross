@@ -2,6 +2,7 @@
 import { CircleArrowDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
+import Pagination from "@/app/_components/Pagination";
 
 interface GuestUser {
   id: number;
@@ -36,8 +37,11 @@ export default function GuestUsersClient() {
     return users.filter((u) => u.name.toLowerCase().includes(q) || (u.phone ?? "").toLowerCase().includes(q) || (u.address ?? "").toLowerCase().includes(q));
   }, [users, search]);
 
-  const totalPages = Math.ceil(filteredUsers.length / perPage);
-  const start = (page - 1) * perPage;
+  // Page is clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / perPage));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * perPage;
   const visibleUsers = filteredUsers.slice(start, start + perPage);
 
   useEffect(() => {
@@ -137,29 +141,13 @@ export default function GuestUsersClient() {
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
-          <p className="text-sm text-gray-500">
-            Page {page} of {totalPages} ({filteredUsers.length} guest users)
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        total={filteredUsers.length}
+        perPage={perPage}
+        page={currentPage}
+        onPage={setPage}
+        label="Guest users"
+      />
     </div>
   );
 }

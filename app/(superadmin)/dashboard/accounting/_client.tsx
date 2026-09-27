@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import PageNote from "./_components/PageNote";
+import Pagination from "@/app/_components/Pagination";
 
 interface OverviewData {
   totalAssets: number;
@@ -63,6 +64,27 @@ const typeConfig: Record<string, { color: string; bg: string }> = {
 export default function AccountingOverviewPage() {
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
+  // The overview shows two independent lists (Account Balances, Recent
+  // Journal Entries), so each keeps its own page.
+  const [accountPage, setAccountPage] = useState(1);
+  const [entriesPage, setEntriesPage] = useState(1);
+  const PER_PAGE = 10;
+
+  const accountSummary = data?.accountSummary ?? [];
+  const accountTotalPages = Math.max(1, Math.ceil(accountSummary.length / PER_PAGE));
+  const accountCurrentPage = Math.min(Math.max(1, accountPage), accountTotalPages);
+  const visibleAccountSummary = accountSummary.slice(
+    (accountCurrentPage - 1) * PER_PAGE,
+    (accountCurrentPage - 1) * PER_PAGE + PER_PAGE
+  );
+
+  const recentEntries = data?.recentEntries ?? [];
+  const entriesTotalPages = Math.max(1, Math.ceil(recentEntries.length / PER_PAGE));
+  const entriesCurrentPage = Math.min(Math.max(1, entriesPage), entriesTotalPages);
+  const visibleRecentEntries = recentEntries.slice(
+    (entriesCurrentPage - 1) * PER_PAGE,
+    (entriesCurrentPage - 1) * PER_PAGE + PER_PAGE
+  );
 
   useEffect(() => {
     fetch("/api/accounting/overview")
@@ -235,14 +257,14 @@ export default function AccountingOverviewPage() {
             </Link>
           </div>
           <div className="divide-y divide-gray-50">
-            {data.accountSummary.map((account) => {
+            {visibleAccountSummary.map((account) => {
               const tc = typeConfig[account.type] || typeConfig.asset;
               const balance = Number(account.balance);
               return (
                 <Link
                   key={account.id}
                   href={`/dashboard/accounting/journal-entries?accountId=${account.id}`}
-                  className="block px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 transition-colors"
+                  className="px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 transition-colors"
                   title="View journal entries for this account"
                 >
                   <div className="flex items-center gap-3">
@@ -266,11 +288,20 @@ export default function AccountingOverviewPage() {
                 </Link>
               );
             })}
-            {data.accountSummary.length === 0 && (
+            {accountSummary.length === 0 && (
               <div className="p-8 text-center text-gray-400 text-sm">
                 No accounts configured yet
               </div>
             )}
+          </div>
+          <div className="border-t border-gray-50">
+            <Pagination
+              total={accountSummary.length}
+              perPage={PER_PAGE}
+              page={accountCurrentPage}
+              onPage={setAccountPage}
+              label="Account balances"
+            />
           </div>
         </motion.div>
 
@@ -287,7 +318,9 @@ export default function AccountingOverviewPage() {
               </div>
               <div>
                 <h3 className="font-semibold text-sm">Recent Journal Entries</h3>
-                <p className="text-xs text-gray-400">Last 5 entries</p>
+                <p className="text-xs text-gray-400">
+                  {recentEntries.length} entries
+                </p>
               </div>
             </div>
             <Link
@@ -298,13 +331,13 @@ export default function AccountingOverviewPage() {
             </Link>
           </div>
           <div className="divide-y divide-gray-50">
-            {data.recentEntries.map((entry) => {
+            {visibleRecentEntries.map((entry) => {
               const sc = statusConfig[entry.status] || statusConfig.draft;
               return (
                 <Link
                   key={entry.id}
                   href="/dashboard/accounting/journal-entries"
-                  className="block px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 transition-colors"
+                  className="px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-mono font-medium text-gray-700">
@@ -325,11 +358,20 @@ export default function AccountingOverviewPage() {
                 </Link>
               );
             })}
-            {data.recentEntries.length === 0 && (
+            {recentEntries.length === 0 && (
               <div className="p-8 text-center text-gray-400 text-sm">
                 No journal entries yet
               </div>
             )}
+          </div>
+          <div className="border-t border-gray-50">
+            <Pagination
+              total={recentEntries.length}
+              perPage={PER_PAGE}
+              page={entriesCurrentPage}
+              onPage={setEntriesPage}
+              label="Recent journal entries"
+            />
           </div>
         </motion.div>
       </div>

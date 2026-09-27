@@ -10,6 +10,7 @@ import {
   FileText,
 } from "lucide-react";
 import Link from "next/link";
+import Pagination from "@/app/_components/Pagination";
 import PageNote from "../_components/PageNote";
 
 interface IncomeStatementData {
@@ -30,6 +31,8 @@ interface IncomeStatementData {
 }
 
 const formatCurrency = (v: number) => `Rs.${v.toLocaleString()}`;
+
+const PER_PAGE = 30;
 
 const RANGES = [
   { label: "This Month", value: "month" },
@@ -73,7 +76,18 @@ export default function IncomeStatementPage() {
   const [customEnd, setCustomEnd] = useState("");
   const [useCustom, setUseCustom] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [revenuePage, setRevenuePage] = useState(1);
+  const [cogsPage, setCogsPage] = useState(1);
+  const [opExPage, setOpExPage] = useState(1);
+  const [nonOpPage, setNonOpPage] = useState(1);
   const exportRef = useRef<HTMLDivElement>(null);
+
+  const resetPages = () => {
+    setRevenuePage(1);
+    setCogsPage(1);
+    setOpExPage(1);
+    setNonOpPage(1);
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -104,6 +118,40 @@ export default function IncomeStatementPage() {
   }, [range, useCustom, customStart, customEnd]);
 
   const loading = data === null;
+
+  // Pages are clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const revenueItems = data?.revenue.items ?? [];
+  const revenueTotalPages = Math.max(1, Math.ceil(revenueItems.length / PER_PAGE));
+  const revenueCurrentPage = Math.min(Math.max(1, revenuePage), revenueTotalPages);
+  const visibleRevenue = revenueItems.slice(
+    (revenueCurrentPage - 1) * PER_PAGE,
+    (revenueCurrentPage - 1) * PER_PAGE + PER_PAGE
+  );
+
+  const cogsItems = data?.cogs.items ?? [];
+  const cogsTotalPages = Math.max(1, Math.ceil(cogsItems.length / PER_PAGE));
+  const cogsCurrentPage = Math.min(Math.max(1, cogsPage), cogsTotalPages);
+  const visibleCogs = cogsItems.slice(
+    (cogsCurrentPage - 1) * PER_PAGE,
+    (cogsCurrentPage - 1) * PER_PAGE + PER_PAGE
+  );
+
+  const opExItems = data?.operatingExpenses.items ?? [];
+  const opExTotalPages = Math.max(1, Math.ceil(opExItems.length / PER_PAGE));
+  const opExCurrentPage = Math.min(Math.max(1, opExPage), opExTotalPages);
+  const visibleOpEx = opExItems.slice(
+    (opExCurrentPage - 1) * PER_PAGE,
+    (opExCurrentPage - 1) * PER_PAGE + PER_PAGE
+  );
+
+  const nonOpItems = data?.nonOperatingExpenses.items ?? [];
+  const nonOpTotalPages = Math.max(1, Math.ceil(nonOpItems.length / PER_PAGE));
+  const nonOpCurrentPage = Math.min(Math.max(1, nonOpPage), nonOpTotalPages);
+  const visibleNonOp = nonOpItems.slice(
+    (nonOpCurrentPage - 1) * PER_PAGE,
+    (nonOpCurrentPage - 1) * PER_PAGE + PER_PAGE
+  );
 
   if (loading) {
     return (
@@ -149,6 +197,7 @@ export default function IncomeStatementPage() {
                 onClick={() => {
                   setRange(r.value);
                   setUseCustom(false);
+                  resetPages();
                 }}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
                   !useCustom && range === r.value
@@ -160,7 +209,10 @@ export default function IncomeStatementPage() {
               </button>
             ))}
             <button
-              onClick={() => setUseCustom(!useCustom)}
+              onClick={() => {
+                setUseCustom(!useCustom);
+                resetPages();
+              }}
               className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1 ${
                 useCustom
                   ? "bg-orange-500 text-white shadow-sm"
@@ -176,14 +228,20 @@ export default function IncomeStatementPage() {
               <input
                 type="date"
                 value={customStart}
-                onChange={(e) => setCustomStart(e.target.value)}
+                onChange={(e) => {
+                  setCustomStart(e.target.value);
+                  resetPages();
+                }}
                 className="border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/30"
               />
               <span className="text-xs text-gray-400">to</span>
               <input
                 type="date"
                 value={customEnd}
-                onChange={(e) => setCustomEnd(e.target.value)}
+                onChange={(e) => {
+                  setCustomEnd(e.target.value);
+                  resetPages();
+                }}
                 min={customStart}
                 className="border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/30"
               />
@@ -248,7 +306,7 @@ export default function IncomeStatementPage() {
               Revenue
             </h4>
             <div className="space-y-2">
-              {data.revenue.items.map((item) => (
+              {visibleRevenue.map((item) => (
                 <div key={item.id} className="flex justify-between text-sm">
                   <Link
                     href={`/dashboard/accounting/journal-entries?accountId=${item.id}`}
@@ -262,9 +320,18 @@ export default function IncomeStatementPage() {
                   </span>
                 </div>
               ))}
-              {data.revenue.items.length === 0 && (
+              {revenueItems.length === 0 && (
                 <p className="text-sm text-gray-400 pl-4">No revenue recorded</p>
               )}
+            </div>
+            <div className="border-t border-gray-50">
+              <Pagination
+                total={revenueItems.length}
+                perPage={PER_PAGE}
+                page={revenueCurrentPage}
+                onPage={setRevenuePage}
+                label="Revenue accounts"
+              />
             </div>
             <div className="flex justify-between text-sm font-bold mt-3 pt-3 border-t border-gray-100">
               <span>Total Revenue</span>
@@ -279,7 +346,7 @@ export default function IncomeStatementPage() {
               Cost of Goods Sold
             </h4>
             <div className="space-y-2">
-              {data.cogs.items.map((item) => (
+              {visibleCogs.map((item) => (
                 <div key={item.id} className="flex justify-between text-sm">
                   <Link
                     href={`/dashboard/accounting/journal-entries?accountId=${item.id}`}
@@ -293,9 +360,18 @@ export default function IncomeStatementPage() {
                   </span>
                 </div>
               ))}
-              {data.cogs.items.length === 0 && (
+              {cogsItems.length === 0 && (
                 <p className="text-sm text-gray-400 pl-4">No COGS recorded</p>
               )}
+            </div>
+            <div className="border-t border-gray-50">
+              <Pagination
+                total={cogsItems.length}
+                perPage={PER_PAGE}
+                page={cogsCurrentPage}
+                onPage={setCogsPage}
+                label="COGS accounts"
+              />
             </div>
             <div className="flex justify-between text-sm font-bold mt-3 pt-3 border-t border-gray-100">
               <span>Total COGS</span>
@@ -326,7 +402,7 @@ export default function IncomeStatementPage() {
               Operating Expenses
             </h4>
             <div className="space-y-2">
-              {data.operatingExpenses.items.map((item) => (
+              {visibleOpEx.map((item) => (
                 <div key={item.id} className="flex justify-between text-sm">
                   <Link
                     href={`/dashboard/accounting/journal-entries?accountId=${item.id}`}
@@ -340,11 +416,20 @@ export default function IncomeStatementPage() {
                   </span>
                 </div>
               ))}
-              {data.operatingExpenses.items.length === 0 && (
+              {opExItems.length === 0 && (
                 <p className="text-sm text-gray-400 pl-4">
                   No operating expenses recorded
                 </p>
               )}
+            </div>
+            <div className="border-t border-gray-50">
+              <Pagination
+                total={opExItems.length}
+                perPage={PER_PAGE}
+                page={opExCurrentPage}
+                onPage={setOpExPage}
+                label="Operating expense accounts"
+              />
             </div>
             <div className="flex justify-between text-sm font-bold mt-3 pt-3 border-t border-gray-100">
               <span>Total Operating Expenses</span>
@@ -370,7 +455,7 @@ export default function IncomeStatementPage() {
               Non-Operating Items
             </h4>
             <div className="space-y-2">
-              {data.nonOperatingExpenses.items.map((item) => (
+              {visibleNonOp.map((item) => (
                 <div key={item.id} className="flex justify-between text-sm">
                   <Link
                     href={`/dashboard/accounting/journal-entries?accountId=${item.id}`}
@@ -384,11 +469,20 @@ export default function IncomeStatementPage() {
                   </span>
                 </div>
               ))}
-              {data.nonOperatingExpenses.items.length === 0 && (
+              {nonOpItems.length === 0 && (
                 <p className="text-sm text-gray-400 pl-4">
                   No non-operating items recorded
                 </p>
               )}
+            </div>
+            <div className="border-t border-gray-50">
+              <Pagination
+                total={nonOpItems.length}
+                perPage={PER_PAGE}
+                page={nonOpCurrentPage}
+                onPage={setNonOpPage}
+                label="Non-operating accounts"
+              />
             </div>
             <div className="flex justify-between text-sm font-bold mt-3 pt-3 border-t border-gray-100">
               <span>Total Non-Operating</span>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 import toast from "react-hot-toast";
+import Pagination from "@/app/_components/Pagination";
 
 interface MenuItem {
   id: number;
@@ -179,9 +180,51 @@ export default function MenuClient() {
     return items.filter((i) => i.title.toLowerCase().includes(q));
   }, [items, search]);
 
-  const totalPages = Math.ceil(filteredItems.length / perPage);
-  const start = (page - 1) * perPage;
+  // Page is clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / perPage));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * perPage;
   const visibleItems = filteredItems.slice(start, start + perPage);
+
+  // The recipe modal has its own list, so it needs its own page state. It
+  // resets whenever the modal is closed or the recipe list is reloaded.
+  const [recipePage, setRecipePage] = useState(1);
+  const recipesPerPage = 12;
+  const recipeTotalPages = Math.max(1, Math.ceil(recipes.length / recipesPerPage));
+  const recipeCurrentPage = Math.min(Math.max(1, recipePage), recipeTotalPages);
+  const visibleRecipes = useMemo(
+    () =>
+      recipes.slice(
+        (recipeCurrentPage - 1) * recipesPerPage,
+        (recipeCurrentPage - 1) * recipesPerPage + recipesPerPage
+      ),
+    [recipes, recipeCurrentPage, recipesPerPage]
+  );
+
+  // The recipe detail view has a third list (ingredients), paginated on its own.
+  const [recipeIngredientsPage, setRecipeIngredientsPage] = useState(1);
+  const recipeIngredientsPerPage = 10;
+  const recipeIngredients = viewingRecipe?.ingredients ?? [];
+  const recipeIngredientsTotalPages = Math.max(
+    1,
+    Math.ceil(recipeIngredients.length / recipeIngredientsPerPage)
+  );
+  const recipeIngredientsCurrentPage = Math.min(
+    Math.max(1, recipeIngredientsPage),
+    recipeIngredientsTotalPages
+  );
+  const visibleRecipeIngredients = useMemo(
+    () =>
+      recipeIngredients.slice(
+        (recipeIngredientsCurrentPage - 1) * recipeIngredientsPerPage,
+        (recipeIngredientsCurrentPage - 1) * recipeIngredientsPerPage + recipeIngredientsPerPage
+      ),
+    // `recipeIngredients` is `viewingRecipe?.ingredients ?? []`, whose fallback
+    // allocates a fresh array each render, so depend on `viewingRecipe` instead.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [viewingRecipe, recipeIngredientsCurrentPage, recipeIngredientsPerPage]
+  );
 
   async function loadData() {
     try {
@@ -751,29 +794,13 @@ export default function MenuClient() {
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
-          <p className="text-sm text-gray-500">
-            Page {page} of {totalPages} ({filteredItems.length} items)
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        total={filteredItems.length}
+        perPage={perPage}
+        page={currentPage}
+        onPage={setPage}
+        label="Menu items"
+      />
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -1186,7 +1213,7 @@ export default function MenuClient() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {recipes.map((recipe) => {
+                        {visibleRecipes.map((recipe) => {
                           const cost = calculateRecipeCostForDisplay(recipe);
                           return (
                             <div key={recipe.id} className="rounded-2xl border border-slate-200 p-5">
@@ -1215,7 +1242,7 @@ export default function MenuClient() {
                                   )}
                                 </div>
                                 <div className="flex gap-2 ml-4">
-                                  <button onClick={() => { setViewingRecipe(recipe); setRecipeView("detail"); }}
+                                  <button onClick={() => { setViewingRecipe(recipe); setRecipeView("detail"); setRecipeIngredientsPage(1); }}
                                     className="rounded-lg bg-gray-600 px-3 py-1.5 text-white text-sm hover:bg-gray-700"
                                   >
                                     View
@@ -1248,6 +1275,14 @@ export default function MenuClient() {
                         })}
                       </div>
                     )}
+
+                    <Pagination
+                      total={recipes.length}
+                      perPage={recipesPerPage}
+                      page={recipeCurrentPage}
+                      onPage={setRecipePage}
+                      label="Recipes"
+                    />
                   </div>
                 )}
 
@@ -1550,7 +1585,7 @@ export default function MenuClient() {
                             </tr>
                           </thead>
                           <tbody>
-                            {viewingRecipe.ingredients.map((ing, i) => (
+                            {visibleRecipeIngredients.map((ing, i) => (
                               <tr key={ing.id} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
                                 <td className="p-3 font-medium">{ing.inventoryItemName}</td>
                                 <td className="p-3">{ing.quantity}</td>
@@ -1563,6 +1598,14 @@ export default function MenuClient() {
                         </table>
                       </div>
                     )}
+
+                    <Pagination
+                      total={recipeIngredients.length}
+                      perPage={recipeIngredientsPerPage}
+                      page={recipeIngredientsCurrentPage}
+                      onPage={setRecipeIngredientsPage}
+                      label="Ingredients"
+                    />
                   </div>
                 </div>
 

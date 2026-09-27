@@ -4,6 +4,7 @@ import { Edit, Trash2 } from "lucide-react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 import Checkbox from "@/app/_components/Checkbox";
+import Pagination from "@/app/_components/Pagination";
 
 interface Promotion {
   id: number;
@@ -79,8 +80,11 @@ export default function PromotionsClient() {
     return promotions.filter((p) => p.title.toLowerCase().includes(q) || (p.code ?? "").toLowerCase().includes(q));
   }, [promotions, search]);
 
-  const totalPages = Math.ceil(filteredPromotions.length / perPage);
-  const start = (page - 1) * perPage;
+  // Page is clamped so the slice never renders empty while Pagination's own
+  // correction effect catches up.
+  const totalPages = Math.max(1, Math.ceil(filteredPromotions.length / perPage));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * perPage;
   const visiblePromotions = filteredPromotions.slice(start, start + perPage);
 
   async function loadPromotions() {
@@ -364,29 +368,13 @@ export default function PromotionsClient() {
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
-          <p className="text-sm text-gray-500">
-            Page {page} of {totalPages} ({filteredPromotions.length} promotions)
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        total={filteredPromotions.length}
+        perPage={perPage}
+        page={currentPage}
+        onPage={setPage}
+        label="Promotions"
+      />
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

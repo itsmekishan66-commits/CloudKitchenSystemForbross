@@ -144,3 +144,66 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return NextResponse.json({ error: "Unable to delete user" }, { status: 500 });
   }
 }
+
+// Flips the soft-delete flag. Used by the Recovery tab's activate/deactivate
+// toggle: { deleted: false } restores the account, { deleted: true } hides it again.
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const currentUser = await apiRequirePermissions(PERMISSIONS.DELETE_USERS);
+    if (currentUser instanceof NextResponse) {
+      return currentUser;
+    }
+
+    const { id } = await params;
+    const userId = Number(id);
+    if (isNaN(userId)) {
+      return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
+    }
+
+    const { deleted } = await request.json();
+    if (typeof deleted !== "boolean") {
+      return NextResponse.json(
+        { error: "`deleted` must be a boolean" },
+        { status: 400 },
+      );
+    }
+
+    const [target] = await db
+      .select({ email: users.email, role: roles.name })
+      .from(users)
+      .leftJoin(roles, eq(users.roleId, roles.id))
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!target) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Guard against locking every administrator out of the system.
+    if (deleted && target.role === "super-admin") {
+      return NextResponse.json(
+        { error: "A super-admin account cannot be deactivated" },
+        { status: 403 },
+      );
+    }
+
+    // Restoring must not create a duplicate email, which is how sign-in and
+    // password reset resolve a user.
+    if (!deleted && target.email) {
+      const existing = await getUserByEmail(target.email);
+      if (existing && existing.id !== userId) {
+        return NextResponse.json(
+          { error: "Another active user already uses this email" },
+          { status: 409 },
+        );
+      }
+    }
+
+    await db.update(users).set({ deleted }).where(eq(users.id, userId));
+
+    return NextResponse.json({ ok: true, deleted });
+  } catch (error) {
+    console.error("Failed to update user status", error);
+    return NextResponse.json({ error: "Unable to update user status" }, { status: 500 });
+  }
+}

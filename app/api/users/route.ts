@@ -71,6 +71,9 @@ export async function GET(request: Request) {
     const roleFilter = searchParams.get("role");
     const isGuest = searchParams.get("isGuest");
     const emailFilter = searchParams.get("email");
+    // Defaults to false so every existing caller keeps seeing only active users.
+    // The Recovery tab passes ?deleted=true to get the soft-deleted ones instead.
+    const deletedFilter = searchParams.get("deleted") === "true";
 
     const fetchAllUsers = async () => {
       return db
@@ -84,11 +87,12 @@ export async function GET(request: Request) {
           isGuest: users.isGuest,
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
+          deleted: users.deleted,
           role: roles.name,
         })
         .from(users)
         .leftJoin(roles, eq(users.roleId, roles.id))
-        .where(eq(users.deleted, false))
+        .where(eq(users.deleted, deletedFilter))
         .orderBy(users.name);
     };
 

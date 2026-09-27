@@ -46,7 +46,6 @@ export default async function SuperAdminLayout({
                     <Toaster position="top-right" /> 
                 </main>
             </div>
-        </>
-
+        </>        
     );
 }

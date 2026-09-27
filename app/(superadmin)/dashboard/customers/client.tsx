@@ -1,9 +1,10 @@
 "use client";
-import { CircleArrowDown, Edit, Eye, Trash2 } from "lucide-react";
+import { CircleArrowDown, Edit, Eye, Power, Trash2, TriangleAlert } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/lib/permission-context";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
+import Pagination from "@/app/_components/Pagination";
 import toast from "react-hot-toast";
 
 // Roles that must never be assignable from the user form
@@ -47,9 +48,26 @@ interface User {
   address: string | null;
   role: string;
   createdAt: string;
+  updatedAt?: string;
+  deleted?: boolean;
+  isGuest?: boolean;
 }
 
 const emptyForm = { name: "", email: "", password: "", role: "customer", phone: "", address: "" };
+
+// Every value the ?tab= param accepts. "recovery" is not a role — it switches the
+// page into the danger zone and pulls soft-deleted users instead.
+const TAB_VALUES = [
+  "",
+  "customer",
+  "staff",
+  "kitchen-manager",
+  "payment-manager",
+  "support-staff",
+  "admin",
+  "super-admin",
+  "recovery",
+];
 
 
 
@@ -65,12 +83,20 @@ export default function CustomersClient() {
   const urlTab = searchParams.get("tab");
   const filter = urlTab === null
     ? "customer"
-    : ["", "customer", "staff", "kitchen-manager", "payment-manager", "support-staff", "admin", "super-admin"].includes(urlTab)
+    : TAB_VALUES.includes(urlTab)
       ? urlTab
       : "customer";
+  // The Recovery tab is gated behind VIEW_USERS *and* DELETE_USERS, so a
+  // ?tab=recovery deep link can never expose it to a lesser role.
+  const isRecovery = filter === "recovery" && can("VIEW_USERS") && can("DELETE_USERS");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const perPage = 20;
+  // Recovery (danger zone) state — kept separate from the role tabs above so
+  // switching tabs never leaks a filter into the other list.
+  const [recoverySearch, setRecoverySearch] = useState("");
+  const [recoveryRole, setRecoveryRole] = useState("");
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
@@ -80,7 +106,8 @@ export default function CustomersClient() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const router = useRouter();
   const fetchUsers = useCallback(async () => {
-    const params = filter ? `?role=${filter}` : "";
+    // Recovery reads the soft-deleted rows; every other tab reads the active ones.
+    const params = isRecovery ? "?deleted=true" : filter ? `?role=${filter}` : "";
     setLoading(true);
     fetch(`/api/users${params}`)
       .then((res) => res.json())
@@ -89,7 +116,7 @@ export default function CustomersClient() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [filter]);
+  }, [filter, isRecovery]);
 
   useEffect(() => {
     setTimeout(() => {
@@ -129,6 +156,7 @@ export default function CustomersClient() {
   }, [editUser, roleOptions]);
 
   const selectFilter = (value: string) => {
+    setPage(1);
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", value);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
@@ -286,27 +314,77 @@ export default function CustomersClient() {
     finally { setSubmitting(false); }
   };
 
+  // Recovery tab toggle. Deleted users are always in the "deactivate" state, so
+  // the left/green side is the one that does work: it restores the account.
+  const handleStatusToggle = async (user: User, next: "active" | "inactive") => {
+    const willActivate = next === "active";
+    const ok = await confirm({
+      title: willActivate ? "Activate User" : "Deactivate User",
+      message: willActivate
+        ? `Are you sure you want to activate ${user.name} (${user.email})? The account will be restored and the user will be able to sign in again.`
+        : `Are you sure you want to deactivate ${user.name} (${user.email})? The user will be hidden from the system but their data will be preserved.`,
+      confirmText: willActivate ? "Activate" : "Deactivate",
+      variant: willActivate ? "success" : "danger",
+    });
+    if (!ok) return;
+
+    setTogglingId(user.id);
+    setError("");
+    try {
+      const res = await fetch(`/api/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deleted: !willActivate }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const message = data.error ?? `Failed to ${willActivate ? "activate" : "deactivate"} user`;
+        setError(message);
+        toast.error(message);
+        return;
+      }
+      toast.success(willActivate ? `${user.name} activated` : `${user.name} deactivated`);
+      router.refresh();
+      fetchUsers();
+    } catch {
+      setError("Something went wrong");
+      toast.error("Something went wrong");
+    }
+    finally { setTogglingId(null); }
+  };
+
   const filteredUsers = useMemo(() => {
     if (!search.trim()) return users;
     const q = search.toLowerCase();
     return users.filter((u) => u.name.toLowerCase().includes(q) || (u.email ?? "").toLowerCase().includes(q) || (u.phone ?? "").toLowerCase().includes(q));
   }, [users, search]);
 
-  const totalPages = Math.ceil(filteredUsers.length / perPage);
-  const start = (page - 1) * perPage;
+  // The stored page can point past the end after a restore or a filter change,
+  // so clamp it during render instead of syncing it back with an effect.
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / perPage));
+  const currentPage = Math.min(page, totalPages);
+  const start = (currentPage - 1) * perPage;
   const visibleUsers = filteredUsers.slice(start, start + perPage);
 
+  // One distinct hue per role name that actually exists in db/seed/roles.ts.
+  // Amber is left free for the Guest badge below.
   const roleColors: Record<string, string> = {
     "super-admin": "bg-red-100 text-red-700",
     admin: "bg-purple-100 text-purple-700",
+    "kitchen-manager": "bg-orange-100 text-orange-800",
+    "payment-manager": "bg-teal-100 text-teal-800",
+    "support-staff": "bg-cyan-100 text-cyan-800",
     staff: "bg-blue-100 text-blue-700",
     customer: "bg-green-100 text-green-700",
-    manager: "bg-amber-100 text-amber-700",
-    delivery: "bg-cyan-100 text-cyan-700",
-    kitchen: "bg-slate-100 text-slate-700",
   };
 
-  const tabs = [
+  // Guest checkouts are stored with roleId = NULL, so the joined role name comes
+  // back empty. Label those rows "Guest" in sand yellow rather than a blank badge.
+  const roleLabel = (user: User) => (user.isGuest ? "Guest" : user.role || "-");
+  const roleBadge = (user: User) =>
+    user.isGuest ? "bg-amber-100 text-amber-800" : roleColors[user.role] ?? "bg-gray-100";
+
+  const tabs: { label: string; value: string; danger?: boolean }[] = [
     { label: "All", value: "" },
     { label: "Customers", value: "customer" },
     { label: "Staff", value: "staff" },
@@ -315,7 +393,35 @@ export default function CustomersClient() {
     { label: "support-staff", value: "support-staff" },
     { label: "Admins", value: "admin" },
     { label: "Super Admins", value: "super-admin" },
+    // Danger section — only for roles that may delete users.
+    ...(can("VIEW_USERS") && can("DELETE_USERS")
+      ? [{ label: "Recovery", value: "recovery", danger: true }]
+      : []),
   ];
+
+  // Recovery list: soft-deleted users only, narrowed live as the admin types.
+  const recoveryUsers = useMemo(() => {
+    const q = recoverySearch.trim().toLowerCase();
+    return users
+      .filter((u) => u.deleted)
+      .filter((u) => (recoveryRole ? u.role === recoveryRole : true))
+      .filter((u) =>
+        q
+          ? u.name.toLowerCase().includes(q) ||
+            (u.email ?? "").toLowerCase().includes(q) ||
+            (u.phone ?? "").toLowerCase().includes(q)
+          : true,
+      );
+  }, [users, recoverySearch, recoveryRole]);
+
+  const recoveryRoles = useMemo(
+    () => Array.from(new Set(users.filter((u) => u.deleted).map((u) => u.role))).sort(),
+    [users],
+  );
+
+  const recoveryTotalPages = Math.max(1, Math.ceil(recoveryUsers.length / perPage));
+  const recoveryCurrentPage = Math.min(page, recoveryTotalPages);
+  const visibleRecoveryUsers = recoveryUsers.slice((recoveryCurrentPage - 1) * perPage, (recoveryCurrentPage - 1) * perPage + perPage);
 
   if (loading) {
     return (
@@ -329,7 +435,16 @@ export default function CustomersClient() {
   return (
     <div className="p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold">Customers & Users <span className="text-sm sm:text-base font-normal text-gray-400 ml-2">({users.length} {filter === "" ? "total" : filter})</span></h1>
+        <h1 className="text-xl sm:text-2xl font-bold">
+          {isRecovery ? (
+            <span className="text-red-600">Recovery — Deleted Users </span>
+          ) : (
+            <>Customers & Users </>
+          )}
+          <span className="text-sm sm:text-base font-normal text-gray-400 ml-2">
+            ({users.length} {isRecovery ? "deleted" : filter === "" ? "total" : filter})
+          </span>
+        </h1>
         <div className="flex items-center flex-wrap gap-3">
           {can("DOWNLOAD_USERS") && (
             <button className="flex gap-2 rounded-xl bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-white font-semibold hover:bg-orange-600"><CircleArrowDown />
@@ -341,7 +456,7 @@ export default function CustomersClient() {
               </select>
             </button>
           )}
-          {can("CREATE_USERS") && (
+          {can("CREATE_USERS") && !isRecovery && (
             <button
               onClick={() => setShowAddModal(true)}
               className="rounded-lg bg-orange-500 px-2 py-2 md:px-5 md:py-3 text-md font-medium text-white shadow hover:bg-orange-600 transition-colors">
@@ -357,8 +472,12 @@ export default function CustomersClient() {
             key={t.value}
             onClick={() => selectFilter(t.value)}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${filter === t.value
-              ? "bg-orange-500 text-white shadow"
-              : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+              ? t.danger
+                ? "bg-red-600 text-white shadow"
+                : "bg-orange-500 text-white shadow"
+              : t.danger
+                ? "bg-white border border-red-200 text-red-600 hover:bg-red-50"
+                : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
               }`}
           >
             {t.label}
@@ -366,6 +485,8 @@ export default function CustomersClient() {
         ))}
       </div>
 
+      {!isRecovery && (
+      <>
       <div className="mb-4">
         <input
           type="text"
@@ -398,8 +519,8 @@ export default function CustomersClient() {
                   <td className="p-4 text-gray-500">{user.email}</td>
                   <td className="p-4 text-gray-500">{user.phone ?? "-"}</td>
                   <td className="p-4">
-                    <span className={`rounded-full px-3 py-1 text-sm ${roleColors[user.role] ?? "bg-gray-100"}`}>
-                      {user.role}
+                    <span className={`rounded-full px-3 py-1 text-sm ${roleBadge(user)}`}>
+                      {roleLabel(user)}
                     </span>
                   </td>
                   <td className="p-4 text-gray-500">{new Date(user.createdAt).toLocaleDateString()}</td>
@@ -446,28 +567,147 @@ export default function CustomersClient() {
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
-          <p className="text-sm text-gray-500">
-            Page {page} of {totalPages} ({filteredUsers.length} users)
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
+      <Pagination
+        total={filteredUsers.length}
+        perPage={perPage}
+        page={currentPage}
+        onPage={setPage}
+        label="Users"
+      />
+      </>
+      )}
+
+      {/* Recovery — danger zone. Lists only soft-deleted users and lets a
+          super-admin put any of them back with the activate/deactivate toggle. */}
+      {isRecovery && (
+        <>
+          <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <TriangleAlert size={20} className="mt-0.5 shrink-0 text-red-600" />
+            <div className="text-sm">
+              <p className="font-semibold text-red-800">Danger zone — deleted users</p>
+              <p className="text-red-700">
+                These accounts are soft-deleted and hidden everywhere in the system, but
+                their data is still intact. Activating one restores it immediately.
+              </p>
+            </div>
           </div>
-        </div>
+
+          {error && (
+            <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </p>
+          )}
+
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+            <input
+              type="text"
+              value={recoverySearch}
+              onChange={(e) => { setRecoverySearch(e.target.value); setPage(1); }}
+              placeholder="Search deleted users by name, email or phone..."
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+            />
+            <select
+              value={recoveryRole}
+              onChange={(e) => { setRecoveryRole(e.target.value); setPage(1); }}
+              className="w-full cursor-pointer rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 sm:w-56"
+            >
+              <option value="">All roles</option>
+              {recoveryRoles.map((r) => (
+                <option key={r} value={r}>{upperRole(r)}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="rounded-xl bg-white shadow overflow-x-auto no-scrollbar border border-red-100">
+            <table className="w-full">
+              <thead className="bg-red-50">
+                <tr>
+                  <th className="p-4 text-left text-red-800">Name</th>
+                  <th className="p-4 text-left text-red-800">Email</th>
+                  <th className="p-4 text-left text-red-800">Phone</th>
+                  <th className="p-4 text-left text-red-800">Role</th>
+                  <th className="p-4 text-left text-red-800">Last Updated</th>
+                  <th className="p-4 text-left text-red-800">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleRecoveryUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-gray-400">
+                      {users.length === 0
+                        ? "No deleted users found"
+                        : "No deleted users match your search"}
+                    </td>
+                  </tr>
+                ) : (
+                  visibleRecoveryUsers.map((user) => {
+                    const isActive = !user.deleted;
+                    return (
+                    <tr key={user.id} className="border-t hover:bg-red-50/40">
+                      <td className="p-4 font-medium">{user.name}</td>
+                      <td className="p-4 text-gray-500">{user.email}</td>
+                      <td className="p-4 text-gray-500">{user.phone ?? "-"}</td>
+                      <td className="p-4">
+                        <span className={`rounded-full px-3 py-1 text-sm ${roleBadge(user)}`}>
+                          {roleLabel(user)}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-500">
+                        {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : "-"}
+                      </td>
+                      <td className="p-4">
+                        {/* Two-sided toggle: left = activate, right = deactivate.
+                            Whichever side is current owns the colour — green while
+                            the account is active, red while it is deactivated. */}
+                        <div className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 p-0.5">
+                          <button
+                            type="button"
+                            aria-pressed={isActive}
+                            disabled={isActive || togglingId === user.id}
+                            onClick={() => handleStatusToggle(user, "active")}
+                            title="Restore this user"
+                            className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed ${
+                              isActive
+                                ? "bg-green-500 text-white shadow"
+                                : "text-gray-500 hover:bg-green-50 hover:text-green-700 disabled:opacity-50"
+                            }`}
+                          >
+                            <Power size={12} />
+                            Active
+                          </button>
+                          <button
+                            type="button"
+                            aria-pressed={!isActive}
+                            disabled={!isActive || togglingId === user.id}
+                            onClick={() => handleStatusToggle(user, "inactive")}
+                            title="Hide this user again"
+                            className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed ${
+                              isActive
+                                ? "text-gray-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                                : "bg-red-500 text-white shadow"
+                            }`}
+                          >
+                            <Power size={12} />
+                            Deactivate
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <Pagination
+            total={recoveryUsers.length}
+            perPage={perPage}
+            page={recoveryCurrentPage}
+            onPage={setPage}
+            label="Deleted users"
+          />
+        </>
       )}
 
       {/* Add User Modal */}

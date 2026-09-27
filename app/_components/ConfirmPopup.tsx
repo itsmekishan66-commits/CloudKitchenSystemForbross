@@ -6,7 +6,7 @@ interface ConfirmOptions {
   message: string;
   confirmText?: string;
   cancelText?: string;
-  variant?: "danger" | "warning" | "info";
+  variant?: "danger" | "warning" | "info" | "success";
 }
 
 interface ConfirmContextType {
@@ -55,6 +55,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     danger: { confirm: "bg-red-600 hover:bg-red-700", icon: "text-red-600" },
     warning: { confirm: "bg-amber-600 hover:bg-amber-700", icon: "text-amber-600" },
     info: { confirm: "bg-blue-600 hover:bg-blue-700", icon: "text-blue-600" },
+    success: { confirm: "bg-emerald-600 hover:bg-emerald-700", icon: "text-emerald-600" },
   };
 
   const styles = variantStyles[options.variant ?? "danger"];

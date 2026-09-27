@@ -2,9 +2,14 @@
 // import { CircleArrowDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
+import toast from "react-hot-toast";
 import { usePermissions } from "@/lib/permission-context";
 import OrdersTable from "../../_components/OrdersTable";
 import Checkbox from "@/app/_components/Checkbox";
+
+// An order must always have at least one item, so the last item in the list
+// cannot be removed.
+const LAST_ITEM_ERROR = "Cannot remove the last item. An order must have at least one item.";
 
 interface OrderItem {
   id: number;
@@ -119,7 +124,7 @@ export default function OrdersClient() {
 
   async function loadOrders() {
     try {
-      const res = await fetch("/api/orders");
+      const res = await fetch("/api/orders", { cache: "no-store" });
       const data = await res.json();
       if (data.error) {
         setError(data.error);
@@ -285,6 +290,9 @@ export default function OrdersClient() {
         return;
       }
       setShowAddModal(false);
+      toast.success(
+        data.orderId ? `Order #${data.orderId} created successfully` : "Order created successfully",
+      );
       await loadOrders();
     } catch {
       setFormError("Unable to create order");
@@ -647,6 +655,12 @@ export default function OrdersClient() {
                         setAddItemQty("1");
                         setAddItemPrice("");
                         setSelectedAddons([]);
+                        setFieldErrors((prev) => {
+                          if (!prev.items) return prev;
+                          const next = { ...prev };
+                          delete next.items;
+                          return next;
+                        });
                       }}
                       className="w-full rounded-lg bg-orange-500 px-2 py-2.5 text-white text-sm font-semibold hover:bg-orange-600"
                     >
@@ -754,12 +768,18 @@ export default function OrdersClient() {
                               <button
                                 type="button"
                                 onClick={() => {
+                                  if (form.items.length <= 1) {
+                                    setFieldErrors((prev) => ({ ...prev, items: LAST_ITEM_ERROR }));
+                                    toast.error(LAST_ITEM_ERROR);
+                                    return;
+                                  }
                                   setForm((prev) => ({
                                     ...prev,
                                     items: prev.items.filter((_, i) => i !== index),
                                   }));
                                 }}
                                 className="text-red-400 text-lg"
+                                title={form.items.length <= 1 ? LAST_ITEM_ERROR : "Remove item"}
                                 aria-label="Remove item"
                               >
                                 ✕

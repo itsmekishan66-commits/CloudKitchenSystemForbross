@@ -97,6 +97,7 @@ interface GatewayTransaction {
   createdAt: string;
   updatedAt: string;
   customerName: string | null;
+  customerPhone: string | null;
   orderPaymentMethod: string | null;
 }
 
@@ -1976,6 +1977,7 @@ export default function PaymentPage() {
               <thead>
                 <tr className="border-b border-gray-50">
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Provider</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Customer</th>
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Order</th>
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">UUID / PIDX</th>
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Gateway Ref</th>
@@ -2003,11 +2005,23 @@ export default function PaymentPage() {
                         </span>
                       </td>
                       <td className="px-5 py-4">
+                        {t.customerName ? (
+                          <>
+                            <p className="text-sm font-medium">{t.customerName}</p>
+                            {t.customerPhone && (
+                              <p className="text-xs text-gray-400">{t.customerPhone}</p>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-sm text-gray-300">—</p>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
                         <p className="text-sm font-medium">
                           {t.orderId ? `Order #${t.orderId}` : "Order #—"}
                         </p>
-                        {t.customerName && (
-                          <p className="text-xs text-gray-400">{t.customerName}</p>
+                        {!t.orderId && (
+                          <p className="text-xs text-gray-400">No order created</p>
                         )}
                       </td>
                       <td className="px-5 py-4 text-xs font-mono text-gray-500 max-w-40 truncate" title={t.transactionUuid}>

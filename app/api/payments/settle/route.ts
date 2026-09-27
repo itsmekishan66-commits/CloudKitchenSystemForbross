@@ -11,6 +11,7 @@ import type { NewTransaction, NewDue } from "@/db/schemas";
 import apiRequirePermissions from "@/lib/apiRequirePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
 import { CACHE_TAGS } from "@/lib/cache-tags";
+import { isPrepaidOrder } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,40 @@ export async function POST(request: Request) {
 
     if (totalReceived <= 0 && !markAsDue) {
       return NextResponse.json({ error: "At least one payment method or mark as due is required" }, { status: 400 });
+    }
+
+    const orderIdNum = Number(orderId);
+    if (!Number.isInteger(orderIdNum) || orderIdNum <= 0) {
+      return NextResponse.json({ error: "A valid order id is required" }, { status: 400 });
+    }
+
+    const [targetOrder] = await db
+      .select({
+        id: orders.id,
+        paymentMethod: orders.paymentMethod,
+        paymentSettled: orders.paymentSettled,
+        dueAmount: orders.dueAmount,
+      })
+      .from(orders)
+      .where(eq(orders.id, orderIdNum))
+      .limit(1);
+
+    if (!targetOrder) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    // Orders paid online at checkout were already confirmed server-to-server by
+    // the gateway verify route, which created them with `paymentSettled: true`.
+    // Settling them again would double-count the money (extra ledger rows, a
+    // bogus due, and `paymentSettled` flipped back to false). The admin UI hides
+    // the settlement flow for these — this is the server-side guarantee.
+    if (isPrepaidOrder(targetOrder)) {
+      return NextResponse.json(
+        {
+          error: `Order #${orderIdNum} was already paid via ${targetOrder.paymentMethod} at checkout — no settlement is required.`,
+        },
+        { status: 409 },
+      );
     }
 
     // const today = new Date().toISOString().slice(0, 10);

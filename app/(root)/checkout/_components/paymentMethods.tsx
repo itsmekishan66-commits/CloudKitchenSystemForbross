@@ -5,8 +5,9 @@ interface Props {
 
 const OPTIONS = [
   { value: "COD", label: "Cash On Delivery", hint: "Pay when your order arrives" },
-  { value: "ESEWA", label: "eSewa", hint: "Pay online via eSewa wallet" },
-  { value: "KHALTI", label: "Khalti", hint: "Pay online via Khalti" },
+  // commented out for now because the eSewa integration and the Khalti integration are not the part of the Cloud Kitchen project as for the requirement of this project
+  // { value: "ESEWA", label: "eSewa", hint: "Pay online via eSewa wallet" },
+  // { value: "KHALTI", label: "Khalti", hint: "Pay online via Khalti" },
 ] as const;
 
 export default function PaymentMethods({ value, onChange }: Props) {

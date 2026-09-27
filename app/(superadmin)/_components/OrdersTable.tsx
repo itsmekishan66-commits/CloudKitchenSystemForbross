@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CheckCircle2 } from "lucide-react";
+import toast from "react-hot-toast";
 import { usePermissions } from "@/lib/permission-context";
+import { isPrepaidOrder } from "@/lib/constants";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/app/_components/ConfirmPopup";
 import Checkbox from "@/app/_components/Checkbox";
+
+// An order must always keep at least one item, so the last remaining item
+// cannot be removed — the order itself has to be cancelled instead.
+const LAST_ITEM_ERROR = "Cannot remove the last item. An order must have at least one item.";
 
 // Payment method badge colors for orders.
 const PAYMENT_METHOD_BADGE: Record<string, { label: string; className: string }> = {
@@ -14,11 +21,20 @@ const PAYMENT_METHOD_BADGE: Record<string, { label: string; className: string }>
   KHALTI: { label: "KHALTI", className: "bg-purple-50 text-purple-700" },
 };
 
-function PaymentMethodBadge({ method }: { method: string }) {
+function PaymentMethodBadge({ method, paid }: { method: string; paid?: boolean }) {
   const cfg = PAYMENT_METHOD_BADGE[method] || { label: method, className: "bg-gray-100 text-gray-600" };
   return (
-    <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${cfg.className}`}>
+    <span
+      className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${cfg.className}`}
+      title={paid ? "Paid online at checkout" : undefined}
+    >
       {cfg.label}
+      {paid && (
+        <span className="inline-flex items-center gap-0.5 normal-case tracking-normal font-semibold">
+          <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+          Paid
+        </span>
+      )}
     </span>
   );
 }
@@ -121,7 +137,14 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
       prev.map((order) => (order.id === id ? { ...order, status } : order))
     );
     if (status === "Delivered" && prevOrder) {
-      setSettleOrder({ ...prevOrder, status: "Delivered" });
+      if (isPrepaidOrder(prevOrder)) {
+        // Paid online at checkout — the money is already in the account, so
+        // there is nothing to settle. Just confirm the delivery.
+        setMessage(`Order #${id} delivered. Already settled via ${prevOrder.paymentMethod}.`);
+        setMessageType("success");
+      } else {
+        setSettleOrder({ ...prevOrder, status: "Delivered" });
+      }
     } else if (data.warnings && data.warnings.length > 0) {
       setMessage(`Stock warnings: ${data.warnings.join("; ")}`);
       setMessageType("warning");
@@ -148,22 +171,31 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
     );
   }
 
-  async function deleteItem(itemId: number, orderId: number) {
-    const res = await fetch(`/api/orders/items?itemId=${itemId}`, { method: "DELETE" });
-    const data = await res.json();
-    if (data.error) { setMessage(data.error); setMessageType("error"); return; }
-    if (data.empty) {
+  async function deleteItem(itemId: number, orderId: number, title: string) {
+    try {
+      const res = await fetch(`/api/orders/items?itemId=${itemId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        const errMsg = data.error || "Unable to remove item";
+        setMessage(errMsg);
+        setMessageType("error");
+        toast.error(errMsg);
+        return;
+      }
       setLocalOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, total: "0.00", status: "Cancelled", items: [] } : o))
+        prev.map((o) =>
+          o.id === orderId
+            ? { ...o, total: data.total, items: o.items.filter((i) => i.id !== itemId) }
+            : o
+        )
       );
-    } else {
-      setLocalOrders((prev) =>
-        prev.map((o) => ({
-          ...o,
-          total: data.total,
-          items: o.items.filter((i) => i.id !== itemId),
-        }))
-      );
+      setMessage(`Removed ${title} from order #${orderId}.`);
+      setMessageType("success");
+      toast.success(`Removed ${title} from order #${orderId}`);
+    } catch {
+      setMessage("Unable to remove item");
+      setMessageType("error");
+      toast.error("Unable to remove item");
     }
   }
 
@@ -338,10 +370,15 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                           return;
                         }
                       } else if ((newStatus === "Delivered" || newStatus === "Cancelled") && order.status !== newStatus) {
+                        // Prepaid orders only need the delivery confirmation —
+                        // no settlement step follows.
+                        const prepaid = newStatus === "Delivered" && isPrepaidOrder(order);
                         const ok = await confirm({
                           title: `Mark as ${newStatus}?`,
-                          message: `This action cannot be undone. Are you sure you want to mark this order as "${newStatus}"?`,
-                          confirmText: `Yes, ${newStatus}`,
+                          message: prepaid
+                            ? `Payment already received via ${order.paymentMethod}. Are you sure you want to mark this order as delivered?`
+                            : `This action cannot be undone. Are you sure you want to mark this order as "${newStatus}"?`,
+                          confirmText: newStatus === "Delivered" ? "Yes, Delivered" : `Yes, ${newStatus}`,
                           variant: "warning",
                         });
                         if (!ok) {
@@ -364,7 +401,15 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                     {order.status}
                   </span>
                 )}
-                {order.status === "Delivered" && (
+                {isPrepaidOrder(order) ? (
+                  <span
+                    className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5"
+                    title={`Paid online via ${order.paymentMethod} at checkout — no settlement needed`}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    Settled
+                  </span>
+                ) : order.status === "Delivered" ? (
                   Number(order.dueAmount ?? 0) > 0 ? (
                     <button
                       onClick={() => router.push(`/dashboard/payment/settle/${order.id}`)}
@@ -384,7 +429,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                       Not Settled
                     </button>
                   )
-                )}
+                ) : null}
                 <span className="text-xs text-gray-400 mx-2 md:mx-0">
                   {new Date(order.createdAt).toLocaleDateString()}
                 </span>
@@ -400,7 +445,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   <p><span className="text-gray-400">Address:</span> {order.address}</p>
                   {order.landmarkName && <p><span className="text-gray-400">Landmark:</span> {order.landmarkName}</p>}
                   {order.userEmail && <p><span className="text-gray-400">Email:</span> {order.userEmail}</p>}
-                  <p><span className="text-gray-400">Payment:</span> <PaymentMethodBadge method={order.paymentMethod} /></p>
+                  <p><span className="text-gray-400">Payment:</span> <PaymentMethodBadge method={order.paymentMethod} paid={isPrepaidOrder(order)} /></p>
                   {order.notes && <p><span className="text-gray-400">Note:</span> {order.notes}</p>}
                   {!order.isGuest && order.userId && Number(order.userCreditBalance || 0) > 0 && (
                     <p><span className="text-gray-400">Credit:</span> Rs {Number(order.userCreditBalance).toFixed(2)}</p>
@@ -493,14 +538,24 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                               <td className="py-1.5 text-right">
                                 <button
                                   onClick={async () => {
+                                    // An order always keeps at least one item, so the
+                                    // last remaining one cannot be removed.
+                                    if (order.items.length <= 1) {
+                                      setMessage(LAST_ITEM_ERROR);
+                                      setMessageType("error");
+                                      toast.error(LAST_ITEM_ERROR);
+                                      return;
+                                    }
                                     const ok = await confirm({
                                       title: "Remove Item",
                                       message: `Are you sure you want to remove ${item.title} from this order?`,
                                       confirmText: "Remove",
                                       variant: "danger",
                                     });
-                                    if (ok) deleteItem(item.id, order.id);
+                                    if (ok) deleteItem(item.id, order.id, item.title);
                                   }}
+                                  title={order.items.length <= 1 ? LAST_ITEM_ERROR : "Remove item"}
+                                  aria-label={`Remove ${item.title}`}
                                   className="text-red-400 text-xs"
                                 >
                                   ✕

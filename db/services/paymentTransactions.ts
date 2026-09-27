@@ -69,11 +69,52 @@ export async function updatePaymentTransaction(
 }
 
 /**
+ * Read `customerName` / `phone` out of a stored `order_payload` snapshot.
+ *
+ * The snapshot is written at initiate time (before any order exists), so it
+ * is the only record of WHO started a payment session until — and unless —
+ * the verify step links an order to the transaction. Drizzle may hand back
+ * a JSON column as an object or as a raw string depending on driver/path, so
+ * both are handled.
+ */
+function readSnapshotCustomer(payload: unknown): {
+  customerName: string | null;
+  phone: string | null;
+} {
+  if (payload == null) return { customerName: null, phone: null };
+
+  let snapshot: Record<string, unknown> | null = null;
+  if (typeof payload === "string") {
+    try {
+      snapshot = JSON.parse(payload) as Record<string, unknown>;
+    } catch {
+      return { customerName: null, phone: null };
+    }
+  } else if (typeof payload === "object") {
+    snapshot = payload as Record<string, unknown>;
+  }
+
+  if (!snapshot) return { customerName: null, phone: null };
+
+  const name = typeof snapshot.customerName === "string" ? snapshot.customerName.trim() : "";
+  const phone = typeof snapshot.phone === "string" ? snapshot.phone.trim() : "";
+  return {
+    customerName: name || null,
+    phone: phone || null,
+  };
+}
+
+/**
  * List all gateway (payment_transactions) records newest first, joined with
  * the order they belong to (for customer name / order metadata in the UI).
+ *
+ * The customer is resolved from the linked order when one exists, and
+ * otherwise falls back to the `order_payload` snapshot captured at initiate
+ * time — so abandoned / failed / cancelled sessions are still attributable
+ * to the customer who tried to pay.
  */
 export async function getGatewayTransactions() {
-  return db
+  const rows = await db
     .select({
       id: paymentTransactions.id,
       orderId: paymentTransactions.orderId,
@@ -86,11 +127,24 @@ export async function getGatewayTransactions() {
       createdAt: paymentTransactions.createdAt,
       updatedAt: paymentTransactions.updatedAt,
       customerName: orders.customerName,
+      customerPhone: orders.phone,
       orderPaymentMethod: orders.paymentMethod,
+      orderPayload: paymentTransactions.orderPayload,
     })
     .from(paymentTransactions)
     .leftJoin(orders, eq(paymentTransactions.orderId, orders.id))
     .orderBy(desc(paymentTransactions.createdAt));
+
+  return rows.map(({ orderPayload, customerName, customerPhone, ...row }) => {
+    const snapshot = readSnapshotCustomer(orderPayload);
+    return {
+      ...row,
+      // Order is authoritative when linked; otherwise the snapshot identifies
+      // who opened the session.
+      customerName: customerName ?? snapshot.customerName,
+      customerPhone: customerPhone ?? snapshot.phone,
+    };
+  });
 }
 
 /**

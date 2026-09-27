@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { unstable_cache, revalidateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 import { getOrdersWithDetails, updateOrderStatus, getOrderById } from "@/db/services/orders";
 import {
   validateAndPriceCheckout,
@@ -14,6 +14,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type UpdateOrderPayload = {
   id?: number;
@@ -36,14 +37,13 @@ export async function GET() {
       return user;
     }
 
-    const getCachedOrders = unstable_cache(
-      () => getOrdersWithDetails(),
-      [CACHE_TAGS.ORDERS],
-      { revalidate: 30, tags: [CACHE_TAGS.ORDERS] }
-    );
-
-    const orders = await getCachedOrders();
-    return NextResponse.json({ orders });
+    // Always read straight from the database. The order list is read-your-writes:
+    // a newly created / updated order must be visible on the very next request,
+    // so it must never be served from `unstable_cache` (whose
+    // `revalidateTag(tag, "max")` uses stale-while-revalidate semantics and would
+    // hand back the previous list once before refreshing in the background).
+    const orders = await getOrdersWithDetails();
+    return NextResponse.json({ orders }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Failed to load orders", error);
     return NextResponse.json(

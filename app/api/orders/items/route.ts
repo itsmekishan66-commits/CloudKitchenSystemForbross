@@ -90,16 +90,21 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Order item not found" }, { status: 404 });
     }
 
+    // An order must always keep at least one item, so the last remaining item
+    // cannot be removed — the order itself has to be cancelled instead.
+    const existing = await db.select().from(orderItems).where(eq(orderItems.orderId, item.orderId));
+    if (existing.length <= 1) {
+      return NextResponse.json(
+        { error: "Cannot remove the last item. An order must have at least one item." },
+        { status: 400 },
+      );
+    }
+
     await db.delete(orderItems).where(eq(orderItems.id, itemId));
 
     const [order] = await db.select().from(orders).where(eq(orders.id, item.orderId)).limit(1);
 
     const remaining = await db.select().from(orderItems).where(eq(orderItems.orderId, item.orderId));
-
-    if (remaining.length === 0) {
-      await db.update(orders).set({ total: "0.00", status: "Cancelled" }).where(eq(orders.id, item.orderId));
-      return NextResponse.json({ ok: true, total: "0.00", empty: true });
-    }
 
     const itemsSubtotal = remaining.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
     const deliveryCharge = await getEffectiveDeliveryCharge(order?.landmarkName ?? null, itemsSubtotal, Number(order?.deliveryCharge ?? 0));
@@ -108,7 +113,7 @@ export async function DELETE(request: Request) {
     const newTotal = Math.max(0, itemsSubtotal + deliveryCharge - discountAmount).toFixed(2);
     await db.update(orders).set({ total: newTotal, deliveryCharge: deliveryCharge.toFixed(2) }).where(eq(orders.id, item.orderId));
 
-    return NextResponse.json({ ok: true, total: newTotal, empty: false });
+    return NextResponse.json({ ok: true, total: newTotal });
   } catch (error) {
     console.error("Failed to delete item", error);
     return NextResponse.json({ error: "Unable to delete item" }, { status: 500 });

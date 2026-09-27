@@ -125,11 +125,35 @@ export type KhaltiLookupStatus =
 
 export type KhaltiLookupResult = {
   pidx: string;
+  /** Amount actually paid, in paisa. */
   totalAmount: number;
   status: KhaltiLookupStatus;
+  /** Provider-issued reference for the settled transaction (e.g. `8EVLYgQJosvyGQEYBftRRy`). */
   transactionId: string;
   fee: number;
   refunded: boolean;
+};
+
+/**
+ * Shape of the `epayment/lookup/` response body.
+ *
+ * NOTE: the server-side lookup API returns SNAKE_CASE keys
+ * (`total_amount`, `transaction_id`). Only `pidx`, `status`, `fee` and
+ * `refunded` look camel-ish because they are single words. The camelCase
+ * spellings are accepted as a fallback because the Khalti *client* SDK
+ * (and some proxy wrappers) return that shape instead — reading only one
+ * spelling silently yields 0 / "" and breaks amount verification.
+ */
+type KhaltiLookupBody = {
+  pidx?: string;
+  status?: string;
+  total_amount?: number;
+  transaction_id?: string;
+  totalAmount?: number;
+  transactionId?: string;
+  fee?: number;
+  refunded?: boolean;
+  detail?: string;
 };
 
 /**
@@ -150,20 +174,19 @@ export async function lookupKhaltiPayment(
     cache: "no-store",
   });
 
-  const body = (await res.json().catch(() => null)) as
-    | (Partial<KhaltiLookupResult> & { detail?: string })
-    | null;
+  const body = (await res.json().catch(() => null)) as KhaltiLookupBody | null;
 
   if (!res.ok || !body || !body.status) {
     throw new Error(body?.detail || `Khalti lookup failed with HTTP ${res.status}`);
   }
 
   return {
-    pidx: body.pidx as string,
-    totalAmount: body.totalAmount ?? 0,
+    pidx: body.pidx ?? pidx,
+    // snake_case first, camelCase fallback (see KhaltiLookupBody).
+    totalAmount: Number(body.total_amount ?? body.totalAmount ?? 0),
     status: body.status as KhaltiLookupStatus,
-    transactionId: body.transactionId ?? "",
-    fee: body.fee ?? 0,
+    transactionId: body.transaction_id ?? body.transactionId ?? "",
+    fee: Number(body.fee ?? 0),
     refunded: body.refunded ?? false,
   };
 }

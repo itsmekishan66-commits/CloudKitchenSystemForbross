@@ -13,6 +13,39 @@ import Checkbox from "@/app/_components/Checkbox";
 // cannot be removed — the order itself has to be cancelled instead.
 const LAST_ITEM_ERROR = "Cannot remove the last item. An order must have at least one item.";
 
+// `type` query param for /api/orders/[id]/receipt — anything else 400s.
+type ReceiptType = "kitchen" | "customer";
+
+// Each receipt type gets its own button, so staff can jump straight to the copy
+// they need (kitchen ticket vs. the bill handed to the customer) without
+// opening one and switching. The title is a tooltip for the bare labels.
+const RECEIPT_BUTTONS: { type: ReceiptType; label: string; title: string; className: string }[] = [
+  {
+    type: "kitchen",
+    label: "Kitchen",
+    title: "Kitchen copy — items and notes only, no prices",
+    className: "bg-yellow-50 text-yellow-700 border border-yellow-200 hover:bg-yellow-100",
+  },
+  {
+    type: "customer",
+    label: "Customer",
+    title: "Customer copy — itemised bill with totals",
+    className: "bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100",
+  },
+];
+
+// A receipt only becomes useful once the order has actually reached the
+// kitchen, so the buttons stay hidden while it is still Pending and once it
+// has been Cancelled.
+const RECEIPT_STATUSES = ["Preparing", "Out For Delivery", "Delivered"];
+
+const showsReceipt = (status: string) => RECEIPT_STATUSES.includes(status);
+
+// Hides the browser's built-in PDF chrome (the "1 / 1", zoom, rotate, download
+// and print strip) inside the preview iframe, and fits the narrow receipt to the
+// pane. This is a fragment, so it never reaches the API route.
+const PDF_VIEWER_PARAMS = "#toolbar=0&navpanes=0&view=FitH";
+
 // Payment method badge colors for orders.
 const PAYMENT_METHOD_BADGE: Record<string, { label: string; className: string }> = {
   COD: { label: "COD", className: "bg-gray-100 text-gray-600" },
@@ -103,10 +136,31 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
   const [selectedAddons, setSelectedAddons] = useState<{ name: string; price: number; inventoryItemId?: number | null; quantity?: number | null }[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
 
+  // Receipts are never persisted — the API route regenerates the PDF from live
+  // order data on every hit, so the iframe below is always a fresh render.
+  const [receipt, setReceipt] = useState<{ orderId: number; type: ReceiptType } | null>(null);
+  // Which order+type the loaded PDF belongs to. Deriving `receiptLoaded` from
+  // this means reopening for a different order or copy naturally shows the
+  // spinner again without an effect to reset anything.
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const receiptKey = receipt ? `${receipt.orderId}-${receipt.type}` : null;
+  const receiptLoaded = receiptKey !== null && loadedKey === receiptKey;
+  const receiptFrameRef = useRef<HTMLIFrameElement>(null);
+
   useEffect(() => {
     const t = setTimeout(() => setLocalOrders(orders), 0);
     return () => clearTimeout(t);
   }, [orders]);
+
+  // Opening the modal is all that's needed to start a download: the iframe
+  // points straight at the route, which regenerates the PDF from live data.
+  const openReceipt = (orderId: number, type: ReceiptType) => {
+    setReceipt({ orderId, type });
+  };
+
+  const printReceipt = () => {
+    receiptFrameRef.current?.contentWindow?.print();
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -136,6 +190,16 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
     setLocalOrders((prev) =>
       prev.map((order) => (order.id === id ? { ...order, status } : order))
     );
+
+    // Starting a ticket means the kitchen needs it, so the kitchen copy pops
+    // open on the transition only - re-selecting "Preparing" on an order that
+    // is already cooking leaves the screen alone. The receipt is a live
+    // regeneration of current data, so it is still correct at this point even
+    // though the order may change later.
+    if (status === "Preparing" && prevOrder && prevOrder.status !== "Preparing") {
+      openReceipt(id, "kitchen");
+    }
+
     if (status === "Delivered" && prevOrder) {
       if (isPrepaidOrder(prevOrder)) {
         // Paid online at checkout — the money is already in the account, so
@@ -433,6 +497,18 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                 <span className="text-xs text-gray-400 mx-2 md:mx-0">
                   {new Date(order.createdAt).toLocaleDateString()}
                 </span>
+                {can("VIEW_ORDERS") &&
+                  showsReceipt(order.status) &&
+                  RECEIPT_BUTTONS.map((btn) => (
+                    <button
+                      key={btn.type}
+                      onClick={() => openReceipt(order.id, btn.type)}
+                      title={btn.title}
+                      className={`text-xs font-medium rounded-lg px-3 py-1.5 transition-colors cursor-pointer ${btn.className}`}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
               </div>
             </div>
 
@@ -666,6 +742,45 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
               >
                 Settle Now
                 <span aria-hidden="true">→</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Modal — previews the on-the-fly generated PDF */}
+      {receipt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-[95vw] sm:max-w-md rounded-2xl bg-white shadow-xl flex flex-col max-h-[90vh]">
+            <div className="relative overflow-hidden bg-white p-4 rounded-2xl">
+              {!receiptLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-400">
+                  Generating receipt…
+                </div>
+              )}
+              <iframe
+                key={receiptKey}
+                ref={receiptFrameRef}
+                src={`/api/orders/${receipt.orderId}/receipt?type=${receipt.type}${PDF_VIEWER_PARAMS}`}
+                onLoad={() => setLoadedKey(receiptKey)}
+                title={`Receipt for order ${receipt.orderId}`}
+                className="w-full h-[60vh] rounded-lg border border-gray-200 bg-white"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-100">
+              <button
+                onClick={() => setReceipt(null)}
+                className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Close
+              </button>
+              <button
+                onClick={printReceipt}
+                disabled={!receiptLoaded}
+                className="flex-1 rounded-lg bg-orange-500 px-4 py-2 text-sm text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Print
               </button>
             </div>
           </div>
